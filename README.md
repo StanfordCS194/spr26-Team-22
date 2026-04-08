@@ -1,3 +1,3 @@
 # spr26-Team-22
 
-Wiki: [insert link]
+Wiki: [link here](https://github.com/StanfordCS194/spr26-Team-22/wiki)
