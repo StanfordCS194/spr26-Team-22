@@ -10,9 +10,13 @@ Read it before writing any new file. Follow it strictly unless the user explicit
 A lightweight iOS app that helps users maintain friendships by reducing friction around
 scheduling in-person hangouts. The core loop:
 
-**Analyze relationship data → surface a smart suggestion → make it easy to send an invite.**
+**Detect a free slot + identify an overdue friend → surface a time-specific suggestion → make it easy to send an invite.**
 
-MVP data source: Apple Calendar (implicit signals only).
+A suggestion requires both signals simultaneously: a gap in the user's near-term calendar
+AND a contact whose relationship health score exceeds a recency threshold. Either signal
+alone produces no suggestion — the inbox stays empty.
+
+MVP data source: Apple Calendar (implicit signals only — past events for health, upcoming gaps for opportunity).
 MVP suggestion engine: rules-based (not ML).
 MVP invite mechanism: pre-filled iMessage via URL scheme.
 
@@ -163,12 +167,14 @@ EtaApp
  ├─ CalendarDataProvider()
  ├─ RelationshipService(providers: [CalendarDataProvider], repository: ContactRepository)
  ├─ RulesSuggestionStrategy()
- ├─ SuggestionService(relationship: RelationshipService, strategy: RulesSuggestionStrategy)
+ ├─ SuggestionService(calendar: CalendarDataProvider, relationship: RelationshipService, strategy: RulesSuggestionStrategy)
  ├─ iMessageInviteProvider()
  ├─ InviteService(provider: iMessageInviteProvider)
- ├─ SuggestionViewModel(suggestion: SuggestionService, invite: InviteService, formatter: ContactFormatter)
- └─ ConnectionsViewModel(repository: ContactRepository, formatter: ContactFormatter)
+ ├─ SuggestionViewModel(suggestionService: SuggestionService, inviteService: InviteService, formatter: ContactFormatter)
+ └─ ConnectionsViewModel(repository: ContactRepository, formatter: ContactFormatter, relationshipService: RelationshipService)
 ```
+
+`CalendarDataProvider` is injected into both `RelationshipService` (as an `ImplicitDataProvider` for historical event fetching) and `SuggestionService` (concretely, for free slot detection). A single instance is shared between both.
 
 ViewModels are created in `EtaApp` and passed into views as constructor arguments
 or via `.environment()` if needed across the tab hierarchy.
@@ -201,7 +207,9 @@ struct HangoutEvent {
     var title: String
     var startDate: Date
     var endDate: Date
-    var participantEmails: [String]   // Matched against TrackedContact.emailAddress
+    // One ContactMatcher per attendee — each encapsulates a value and a matching rule.
+    // See ContactMatcher enum (defined alongside HangoutEvent) for .email and .name cases.
+    var participantMatchers: [ContactMatcher]
 }
 ```
 
@@ -211,6 +219,7 @@ struct HangoutEvent {
 struct RelationshipHealth {
     var contact: TrackedContact
     var lastHangoutDate: Date?
+    var lastHangoutTitle: String?     // Title of most recent event — used for personalised labels
     var hangoutCount: Int             // In the look-back window (default: 90 days)
     var score: Double                 // Higher = more overdue. Used for ranking.
 }
@@ -223,6 +232,7 @@ struct Suggestion {
     var contact: TrackedContact
     var activity: Activity
     var reason: String                // Human-readable, e.g. "You haven't hung out in 3 weeks"
+    var proposedTime: DateInterval    // The specific free slot that triggered this suggestion
     var generatedAt: Date
 }
 ```
@@ -278,22 +288,42 @@ Both permission requests must be preceded by a brief in-context explanation
 
 ## Suggestion lifecycle
 
-1. `SuggestionViewModel` calls `SuggestionService.generateSuggestion()` on:
-   - App foreground (via `scenePhase` observation in the ViewModel)
+1. `SuggestionViewModel.refresh()` is called on:
+   - Initial load (`.task` in `SuggestionView`)
+   - App foreground — `SuggestionView` observes `@Environment(\.scenePhase)` and calls `refresh()` when the scene becomes `.active`. Scene phase is observed in the View, not the ViewModel, so the ViewModel stays free of SwiftUI and UIKit imports.
    - Explicit user pull-to-refresh
-2. `SuggestionService` calls `RelationshipService.computeHealth()` which fans out to all `ImplicitDataProvider`s
-3. Result flows back to `SuggestionViewModel` and updates the view
+2. `SuggestionService.generateSuggestion()` checks **both signals** in order:
+   a. Calls `CalendarDataProvider.findFreeSlot(within: 3)` — looks up to 3 days ahead for a gap ≥ 1 hour during 9am–9pm. If none → returns nil immediately.
+   b. Calls `RelationshipService.computeHealth()` to get ranked health scores.
+   c. Calls `strategy.suggest(from: healthScores)` — the strategy returns nil if no contact exceeds the recency threshold (score < 7, i.e. seen within the last week). If nil → returns nil.
+   d. Attaches `proposedTime` from step (a) to the strategy's result and returns the complete `Suggestion`.
+3. Result (or nil) flows back to `SuggestionViewModel` — view renders the card or the empty inbox state.
+4. User taps **"Maybe Later"** → `SuggestionViewModel.dismiss()` sets `suggestion = nil`. Nothing is persisted; the next `refresh()` recomputes from scratch.
 
 ---
 
 ## Calendar event → hangout matching
 
 `CalendarDataProvider` counts an event as a hangout with a `TrackedContact` when:
-- The event has at least one attendee whose email matches `TrackedContact.emailAddress` (case-insensitive)
 - The event is not an all-day event (all-day events are likely non-personal)
 - The event duration is ≥ 15 minutes
+- At least one attendee is identified as a tracked contact via `ContactMatcher`
 
-Events with no attendee data are ignored — no fuzzy title matching.
+`ContactMatcher` tries two signals per attendee, in order:
+1. **Email** — extracted from `EKParticipant.url` (`mailto:` prefix stripped, lowercased). Matched against `TrackedContact.emailAddress`.
+2. **Name** — `EKParticipant.name` lowercased, matched against `"\(givenName) \(familyName)"` constructed in given-first order (not `contact.name`, which may be locale-formatted). `EKParticipant` does not expose phone numbers, so name is the only fallback.
+
+Events with no attendee data are ignored. The current user and declined attendees are excluded from matcher construction.
+
+## Free slot detection
+
+`CalendarDataProvider.findFreeSlot(within:minimumDuration:)` finds the earliest gap in the user's calendar suitable for a hangout:
+- Searches each day from now up to `lookAheadDays` (default 3)
+- Search window per day: 9am–9pm
+- Minimum gap duration: 1 hour (configurable via `minimumDuration` parameter)
+- Returns the first qualifying `DateInterval`, or nil if none found
+
+This method is **not** on the `ImplicitDataProvider` protocol — free slot detection is a distinct capability from historical event fetching, and no other data source is expected to provide it. `SuggestionService` depends on `CalendarDataProvider` concretely for this method.
 
 ---
 
@@ -320,6 +350,7 @@ CNContactFormatter.string(from: cnContact, style: .fullName)
 
 - `ContactRepository` — SwiftData is stable; no repository protocol needed now
 - Relationship scoring formula — lives as a private method inside `RelationshipService`; extract to a `RelationshipScorer` protocol only if the formula needs to vary per user or be swapped
+- Free slot detection — `CalendarDataProvider.findFreeSlot` is a concrete method, not behind a protocol. If a second calendar source (e.g. Google Calendar) ever needs to contribute free-slot data, extract a `FreeTimeProvider` protocol at that point.
 - Navigation routing — NavigationStack in-view is sufficient at this scale
 - Dependency injection container — constructor injection is explicit enough for a team of 5
 
@@ -349,3 +380,4 @@ CNContactFormatter.string(from: cnContact, style: .fullName)
 9. Keep the `Activity` enum hardcoded until the user explicitly asks for dynamic activities.
 10. When in doubt about scope, do less and ask — this is an MVP.
 11. Never call `CNContactFormatter` directly in a View or ViewModel — always go through `ContactFormatter.displayName(for:)`.
+12. Scene phase is observed in Views via `@Environment(\.scenePhase)`, not in ViewModels. ViewModels expose a plain `refresh() async` method; the View calls it from `.onChange(of: scenePhase)`.
