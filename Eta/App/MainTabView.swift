@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainTabView: View {
+    let connectionsViewModel: ConnectionsViewModel
+
     var body: some View {
         TabView {
             Tab("For You", systemImage: "sparkles") {
@@ -12,17 +14,8 @@ struct MainTabView: View {
                 )
             }
             Tab("Friends", systemImage: "person.2") {
-                // Replaced by ConnectionsView in PR 2
-                ContentUnavailableView(
-                    "No Friends Yet",
-                    systemImage: "person.2",
-                    description: Text("Your tracked friends will appear here.")
-                )
+                ConnectionsView(viewModel: connectionsViewModel)
             }
         }
     }
-}
-
-#Preview {
-    MainTabView()
 }

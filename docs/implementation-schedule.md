@@ -84,7 +84,7 @@ Covers:
 | PR | Status |
 |----|--------|
 | PR 1 — Scaffold, models, protocols | [x] Complete |
-| PR 2 — Connections                 | [ ] Not started |
+| PR 2 — Connections                 | [x] Complete    |
 | PR 3 — Calendar + health           | [ ] Not started |
 | PR 4 — Suggestion engine           | [ ] Not started |
 | PR 5 — Invite flow                 | [ ] Not started |
