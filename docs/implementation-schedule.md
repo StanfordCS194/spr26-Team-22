@@ -46,14 +46,19 @@ Files:
 ---
 
 ## PR 4 — Suggestion engine and For You tab
-**Shippable demo:** For You tab shows real suggestion card, pull-to-refresh works
+**Shippable demo:** For You tab shows an opportunity-driven suggestion card ("You have time this afternoon — want to grab coffee with Karan?"), pull-to-refresh works, inbox is empty when there's no free time or no overdue friend
+
+A suggestion requires **both signals**: a free slot in the near-term calendar AND a contact
+whose health score exceeds the recency threshold (score ≥ 7). Either signal alone → empty inbox.
 
 Files:
-- `Eta/Strategies/RulesSuggestionStrategy.swift` — sort by health score, pick top
-- `Eta/Services/SuggestionService.swift` — RelationshipService + SuggestionStrategy → Suggestion
-- `Eta/ViewModels/SuggestionViewModel.swift` — scene-phase observer, pull-to-refresh
-- `Eta/Views/Suggestion/SuggestionView.swift` — suggestion layout, disabled Send button
-- `Eta/Views/Suggestion/SuggestionCard.swift` — reusable card component
+- `Eta/Models/Suggestion.swift` — add `proposedTime: DateInterval`
+- `Eta/DataProviders/CalendarDataProvider.swift` — add `findFreeSlot(within:minimumDuration:)`, searches up to 3 days ahead in a 9am–9pm window for a gap ≥ 1 hour
+- `Eta/Strategies/RulesSuggestionStrategy.swift` — returns nil if highest score < 7 ("recently saw everyone"); otherwise picks top contact, random activity, tiered reason string
+- `Eta/Services/SuggestionService.swift` — checks free slot first, then health; attaches `proposedTime` to strategy result; depends on `CalendarDataProvider` concretely for slot detection
+- `Eta/ViewModels/SuggestionViewModel.swift` — `@Observable`; exposes `suggestion`, `isLoading`, `timeLabel`; `refresh() async`, `dismiss()`
+- `Eta/Views/Suggestion/SuggestionView.swift` — inbox style; empty state when no suggestion; scene phase observed here via `.onChange(of: scenePhase)`
+- `Eta/Views/Suggestion/SuggestionCard.swift` — displays time label + contact + activity; "Yes" disabled (PR 5); "Maybe Later" calls `dismiss()`
 
 ---
 
@@ -86,6 +91,6 @@ Covers:
 | PR 1 — Scaffold, models, protocols | [x] Complete |
 | PR 2 — Connections                 | [x] Complete    |
 | PR 3 — Calendar + health           | [x] Complete    |
-| PR 4 — Suggestion engine           | [ ] Not started |
+| PR 4 — Suggestion engine           | [x] Complete    |
 | PR 5 — Invite flow                 | [ ] Not started |
 | PR 6 — Hardening                   | [ ] Not started |
