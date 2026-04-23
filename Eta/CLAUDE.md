@@ -68,6 +68,9 @@ Eta/
 │   ├── SuggestionStrategy.swift
 │   └── InviteProvider.swift
 │
+├── Formatters/
+│   └── ContactFormatter.swift           # Locale-aware name formatting via CNContactFormatter
+│
 ├── DataProviders/
 │   └── CalendarDataProvider.swift   # Concrete ImplicitDataProvider — EKEventStore
 │
@@ -156,14 +159,15 @@ downward via constructors. No singletons. No environment objects for services.
 ```
 EtaApp
  ├─ ContactRepository(modelContext:)
+ ├─ ContactFormatter()
  ├─ CalendarDataProvider()
  ├─ RelationshipService(providers: [CalendarDataProvider], repository: ContactRepository)
  ├─ RulesSuggestionStrategy()
  ├─ SuggestionService(relationship: RelationshipService, strategy: RulesSuggestionStrategy)
  ├─ iMessageInviteProvider()
  ├─ InviteService(provider: iMessageInviteProvider)
- ├─ SuggestionViewModel(suggestion: SuggestionService, invite: InviteService)
- └─ ConnectionsViewModel(repository: ContactRepository)
+ ├─ SuggestionViewModel(suggestion: SuggestionService, invite: InviteService, formatter: ContactFormatter)
+ └─ ConnectionsViewModel(repository: ContactRepository, formatter: ContactFormatter)
 ```
 
 ViewModels are created in `EtaApp` and passed into views as constructor arguments
@@ -179,7 +183,9 @@ or via `.environment()` if needed across the tab hierarchy.
 @Model class TrackedContact {
     var id: UUID
     var cnContactIdentifier: String   // CNContact.identifier — for re-sync
-    var name: String                  // Copied at add time — readable without Contacts permission
+    var name: String                  // Pre-formatted fallback — readable without Contacts permission
+    var givenName: String             // Raw component — used by ContactFormatter
+    var familyName: String            // Raw component — used by ContactFormatter
     var phoneNumber: String?          // Copied at add time
     var emailAddress: String?         // Copied at add time — used for calendar attendee matching
     var isActive: Bool                // Whether included in suggestion pool
@@ -291,6 +297,25 @@ Events with no attendee data are ignored — no fuzzy title matching.
 
 ---
 
+## Name formatting
+
+Contact names must be formatted using `ContactFormatter` — never call `CNContactFormatter` directly in a View or ViewModel.
+
+- `TrackedContact` stores `givenName` and `familyName` as raw components, plus a pre-formatted `name` string as a fallback.
+- `ContactFormatter` is the **only** type that imports `Contacts` for display purposes. It builds a `CNMutableContact` from those components and calls `CNContactFormatter.string(from:style:)`.
+- ViewModels receive a `ContactFormatter` via constructor injection and expose plain `String` values to Views.
+- `ContactFormatter` does **not** need a protocol yet. If a user-facing name-style preference is added, extract a protocol at that point.
+
+```swift
+// Correct — in a ViewModel
+let displayName = formatter.displayName(for: contact)
+
+// Wrong — never do this in a View or ViewModel
+CNContactFormatter.string(from: cnContact, style: .fullName)
+```
+
+---
+
 ## What is intentionally NOT abstracted (yet)
 
 - `ContactRepository` — SwiftData is stable; no repository protocol needed now
@@ -323,3 +348,4 @@ Events with no attendee data are ignored — no fuzzy title matching.
 8. Permissions are always requested inline; never build a separate onboarding screen unless the user asks.
 9. Keep the `Activity` enum hardcoded until the user explicitly asks for dynamic activities.
 10. When in doubt about scope, do less and ask — this is an MVP.
+11. Never call `CNContactFormatter` directly in a View or ViewModel — always go through `ContactFormatter.displayName(for:)`.
