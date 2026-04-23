@@ -23,6 +23,8 @@ final class ConnectionsViewModel {
     private(set) var isPermissionDenied: Bool = false
     /// True while the initial full-contact fetch is in flight.
     private(set) var isLoadingContacts: Bool = false
+    /// Health scores keyed by TrackedContact.id for O(1) per-row lookup.
+    private(set) var healthScores: [UUID: RelationshipHealth] = [:]
 
     /// Full address book minus already-tracked contacts. Source of truth for filtering.
     private var allCNContacts: [CNContact] = []
@@ -31,11 +33,13 @@ final class ConnectionsViewModel {
 
     private let repository: ContactRepository
     private let formatter: ContactFormatter
+    private let relationshipService: RelationshipService
     private let contactStore = CNContactStore()
 
-    init(repository: ContactRepository, formatter: ContactFormatter) {
+    init(repository: ContactRepository, formatter: ContactFormatter, relationshipService: RelationshipService) {
         self.repository = repository
         self.formatter = formatter
+        self.relationshipService = relationshipService
     }
 
     // MARK: - Display
@@ -69,6 +73,42 @@ final class ConnectionsViewModel {
     func removeContact(_ contact: TrackedContact) {
         try? repository.remove(contact)
         loadContacts()
+    }
+
+    // MARK: - Relationship health
+
+    /// Fetches health scores for all tracked contacts via RelationshipService.
+    /// Triggers Calendar permission request on first call.
+    func loadHealthScores() async {
+        let scores = await relationshipService.computeHealth()
+        healthScores = Dictionary(uniqueKeysWithValues: scores.map { ($0.contact.id, $0) })
+    }
+
+    /// Returns a human-readable summary of when the user last hung out with this contact,
+    /// or nil if health data hasn't been loaded yet.
+    func healthLabel(for contact: TrackedContact) -> String? {
+        guard let health = healthScores[contact.id] else { return nil }
+        guard let days = health.daysSinceLastHangout else {
+            return "No hangouts on record"
+        }
+
+        // Append the event title in lowercase to read naturally:
+        // "Last seen 2 days ago at coffee with Sarah"
+        // Lowercasing only the first character preserves proper nouns and acronyms
+        // within the title (e.g. "WWDC dinner" → "at WWDC dinner").
+        let titleSuffix: String
+        if let title = health.lastHangoutTitle, !title.isEmpty {
+            let downcased = title.prefix(1).lowercased() + title.dropFirst()
+            titleSuffix = " at \(downcased)"
+        } else {
+            titleSuffix = ""
+        }
+
+        switch days {
+        case 0:  return "Seen today\(titleSuffix)"
+        case 1:  return "Seen yesterday\(titleSuffix)"
+        default: return "Last seen \(days) days ago\(titleSuffix)"
+        }
     }
 
     // MARK: - Contact picker (CNContactStore)
