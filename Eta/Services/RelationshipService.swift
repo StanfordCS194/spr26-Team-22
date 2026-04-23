@@ -20,8 +20,6 @@ final class RelationshipService {
         let contacts = (try? repository.fetchAll()) ?? []
         guard !contacts.isEmpty else { return [] }
         
-        print("Computing health")
-
         let since = Calendar.current.date(byAdding: .day, value: -lookBackDays, to: .now) ?? .now
 
         // Fan out to all providers concurrently. A provider that denies access or
@@ -49,8 +47,6 @@ final class RelationshipService {
         var seen = Set<String>()
         allEvents = allEvents.filter { seen.insert($0.eventIdentifier).inserted }
         
-        print("[RelationshipService] Found \(allEvents.count) events.")
-
         return contacts.map { contact in
             let matching = allEvents.filter { event in
                 event.participantMatchers.contains { $0.matches(contact) }
