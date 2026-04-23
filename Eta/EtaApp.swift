@@ -19,7 +19,16 @@ struct EtaApp: App {
 
         let repository = ContactRepository(modelContext: container.mainContext)
         let formatter = ContactFormatter()
-        self.connectionsViewModel = ConnectionsViewModel(repository: repository, formatter: formatter)
+        let calendarDataProvider = CalendarDataProvider()
+        let relationshipService = RelationshipService(
+            providers: [calendarDataProvider],
+            repository: repository
+        )
+        self.connectionsViewModel = ConnectionsViewModel(
+            repository: repository,
+            formatter: formatter,
+            relationshipService: relationshipService
+        )
     }
 
     var body: some Scene {

@@ -17,7 +17,7 @@ struct ConnectionsView: View {
                 } else {
                     List {
                         ForEach(viewModel.contacts) { contact in
-                            Text(viewModel.displayName(for: contact))
+                            ContactRow(contact: contact, viewModel: viewModel)
                         }
                         .onDelete { indexSet in
                             for index in indexSet {
@@ -42,7 +42,47 @@ struct ConnectionsView: View {
             }
             .task {
                 viewModel.loadContacts()
+                await viewModel.loadHealthScores()
             }
         }
+    }
+}
+
+// MARK: - Contact row
+
+private struct ContactRow: View {
+    let contact: TrackedContact
+    let viewModel: ConnectionsViewModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(healthColor)
+                .frame(width: 10, height: 10)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(viewModel.displayName(for: contact))
+                    .font(.body)
+
+                if let label = viewModel.healthLabel(for: contact) {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    // Color thresholds are a display concern — they live in the View, not the ViewModel.
+    // ≤ 14 days: green (healthy), ≤ 30 days: yellow (getting stale), > 30 or no data: red.
+    private var healthColor: Color {
+        guard let health = viewModel.healthScores[contact.id],
+              let days = health.daysSinceLastHangout else {
+            return .gray
+        }
+        if days <= 14 { return .green }
+        if days <= 30 { return .yellow }
+        return .red
     }
 }
