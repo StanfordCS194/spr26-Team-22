@@ -91,10 +91,23 @@ final class ConnectionsViewModel {
         guard let days = health.daysSinceLastHangout else {
             return "No hangouts on record"
         }
+
+        // Append the event title in lowercase to read naturally:
+        // "Last seen 2 days ago at coffee with Sarah"
+        // Lowercasing only the first character preserves proper nouns and acronyms
+        // within the title (e.g. "WWDC dinner" → "at WWDC dinner").
+        let titleSuffix: String
+        if let title = health.lastHangoutTitle, !title.isEmpty {
+            let downcased = title.prefix(1).lowercased() + title.dropFirst()
+            titleSuffix = " at \(downcased)"
+        } else {
+            titleSuffix = ""
+        }
+
         switch days {
-        case 0:  return "Seen today"
-        case 1:  return "Seen yesterday"
-        default: return "Last seen \(days) days ago"
+        case 0:  return "Seen today\(titleSuffix)"
+        case 1:  return "Seen yesterday\(titleSuffix)"
+        default: return "Last seen \(days) days ago\(titleSuffix)"
         }
     }
 

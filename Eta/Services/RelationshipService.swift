@@ -55,12 +55,14 @@ final class RelationshipService {
             let matching = allEvents.filter { event in
                 event.participantMatchers.contains { $0.matches(contact) }
             }
+            let lastEvent = matching.max(by: { $0.startDate < $1.startDate })
+            let lastHangoutDate = lastEvent?.startDate
             return RelationshipHealth(
                 contact: contact,
-                lastHangoutDate: matching.map(\.startDate).max(),
+                lastHangoutDate: lastHangoutDate,
+                lastHangoutTitle: lastEvent?.title.isEmpty == false ? lastEvent?.title : nil,
                 hangoutCount: matching.count,
-                score: score(lastHangoutDate: matching.map(\.startDate).max(),
-                             lookBackDays: lookBackDays)
+                score: score(lastHangoutDate: lastHangoutDate, lookBackDays: lookBackDays)
             )
         }
     }

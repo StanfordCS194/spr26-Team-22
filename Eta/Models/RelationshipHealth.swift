@@ -6,6 +6,8 @@ struct RelationshipHealth {
     var contact: TrackedContact
     /// Date of the most recent hangout event found in the look-back window.
     var lastHangoutDate: Date?
+    /// Title of the most recent hangout event — used to personalise the health label.
+    var lastHangoutTitle: String?
     /// Number of hangouts within the look-back window (default: 90 days).
     var hangoutCount: Int
     /// Ranking score — higher means more overdue for a hangout.
