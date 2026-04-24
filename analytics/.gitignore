@@ -1,7 +1,7 @@
 # Analytics data exports
-Data/*.csv
-Data/*.json
-Data/*.png
+#Data/*.csv
+#Data/*.json
+#Data/*.png
 
 # Keep the folder structure
 !Data/.gitkeep
