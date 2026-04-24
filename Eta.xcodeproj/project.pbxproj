@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C9BE732D2F9B16F50064E1E8 /* MessageUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2152949E2F9707BC00AD5B58 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -28,6 +32,7 @@
 		2152949D2F9707BC00AD5B58 /* EtaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EtaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		215294A72F9707BC00AD5B58 /* EtaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EtaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		21791F112F9A19F900F9004A /* Eta.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Eta.xcodeproj; sourceTree = "<group>"; };
+		C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MessageUI.framework; path = System/Library/Frameworks/MessageUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9BE732D2F9B16F50064E1E8 /* MessageUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +85,7 @@
 				215294922F9707B800AD5B58 /* Eta */,
 				215294A02F9707BC00AD5B58 /* EtaTests */,
 				215294AA2F9707BC00AD5B58 /* EtaUITests */,
+				C9BE732B2F9B16F50064E1E8 /* Frameworks */,
 				215294912F9707B800AD5B58 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -96,6 +103,14 @@
 		21791F132F9A19F900F9004A /* Products */ = {
 			isa = PBXGroup;
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C9BE732B2F9B16F50064E1E8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -423,7 +438,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.Eta;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jasmineagyepong.Eta;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -458,7 +473,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = edu.stanford.Eta;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jasmineagyepong.Eta;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

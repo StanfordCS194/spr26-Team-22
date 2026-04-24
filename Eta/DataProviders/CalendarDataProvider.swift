@@ -110,6 +110,22 @@ final class CalendarDataProvider: ImplicitDataProvider {
         return nil
     }
 
+    // MARK: - Event creation
+
+    /// Creates a calendar event on the user's default calendar for the given suggestion.
+    /// Requires calendar access to have been granted via requestAccess().
+    /// Fails silently if the event store is unavailable or access has not been granted.
+    func createEvent(for suggestion: Suggestion) {
+        let event = EKEvent(eventStore: eventStore)
+        let firstName = suggestion.contact.givenName.isEmpty ? suggestion.contact.name : suggestion.contact.givenName
+        event.title = "\(suggestion.activity.rawValue) with \(firstName)"
+        event.startDate = suggestion.proposedTime.start
+        event.endDate = suggestion.proposedTime.end
+        event.notes = suggestion.reason
+        event.calendar = eventStore.defaultCalendarForNewEvents
+        try? eventStore.save(event, span: .thisEvent)
+    }
+
     // MARK: - Private helpers
 
     /// Returns true when the event passes all three hangout filters from CLAUDE.md:

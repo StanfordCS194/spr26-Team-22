@@ -7,14 +7,28 @@ import Foundation
 /// The View calls refresh() from .onChange(of: scenePhase) when the scene becomes .active.
 @Observable
 final class SuggestionViewModel {
+
+    enum ScheduleState {
+        case idle
+        case accepted
+        case scheduled(timeLabel: String)
+    }
+
     private(set) var suggestion: Suggestion?
     private(set) var isLoading: Bool = false
+    private(set) var scheduleState: ScheduleState = .idle
 
     private let suggestionService: SuggestionService
+    private let inviteService: InviteService
     private let formatter: ContactFormatter
 
-    init(suggestionService: SuggestionService, formatter: ContactFormatter) {
+    init(
+        suggestionService: SuggestionService,
+        inviteService: InviteService,
+        formatter: ContactFormatter
+    ) {
         self.suggestionService = suggestionService
+        self.inviteService = inviteService
         self.formatter = formatter
     }
 
@@ -46,7 +60,7 @@ final class SuggestionViewModel {
         case 1:  return "tomorrow \(timeOfDay)"
         default:
             let df = DateFormatter()
-            df.dateFormat = "EEEE" // e.g. "Wednesday"
+            df.dateFormat = "EEEE"
             return "\(df.string(from: start)) \(timeOfDay)"
         }
     }
@@ -54,6 +68,7 @@ final class SuggestionViewModel {
     // MARK: - Actions
 
     func refresh() async {
+        guard case .idle = scheduleState else { return }
         isLoading = true
         defer { isLoading = false }
         suggestion = await suggestionService.generateSuggestion()
@@ -63,5 +78,26 @@ final class SuggestionViewModel {
     /// the next refresh() call recomputes from scratch.
     func dismiss() {
         suggestion = nil
+    }
+
+    /// Persists the hangout, creates a calendar event, then drives the confirmation
+    /// UI through accepted → scheduled states.
+    func schedule() {
+        guard let suggestion else { return }
+        let label = timeLabel(for: suggestion)
+        inviteService.book(suggestion: suggestion)
+        Task { @MainActor in
+            scheduleState = .accepted
+            try? await Task.sleep(for: .seconds(1.2))
+            scheduleState = .scheduled(timeLabel: label)
+        }
+    }
+
+    /// Opens Messages with the pre-filled invite, then clears the confirmation state.
+    func finishAndSend() {
+        guard let suggestion else { return }
+        inviteService.sendMessage(for: suggestion)
+        self.suggestion = nil
+        scheduleState = .idle
     }
 }

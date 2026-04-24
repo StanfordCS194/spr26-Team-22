@@ -15,22 +15,30 @@ struct EtaApp: App {
     private let suggestionViewModel: SuggestionViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
+        let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
         let formatter = ContactFormatter()
         let calendarDataProvider = CalendarDataProvider()
 
         let relationshipService = RelationshipService(
             providers: [calendarDataProvider],
-            repository: repository
+            repository: repository,
+            hangoutRepository: hangoutRepository
         )
         let rulesStrategy = RulesSuggestionStrategy()
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
             strategy: rulesStrategy
+        )
+        let inviteProvider = iMessageInviteProvider()
+        let inviteService = InviteService(
+            provider: inviteProvider,
+            hangoutRepository: hangoutRepository,
+            calendarDataProvider: calendarDataProvider
         )
 
         self.connectionsViewModel = ConnectionsViewModel(
@@ -40,6 +48,7 @@ struct EtaApp: App {
         )
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
+            inviteService: inviteService,
             formatter: formatter
         )
     }
