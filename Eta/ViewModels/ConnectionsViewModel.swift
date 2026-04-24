@@ -88,14 +88,18 @@ final class ConnectionsViewModel {
     /// or nil if health data hasn't been loaded yet.
     func healthLabel(for contact: TrackedContact) -> String? {
         guard let health = healthScores[contact.id] else { return nil }
+
+        if let upcoming = health.upcomingHangout {
+            let activity = upcoming.activity.prefix(1).lowercased() + upcoming.activity.dropFirst()
+            let df = DateFormatter()
+            df.dateFormat = "EEE, MMM d"
+            return "Upcoming: \(activity) · \(df.string(from: upcoming.startDate))"
+        }
+
         guard let days = health.daysSinceLastHangout else {
             return "No hangouts on record"
         }
 
-        // Append the event title in lowercase to read naturally:
-        // "Last seen 2 days ago at coffee with Sarah"
-        // Lowercasing only the first character preserves proper nouns and acronyms
-        // within the title (e.g. "WWDC dinner" → "at WWDC dinner").
         let titleSuffix: String
         if let title = health.lastHangoutTitle, !title.isEmpty {
             let downcased = title.prefix(1).lowercased() + title.dropFirst()

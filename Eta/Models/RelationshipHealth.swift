@@ -12,6 +12,8 @@ struct RelationshipHealth {
     var hangoutCount: Int
     /// Ranking score — higher means more overdue for a hangout.
     var score: Double
+    /// The nearest upcoming scheduled hangout for this contact, if one exists.
+    var upcomingHangout: ScheduledHangout?
 
     /// Convenience: whole days elapsed since the last hangout, or nil if none on record.
     var daysSinceLastHangout: Int? {

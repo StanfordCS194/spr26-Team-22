@@ -74,13 +74,10 @@ private struct ContactRow: View {
         .padding(.vertical, 2)
     }
 
-    // Color thresholds are a display concern — they live in the View, not the ViewModel.
-    // ≤ 14 days: green (healthy), ≤ 30 days: yellow (getting stale), > 30 or no data: red.
     private var healthColor: Color {
-        guard let health = viewModel.healthScores[contact.id],
-              let days = health.daysSinceLastHangout else {
-            return .gray
-        }
+        guard let health = viewModel.healthScores[contact.id] else { return .gray }
+        if health.upcomingHangout != nil { return .green }
+        guard let days = health.daysSinceLastHangout else { return .gray }
         if days <= 14 { return .green }
         if days <= 30 { return .yellow }
         return .red
