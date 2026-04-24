@@ -1,0 +1,103 @@
+{
+  "invitations" : {
+    "completionRate" : 100,
+    "abandoned" : 0,
+    "responseBreakdown" : {
+      "yes" : 0,
+      "maybe" : 0,
+      "no" : 0
+    },
+    "avgTimeToSend" : 5.9543479681015015,
+    "freeSlotAccepted" : 0,
+    "completed" : 1,
+    "initiated" : 1,
+    "byActivity" : {
+      "Do a grocery run" : 1
+    },
+    "byTimeOfDay" : {
+      "morning" : 1,
+      "afternoon" : 0,
+      "evening" : 0
+    },
+    "freeSlotSuggested" : 1
+  },
+  "permissions" : {
+    "contacts" : {
+      "grantRate" : 100,
+      "avgTimeToGrant" : 23.138778924942017,
+      "requested" : 1,
+      "denied" : 0,
+      "granted" : 1,
+      "selectionType" : {
+        "selected" : 0,
+        "all" : 1
+      }
+    },
+    "calendar" : {
+      "avgTimeToGrant" : 0,
+      "denied" : 3,
+      "granted" : 0,
+      "requested" : 1,
+      "grantRate" : 0
+    }
+  },
+  "screenTime" : {
+    "AddConnectionSheet" : {
+      "views" : 1,
+      "totalTime" : 26.145443916320801,
+      "avgTime" : 26.145443916320801
+    },
+    "ConnectionsView" : {
+      "totalTime" : 76.577000021934509,
+      "avgTime" : 25.525666673978169,
+      "views" : 3
+    },
+    "SuggestionView" : {
+      "views" : 3,
+      "totalTime" : 100.5341500043869,
+      "avgTime" : 33.511383334795632
+    }
+  },
+  "summary" : {
+    "totalUsers" : 1,
+    "totalSessions" : 1,
+    "dateRange" : {
+      "start" : "2026-04-24T17:18:28Z",
+      "end" : "2026-04-24T17:21:22Z"
+    }
+  },
+  "connections" : {
+    "showSelectedClicks" : 0,
+    "avgPerUser" : 1,
+    "avgContactsAvailable" : 1,
+    "totalAdded" : 1,
+    "totalRemoved" : 0,
+    "avgPercentageAdded" : 100,
+    "edited" : 0,
+    "editRate" : 0
+  },
+  "suggestions" : {
+    "avgPerSession" : 1,
+    "totalGenerated" : 1,
+    "viewed" : 2,
+    "tapped" : 1,
+    "tapRate" : 100,
+    "dismissed" : 0,
+    "dismissRate" : 0
+  },
+  "onboarding" : {
+    "avgDuration" : 92.30827796459198,
+    "completionRate" : 100
+  },
+  "navigationFlows" : {
+    "mostCommonPath" : [
+      "SuggestionView",
+      "ConnectionsView",
+      "SuggestionView",
+      "ConnectionsView",
+      "AddConnectionSheet",
+      "SuggestionView"
+    ],
+    "avgStepsToInvite" : 6
+  }
+}
