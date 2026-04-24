@@ -1,0 +1,104 @@
+{
+  "navigationFlows" : {
+    "mostCommonPath" : [
+      "SuggestionView",
+      "ConnectionsView",
+      "SuggestionView",
+      "ConnectionsView",
+      "AddConnectionSheet",
+      "SuggestionView"
+    ],
+    "avgStepsToInvite" : 6
+  },
+  "summary" : {
+    "totalSessions" : 1,
+    "dateRange" : {
+      "end" : "2026-04-24T16:40:31Z",
+      "start" : "2026-04-24T16:35:30Z"
+    },
+    "totalUsers" : 1
+  },
+  "connections" : {
+    "totalAdded" : 3,
+    "avgContactsAvailable" : 3,
+    "avgPercentageAdded" : 100,
+    "editRate" : 0,
+    "avgPerUser" : 3,
+    "edited" : 0,
+    "totalRemoved" : 0,
+    "showSelectedClicks" : 0
+  },
+  "invitations" : {
+    "completionRate" : 100,
+    "completed" : 2,
+    "avgTimeToSend" : 2.6049805283546448,
+    "abandoned" : 0,
+    "responseBreakdown" : {
+      "no" : 0,
+      "yes" : 0,
+      "maybe" : 0
+    },
+    "byTimeOfDay" : {
+      "afternoon" : 1,
+      "evening" : 0,
+      "morning" : 1
+    },
+    "freeSlotSuggested" : 2,
+    "freeSlotAccepted" : 0,
+    "initiated" : 2,
+    "byActivity" : {
+      "Go for a walk" : 1,
+      "Do a grocery run" : 1
+    }
+  },
+  "permissions" : {
+    "calendar" : {
+      "granted" : 9,
+      "denied" : 0,
+      "grantRate" : 900,
+      "avgTimeToGrant" : 0.16109487745496961,
+      "requested" : 1
+    },
+    "contacts" : {
+      "selectionType" : {
+        "selected" : 0,
+        "all" : 1
+      },
+      "requested" : 1,
+      "granted" : 1,
+      "denied" : 0,
+      "grantRate" : 100,
+      "avgTimeToGrant" : 17.839874029159546
+    }
+  },
+  "suggestions" : {
+    "dismissRate" : 0,
+    "dismissed" : 0,
+    "tapRate" : 100,
+    "avgPerSession" : 3,
+    "viewed" : 7,
+    "totalGenerated" : 3,
+    "tapped" : 2
+  },
+  "screenTime" : {
+    "AddConnectionSheet" : {
+      "views" : 1,
+      "totalTime" : 21.544977903366089,
+      "avgTime" : 21.544977903366089
+    },
+    "ConnectionsView" : {
+      "avgTime" : 7.9278407096862793,
+      "views" : 4,
+      "totalTime" : 31.711362838745117
+    },
+    "SuggestionView" : {
+      "totalTime" : 123.02403104305267,
+      "avgTime" : 24.604806208610533,
+      "views" : 5
+    }
+  },
+  "onboarding" : {
+    "completionRate" : 100,
+    "avgDuration" : 67.873216986656189
+  }
+}

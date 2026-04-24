@@ -1,0 +1,265 @@
+{
+  "sessions" : [
+    {
+      "endTime" : "2026-04-24T17:13:01Z",
+      "duration" : 48.714074969291687,
+      "notes" : "",
+      "events" : [
+        {
+          "metadata" : {
+
+          },
+          "eventType" : "AppLaunched",
+          "category" : "Lifecycle",
+          "value" : "",
+          "timestamp" : "2026-04-24T17:12:12Z"
+        },
+        {
+          "timestamp" : "2026-04-24T17:12:13Z",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          }
+        },
+        {
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "timestamp" : "2026-04-24T17:12:13Z"
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:14Z",
+          "value" : "ConnectionsView",
+          "category" : "Navigation",
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "value" : "SuggestionView",
+          "metadata" : {
+            "duration" : 1.6267299652099609
+          },
+          "timestamp" : "2026-04-24T17:12:14Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:14Z"
+        },
+        {
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T17:12:15Z",
+          "metadata" : {
+            "duration" : 1.2868080139160156
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T17:12:21Z",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "value" : "SuggestionView",
+          "metadata" : {
+            "duration" : 7.024090051651001
+          },
+          "eventType" : "ScreenExited",
+          "timestamp" : "2026-04-24T17:12:21Z",
+          "category" : "Navigation"
+        },
+        {
+          "category" : "Navigation",
+          "eventType" : "ButtonTapped",
+          "timestamp" : "2026-04-24T17:12:22Z",
+          "value" : "ConnectionsView.AddConnection",
+          "metadata" : {
+
+          }
+        },
+        {
+          "value" : "AddConnectionSheet",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T17:12:22Z",
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "category" : "Permission",
+          "timestamp" : "2026-04-24T17:12:22Z",
+          "eventType" : "PermissionRequested",
+          "value" : "Contacts",
+          "metadata" : {
+
+          }
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "category" : "Lifecycle",
+          "value" : "",
+          "timestamp" : "2026-04-24T17:12:22Z",
+          "metadata" : {
+
+          }
+        },
+        {
+          "value" : "Contacts",
+          "timestamp" : "2026-04-24T17:12:40Z",
+          "eventType" : "PermissionGranted",
+          "metadata" : {
+            "timeElapsed" : 17.413851976394653,
+            "type" : "all"
+          },
+          "category" : "Permission"
+        },
+        {
+          "category" : "Lifecycle",
+          "value" : "",
+          "eventType" : "AppForegrounded",
+          "timestamp" : "2026-04-24T17:12:40Z",
+          "metadata" : {
+
+          }
+        },
+        {
+          "metadata" : {
+            "duration" : 20.452674984931946
+          },
+          "timestamp" : "2026-04-24T17:12:43Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "value" : "AddConnectionSheet"
+        },
+        {
+          "timestamp" : "2026-04-24T17:12:43Z",
+          "eventType" : "ButtonTapped",
+          "category" : "Navigation",
+          "value" : "ConnectionsView.AddConnection",
+          "metadata" : {
+
+          }
+        },
+        {
+          "category" : "Navigation",
+          "value" : "AddConnectionSheet",
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:43Z"
+        },
+        {
+          "category" : "Permission",
+          "value" : "Contacts",
+          "timestamp" : "2026-04-24T17:12:43Z",
+          "metadata" : {
+
+          },
+          "eventType" : "PermissionRequested"
+        },
+        {
+          "metadata" : {
+            "timeElapsed" : 2.7060508728027344e-05,
+            "type" : "all"
+          },
+          "timestamp" : "2026-04-24T17:12:43Z",
+          "eventType" : "PermissionGranted",
+          "value" : "Contacts",
+          "category" : "Permission"
+        },
+        {
+          "metadata" : {
+            "totalAvailable" : 1,
+            "percentage" : 100,
+            "totalConnections" : 1,
+            "isInitialAdd" : true
+          },
+          "value" : "Leena ❤️",
+          "eventType" : "ConnectionAdded",
+          "category" : "Connection",
+          "timestamp" : "2026-04-24T17:12:47Z"
+        },
+        {
+          "eventType" : "ScreenExited",
+          "value" : "AddConnectionSheet",
+          "timestamp" : "2026-04-24T17:12:48Z",
+          "metadata" : {
+            "duration" : 4.8594080209732056
+          },
+          "category" : "Navigation"
+        },
+        {
+          "value" : "ConnectionsView.AddConnection",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:49Z",
+          "eventType" : "ButtonTapped"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:49Z",
+          "value" : "AddConnectionSheet",
+          "category" : "Navigation"
+        },
+        {
+          "value" : "Contacts",
+          "category" : "Permission",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T17:12:49Z",
+          "eventType" : "PermissionRequested"
+        },
+        {
+          "eventType" : "PermissionGranted",
+          "category" : "Permission",
+          "value" : "Contacts",
+          "metadata" : {
+            "timeElapsed" : 3.3020973205566406e-05,
+            "type" : "all"
+          },
+          "timestamp" : "2026-04-24T17:12:49Z"
+        },
+        {
+          "value" : "AddConnectionSheet",
+          "timestamp" : "2026-04-24T17:13:01Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 12.022693991661072
+          }
+        }
+      ],
+      "sessionID" : "Session_2026-04-24_12-12-12",
+      "startTime" : "2026-04-24T17:12:12Z"
+    }
+  ],
+  "exportDate" : "2026-04-24T17:13:11Z",
+  "totalEvents" : 27,
+  "totalSessions" : 1
+}

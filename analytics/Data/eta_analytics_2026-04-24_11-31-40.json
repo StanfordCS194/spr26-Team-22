@@ -1,0 +1,710 @@
+{
+  "totalSessions" : 2,
+  "totalEvents" : 73,
+  "sessions" : [
+    {
+      "duration" : 122.61078190803528,
+      "notes" : "Leena",
+      "events" : [
+        {
+          "value" : "",
+          "metadata" : {
+
+          },
+          "eventType" : "AppLaunched",
+          "category" : "Lifecycle",
+          "timestamp" : "2026-04-24T16:29:16Z"
+        },
+        {
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T16:29:16Z",
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:29:16Z",
+          "eventType" : "AppForegrounded",
+          "category" : "Lifecycle",
+          "value" : ""
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-04-24T16:29:21Z",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          },
+          "category" : "Navigation"
+        },
+        {
+          "value" : "SuggestionView",
+          "timestamp" : "2026-04-24T16:29:22Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 5.5403029918670654
+          }
+        },
+        {
+          "timestamp" : "2026-04-24T16:29:23Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenViewed",
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          }
+        },
+        {
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 2.362152099609375
+          },
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-04-24T16:29:24Z",
+          "category" : "Navigation"
+        },
+        {
+          "timestamp" : "2026-04-24T16:29:27Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenViewed",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          }
+        },
+        {
+          "metadata" : {
+            "duration" : 4.8567620515823364
+          },
+          "timestamp" : "2026-04-24T16:29:28Z",
+          "value" : "SuggestionView",
+          "category" : "Navigation",
+          "eventType" : "ScreenExited"
+        },
+        {
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "value" : "ConnectionsView.AddConnection",
+          "eventType" : "ButtonTapped",
+          "timestamp" : "2026-04-24T16:29:28Z"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "value" : "AddConnectionSheet",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T16:29:28Z"
+        },
+        {
+          "value" : "Contacts",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:29:28Z",
+          "eventType" : "PermissionRequested",
+          "category" : "Permission"
+        },
+        {
+          "category" : "Lifecycle",
+          "value" : "",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:29:28Z",
+          "eventType" : "AppBackgrounded"
+        },
+        {
+          "value" : "Contacts",
+          "category" : "Permission",
+          "metadata" : {
+            "timeElapsed" : 49.53049099445343,
+            "type" : "all"
+          },
+          "timestamp" : "2026-04-24T16:30:18Z",
+          "eventType" : "PermissionGranted"
+        },
+        {
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "timestamp" : "2026-04-24T16:30:18Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          }
+        },
+        {
+          "eventType" : "ConnectionAdded",
+          "metadata" : {
+            "totalConnections" : 3,
+            "isInitialAdd" : true,
+            "percentage" : 100,
+            "totalAvailable" : 3
+          },
+          "category" : "Connection",
+          "timestamp" : "2026-04-24T16:30:22Z",
+          "value" : "Sara (Blasian minus asian)"
+        },
+        {
+          "eventType" : "ConnectionAdded",
+          "category" : "Connection",
+          "value" : "Sara (Dr. Siddiqui)✨ 🥷",
+          "metadata" : {
+            "totalAvailable" : 3,
+            "isInitialAdd" : true,
+            "percentage" : 100,
+            "totalConnections" : 3
+          },
+          "timestamp" : "2026-04-24T16:30:22Z"
+        },
+        {
+          "metadata" : {
+            "percentage" : 100,
+            "totalAvailable" : 3,
+            "totalConnections" : 3,
+            "isInitialAdd" : true
+          },
+          "eventType" : "ConnectionAdded",
+          "value" : "Shayma 🐼",
+          "timestamp" : "2026-04-24T16:30:22Z",
+          "category" : "Connection"
+        },
+        {
+          "category" : "Navigation",
+          "value" : "AddConnectionSheet",
+          "timestamp" : "2026-04-24T16:30:22Z",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 53.936719059944153
+          }
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:28Z",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "value" : "SuggestionView",
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "eventType" : "PermissionRequested",
+          "value" : "Calendar",
+          "timestamp" : "2026-04-24T16:30:28Z",
+          "metadata" : {
+
+          },
+          "category" : "Permission"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:28Z",
+          "eventType" : "AppBackgrounded",
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "value" : ""
+        },
+        {
+          "value" : "ConnectionsView",
+          "metadata" : {
+            "duration" : 61.614760994911194
+          },
+          "eventType" : "ScreenExited",
+          "timestamp" : "2026-04-24T16:30:29Z",
+          "category" : "Navigation"
+        },
+        {
+          "eventType" : "PermissionDenied",
+          "category" : "Permission",
+          "timestamp" : "2026-04-24T16:30:34Z",
+          "metadata" : {
+            "timeElapsed" : 6.3417890071868896
+          },
+          "value" : "Calendar"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:34Z",
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "category" : "Suggestion",
+          "metadata" : {
+            "contacts" : [
+              "Sara (Blasian minus asian)"
+            ],
+            "count" : 1
+          }
+        },
+        {
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:30:34Z",
+          "eventType" : "SuggestionViewed",
+          "value" : "Sara (Blasian minus asian)"
+        },
+        {
+          "metadata" : {
+
+          },
+          "value" : "",
+          "timestamp" : "2026-04-24T16:30:35Z",
+          "eventType" : "AppForegrounded",
+          "category" : "Lifecycle"
+        },
+        {
+          "eventType" : "PermissionDenied",
+          "category" : "Permission",
+          "timestamp" : "2026-04-24T16:30:35Z",
+          "value" : "Calendar",
+          "metadata" : {
+            "timeElapsed" : 0.0015950202941894531
+          }
+        },
+        {
+          "category" : "Suggestion",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "timestamp" : "2026-04-24T16:30:35Z",
+          "eventType" : "SuggestionViewed"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:45Z",
+          "eventType" : "SuggestionTapped",
+          "category" : "Suggestion",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+
+          }
+        },
+        {
+          "eventType" : "ButtonTapped",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "value" : "SuggestionCard.YesLetsDoIt",
+          "timestamp" : "2026-04-24T16:30:45Z"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:45Z",
+          "value" : "Sara (Blasian minus asian)",
+          "eventType" : "InvitationInitiated",
+          "category" : "Invitation",
+          "metadata" : {
+            "timeOfDay" : "morning",
+            "freeSlotSuggested" : true,
+            "activity" : "Do a grocery run"
+          }
+        },
+        {
+          "category" : "Invitation",
+          "timestamp" : "2026-04-24T16:30:48Z",
+          "eventType" : "InvitationCompleted",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "timeElapsed" : 3.1558409929275513,
+            "method" : "iMessage"
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "eventType" : "ButtonTapped",
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T16:30:48Z",
+          "value" : "ScheduledView.SendInvite"
+        },
+        {
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:30:58Z"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:58Z",
+          "eventType" : "PermissionDenied",
+          "metadata" : {
+            "timeElapsed" : 0.0032659769058227539
+          },
+          "value" : "Calendar",
+          "category" : "Permission"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:59Z",
+          "eventType" : "ScreenExited",
+          "value" : "SuggestionView",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 30.833714962005615
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:30:59Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenViewed",
+          "value" : "SuggestionView"
+        },
+        {
+          "value" : "Calendar",
+          "timestamp" : "2026-04-24T16:30:59Z",
+          "eventType" : "PermissionDenied",
+          "metadata" : {
+            "timeElapsed" : 0.0056810379028320312
+          },
+          "category" : "Permission"
+        },
+        {
+          "metadata" : {
+            "contacts" : [
+              "Sara (Blasian minus asian)"
+            ],
+            "count" : 1
+          },
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:30:59Z"
+        },
+        {
+          "timestamp" : "2026-04-24T16:30:59Z",
+          "category" : "Suggestion",
+          "eventType" : "SuggestionViewed",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        },
+        {
+          "eventType" : "ScreenExited",
+          "value" : "ConnectionsView",
+          "metadata" : {
+            "duration" : 1.158939003944397
+          },
+          "timestamp" : "2026-04-24T16:31:00Z",
+          "category" : "Navigation"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-04-24T16:31:01Z",
+          "category" : "Navigation"
+        },
+        {
+          "category" : "Permission",
+          "metadata" : {
+            "timeElapsed" : 0.0022280216217041016
+          },
+          "timestamp" : "2026-04-24T16:31:01Z",
+          "value" : "Calendar",
+          "eventType" : "PermissionDenied"
+        },
+        {
+          "metadata" : {
+            "duration" : 2.5462379455566406
+          },
+          "timestamp" : "2026-04-24T16:31:01Z",
+          "value" : "SuggestionView",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:02Z",
+          "category" : "Navigation",
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:02Z",
+          "eventType" : "SuggestionViewed",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "category" : "Suggestion"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:02Z",
+          "category" : "Permission",
+          "eventType" : "PermissionDenied",
+          "value" : "Calendar",
+          "metadata" : {
+            "timeElapsed" : 0.0051479339599609375
+          }
+        },
+        {
+          "category" : "Suggestion",
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "metadata" : {
+            "contacts" : [
+              "Sara (Blasian minus asian)"
+            ],
+            "count" : 1
+          },
+          "timestamp" : "2026-04-24T16:31:02Z"
+        },
+        {
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "eventType" : "SuggestionViewed",
+          "category" : "Suggestion",
+          "value" : "Sara (Blasian minus asian)",
+          "timestamp" : "2026-04-24T16:31:02Z"
+        },
+        {
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T16:31:03Z",
+          "eventType" : "ScreenExited",
+          "value" : "ConnectionsView",
+          "metadata" : {
+            "duration" : 2.2556079626083374
+          }
+        },
+        {
+          "category" : "Navigation",
+          "value" : "SuggestionCard.MaybeLater",
+          "eventType" : "ButtonTapped",
+          "timestamp" : "2026-04-24T16:31:05Z",
+          "metadata" : {
+
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "value" : "Sara (Blasian minus asian)",
+          "eventType" : "SuggestionDismissed",
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:31:05Z"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-04-24T16:31:08Z",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "metadata" : {
+            "timeElapsed" : 0.0028170347213745117
+          },
+          "category" : "Permission",
+          "timestamp" : "2026-04-24T16:31:08Z",
+          "eventType" : "PermissionDenied",
+          "value" : "Calendar"
+        },
+        {
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "value" : "SuggestionView",
+          "timestamp" : "2026-04-24T16:31:09Z",
+          "metadata" : {
+            "duration" : 6.5305519104003906
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:31:09Z",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "value" : "SuggestionView"
+        },
+        {
+          "eventType" : "PermissionDenied",
+          "category" : "Permission",
+          "value" : "Calendar",
+          "metadata" : {
+            "timeElapsed" : 0.0050779581069946289
+          },
+          "timestamp" : "2026-04-24T16:31:09Z"
+        },
+        {
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:31:09Z",
+          "value" : "",
+          "eventType" : "SuggestionsGenerated",
+          "metadata" : {
+            "count" : 1,
+            "contacts" : [
+              "Sara (Blasian minus asian)"
+            ]
+          }
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "value" : "Sara (Blasian minus asian)",
+          "timestamp" : "2026-04-24T16:31:09Z",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "category" : "Suggestion"
+        },
+        {
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 1.2122920751571655
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-04-24T16:31:10Z"
+        },
+        {
+          "value" : "SuggestionCard.MaybeLater",
+          "eventType" : "ButtonTapped",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-04-24T16:31:15Z"
+        },
+        {
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:31:15Z",
+          "value" : "Sara (Blasian minus asian)",
+          "eventType" : "SuggestionDismissed",
+          "metadata" : {
+
+          }
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:19Z",
+          "eventType" : "AppBackgrounded",
+          "category" : "Lifecycle",
+          "value" : "",
+          "metadata" : {
+
+          }
+        }
+      ],
+      "sessionID" : "Session_2026-04-24_11-29-16",
+      "startTime" : "2026-04-24T16:29:16Z",
+      "endTime" : "2026-04-24T16:31:19Z"
+    },
+    {
+      "sessionID" : "Session_2026-04-24_11-31-27",
+      "startTime" : "2026-04-24T16:31:27Z",
+      "duration" : 0.28582501411437988,
+      "notes" : "",
+      "endTime" : "2026-04-24T16:31:27Z",
+      "events" : [
+        {
+          "metadata" : {
+
+          },
+          "eventType" : "AppLaunched",
+          "value" : "",
+          "category" : "Lifecycle",
+          "timestamp" : "2026-04-24T16:31:27Z"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "value" : "SuggestionView"
+        },
+        {
+          "metadata" : {
+
+          },
+          "category" : "Permission",
+          "eventType" : "PermissionRequested",
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "value" : "Calendar"
+        },
+        {
+          "metadata" : {
+            "timeElapsed" : 0.0020539760589599609
+          },
+          "value" : "Calendar",
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "eventType" : "PermissionDenied",
+          "category" : "Permission"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "category" : "Suggestion",
+          "eventType" : "SuggestionsGenerated",
+          "metadata" : {
+            "contacts" : [
+              "Sara (Blasian minus asian)"
+            ],
+            "count" : 1
+          },
+          "value" : ""
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "category" : "Suggestion",
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        },
+        {
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "timestamp" : "2026-04-24T16:31:27Z"
+        },
+        {
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "value" : "Calendar",
+          "metadata" : {
+            "timeElapsed" : 0.0022060871124267578
+          },
+          "eventType" : "PermissionDenied",
+          "category" : "Permission"
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "timestamp" : "2026-04-24T16:31:27Z",
+          "category" : "Suggestion",
+          "value" : "Sara (Blasian minus asian)",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        }
+      ]
+    }
+  ],
+  "exportDate" : "2026-04-24T16:31:40Z"
+}

@@ -1,0 +1,107 @@
+{
+  "onboarding" : {
+    "completionRate" : 100,
+    "avgDuration" : 62.282841086387634
+  },
+  "connections" : {
+    "avgPercentageAdded" : 100,
+    "edited" : 0,
+    "totalAdded" : 4,
+    "editRate" : 0,
+    "avgContactsAvailable" : 4,
+    "totalRemoved" : 0,
+    "showSelectedClicks" : 0,
+    "avgPerUser" : 4
+  },
+  "permissions" : {
+    "contacts" : {
+      "requested" : 2,
+      "avgTimeToGrant" : 24.861135542392731,
+      "granted" : 2,
+      "denied" : 0,
+      "grantRate" : 100,
+      "selectionType" : {
+        "selected" : 0,
+        "all" : 2
+      }
+    },
+    "calendar" : {
+      "avgTimeToGrant" : 0.50010756083897179,
+      "denied" : 0,
+      "grantRate" : 700,
+      "requested" : 1,
+      "granted" : 7
+    }
+  },
+  "suggestions" : {
+    "dismissRate" : 33.333333333333329,
+    "tapRate" : 66.666666666666657,
+    "avgPerSession" : 3,
+    "viewed" : 4,
+    "tapped" : 2,
+    "totalGenerated" : 3,
+    "dismissed" : 1
+  },
+  "summary" : {
+    "totalSessions" : 1,
+    "dateRange" : {
+      "end" : "2026-04-24T17:32:50Z",
+      "start" : "2026-04-24T17:31:11Z"
+    },
+    "totalUsers" : 1
+  },
+  "invitations" : {
+    "byTimeOfDay" : {
+      "afternoon" : 2,
+      "morning" : 0,
+      "evening" : 0
+    },
+    "freeSlotSuggested" : 2,
+    "abandoned" : 0,
+    "completed" : 2,
+    "initiated" : 2,
+    "avgTimeToSend" : 2.6666050553321838,
+    "responseBreakdown" : {
+      "yes" : 0,
+      "no" : 0,
+      "maybe" : 0
+    },
+    "freeSlotAccepted" : 0,
+    "completionRate" : 100,
+    "byActivity" : {
+      "Get lunch" : 1,
+      "Work out together" : 1
+    }
+  },
+  "screenTime" : {
+    "ConnectionsView" : {
+      "views" : 4,
+      "totalTime" : 67.633355140686035,
+      "avgTime" : 16.908338785171509
+    },
+    "AddConnectionSheet" : {
+      "totalTime" : 56.420840978622437,
+      "views" : 2,
+      "avgTime" : 28.210420489311218
+    },
+    "SuggestionView" : {
+      "totalTime" : 37.343119859695435,
+      "views" : 5,
+      "avgTime" : 7.4686239719390866
+    }
+  },
+  "navigationFlows" : {
+    "mostCommonPath" : [
+      "SuggestionView",
+      "ConnectionsView",
+      "SuggestionView",
+      "ConnectionsView",
+      "AddConnectionSheet",
+      "AddConnectionSheet",
+      "SuggestionView",
+      "ConnectionsView",
+      "SuggestionView"
+    ],
+    "avgStepsToInvite" : 9
+  }
+}
