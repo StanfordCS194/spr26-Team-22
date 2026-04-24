@@ -2,10 +2,13 @@ import SwiftUI
 
 struct AddConnectionSheet: View {
     let viewModel: ConnectionsViewModel
+    let analyticsService: AnalyticsService
 
     @Environment(\.dismiss) private var dismiss
     @State private var query: String = ""
     @State private var selectedIDs: Set<String> = []
+    @State private var permissionRequestTime: Date?
+    @State private var isInitialAdd: Bool = false
 
     private var navigationTitle: String {
         switch selectedIDs.count {
@@ -33,6 +36,17 @@ struct AddConnectionSheet: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add") {
                         let selected = viewModel.searchResults.filter { selectedIDs.contains($0.id) }
+                        
+                        // Track each connection added
+                        for contact in selected {
+                            analyticsService.logConnectionAdded(
+                                contactName: contact.displayName,
+                                totalContacts: viewModel.contacts.count + selectedIDs.count,
+                                totalAvailable: viewModel.contacts.count + viewModel.searchResults.count,
+                                isInitialAdd: isInitialAdd
+                            )
+                        }
+                        
                         viewModel.addContacts(selected)
                         dismiss()
                     }
@@ -42,9 +56,35 @@ struct AddConnectionSheet: View {
             }
         }
         .task {
+            isInitialAdd = viewModel.contacts.isEmpty
+            // Track contacts permission request
+            analyticsService.logPermissionRequested(type: "Contacts")
+            permissionRequestTime = Date()
+            
             await viewModel.requestContactsAccess()
+            
+            // Track permission result
+            if let requestTime = permissionRequestTime {
+                let timeElapsed = Date().timeIntervalSince(requestTime)
+                
+                if viewModel.isPermissionDenied {
+                    analyticsService.logPermissionDenied(type: "Contacts", timeElapsed: timeElapsed)
+                } else {
+                    // Determine if all contacts or selected
+                    // Note: iOS doesn't expose this directly, so we approximate based on count
+                    analyticsService.logPermissionGranted(
+                        type: "Contacts",
+                        timeElapsed: timeElapsed,
+                        additionalInfo: [
+                            "type": "all" // iOS 18+ doesn't distinguish anymore
+                        ]
+                    )
+                }
+            }
+            
             await viewModel.loadAllContacts()
         }
+        .trackScreen("AddConnectionSheet", analytics: analyticsService)
     }
 
     // MARK: - Subviews

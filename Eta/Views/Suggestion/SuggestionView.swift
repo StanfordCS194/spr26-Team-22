@@ -2,8 +2,10 @@ import SwiftUI
 
 struct SuggestionView: View {
     let viewModel: SuggestionViewModel
+    let analyticsService: AnalyticsService
 
     @Environment(\.scenePhase) private var scenePhase
+    @State private var scheduleStartTime: Date?
 
     var body: some View {
         NavigationStack {
@@ -16,16 +18,49 @@ struct SuggestionView: View {
                     case .accepted:
                         AcceptedView()
                     case .scheduled(let timeLabel):
-                        ScheduledView(timeLabel: timeLabel, onSend: { viewModel.finishAndSend() })
+                        ScheduledView(timeLabel: timeLabel, onSend: {
+                            let name = viewModel.suggestion.map { viewModel.displayName(for: $0) } ?? ""
+                            let elapsed = scheduleStartTime.map { Date().timeIntervalSince($0) } ?? 0
+                            analyticsService.logInvitationCompleted(contactName: name, method: "iMessage", timeElapsed: elapsed)
+                            analyticsService.logButtonTapped(screen: "ScheduledView", button: "SendInvite")
+                            viewModel.finishAndSend()
+                        })
                     case .idle:
                         if let suggestion = viewModel.suggestion {
                             SuggestionCard(
                                 displayName: viewModel.displayName(for: suggestion),
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
-                                onDismiss: { viewModel.dismiss() },
-                                onSchedule: { viewModel.schedule() }
+                                onDismiss: {
+                                    analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
+                                    viewModel.dismiss()
+                                },
+                                onSchedule: {
+                                    let name = viewModel.displayName(for: suggestion)
+                                    let hour = Calendar.current.component(.hour, from: suggestion.proposedTime.start)
+                                    let timeOfDay: String
+                                    switch hour {
+                                    case 5..<12: timeOfDay = "morning"
+                                    case 12..<18: timeOfDay = "afternoon"
+                                    default:      timeOfDay = "evening"
+                                    }
+                                    analyticsService.logInvitationInitiated(
+                                        contactName: name,
+                                        activity: suggestion.activity.rawValue,
+                                        timeOfDay: timeOfDay,
+                                        isFreeSlotSuggested: true
+                                    )
+                                    scheduleStartTime = Date()
+                                    viewModel.schedule()
+                                },
+                                analyticsService: analyticsService
                             )
+                            .onAppear {
+                                analyticsService.logSuggestionViewed(
+                                    contactName: viewModel.displayName(for: suggestion),
+                                    daysSinceLastHangout: nil
+                                )
+                            }
                         } else {
                             ContentUnavailableView(
                                 "Nothing to suggest right now",
@@ -44,12 +79,21 @@ struct SuggestionView: View {
         }
         .task {
             await viewModel.refresh()
+            
+            // Track suggestions generated
+            if let suggestion = viewModel.suggestion {
+                analyticsService.logSuggestionsGenerated(
+                    count: 1,
+                    contactNames: [viewModel.displayName(for: suggestion)]
+                )
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await viewModel.refresh() }
             }
         }
+        .trackScreen("SuggestionView", analytics: analyticsService)
     }
 }
 

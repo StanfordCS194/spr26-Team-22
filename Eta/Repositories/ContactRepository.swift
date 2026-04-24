@@ -32,3 +32,4 @@ final class ContactRepository {
         return try modelContext.fetch(descriptor)
     }
 }
+

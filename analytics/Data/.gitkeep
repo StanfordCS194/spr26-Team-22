@@ -1,0 +1,5 @@
+# Place exported analytics files here
+
+This folder is for storing analytics data exported from the Eta app during user testing.
+
+Export files from the app by triple-tapping the bottom-right corner (DEBUG builds only).

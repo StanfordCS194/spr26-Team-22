@@ -1,0 +1,13 @@
+# Analytics data exports
+Data/*.csv
+Data/*.json
+Data/*.png
+
+# Keep the folder structure
+!Data/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
