@@ -305,10 +305,6 @@ final class AnalyticsService {
         )
     }
     
-    func logUserReset() {
-        logEvent(type: "UserReset", category: .lifecycle)
-    }
-
     func logAppBackgrounded() {
         logEvent(
             type: "AppBackgrounded",

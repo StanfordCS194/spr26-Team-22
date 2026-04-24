@@ -5,6 +5,7 @@ struct SuggestionView: View {
     let analyticsService: AnalyticsService
 
     @Environment(\.scenePhase) private var scenePhase
+    @State private var scheduleStartTime: Date?
 
     var body: some View {
         NavigationStack {
@@ -17,7 +18,13 @@ struct SuggestionView: View {
                     case .accepted:
                         AcceptedView()
                     case .scheduled(let timeLabel):
-                        ScheduledView(timeLabel: timeLabel, onSend: { viewModel.finishAndSend() })
+                        ScheduledView(timeLabel: timeLabel, onSend: {
+                            let name = viewModel.suggestion.map { viewModel.displayName(for: $0) } ?? ""
+                            let elapsed = scheduleStartTime.map { Date().timeIntervalSince($0) } ?? 0
+                            analyticsService.logInvitationCompleted(contactName: name, method: "iMessage", timeElapsed: elapsed)
+                            analyticsService.logButtonTapped(screen: "ScheduledView", button: "SendInvite")
+                            viewModel.finishAndSend()
+                        })
                     case .idle:
                         if let suggestion = viewModel.suggestion {
                             SuggestionCard(
@@ -28,7 +35,25 @@ struct SuggestionView: View {
                                     analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
                                     viewModel.dismiss()
                                 },
-                                onSchedule: { viewModel.schedule() }
+                                onSchedule: {
+                                    let name = viewModel.displayName(for: suggestion)
+                                    let hour = Calendar.current.component(.hour, from: suggestion.proposedTime.start)
+                                    let timeOfDay: String
+                                    switch hour {
+                                    case 5..<12: timeOfDay = "morning"
+                                    case 12..<18: timeOfDay = "afternoon"
+                                    default:      timeOfDay = "evening"
+                                    }
+                                    analyticsService.logInvitationInitiated(
+                                        contactName: name,
+                                        activity: suggestion.activity.rawValue,
+                                        timeOfDay: timeOfDay,
+                                        isFreeSlotSuggested: true
+                                    )
+                                    scheduleStartTime = Date()
+                                    viewModel.schedule()
+                                },
+                                analyticsService: analyticsService
                             )
                             .onAppear {
                                 analyticsService.logSuggestionViewed(

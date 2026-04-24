@@ -39,7 +39,6 @@ struct SuggestionCard: View {
 
                 Button("Maybe Later") {
                     analyticsService.logButtonTapped(screen: "SuggestionCard", button: "MaybeLater")
-                    analyticsService.logInvitationResponse(contactName: displayName, response: "maybe")
                     onDismiss()
                 }
                     .foregroundStyle(.secondary)

@@ -124,40 +124,64 @@ eta> stats
 ## KPIs Tracked
 
 ### Permissions
-- Calendar access grant rate and time to grant
-- Contacts access grant rate and time to grant
-- Meaningful because each user starts from a fresh install — permission prompts fire every time
+- **Grant rate** (calendar + contacts): Did users allow access, or bail?
+- **Time to grant**: How long did they hesitate before tapping Allow? High hesitation = trust issue with the permission copy.
+- **Contacts selection type** (all vs. selected): Tells you whether users are cautious about sharing their full address book.
 
 ### Onboarding
-- **Completion rate**: % of sessions where the user added at least one friend (`isInitialAdd: true` event)
-- **Avg duration**: time from app launch to first friend added
-- "Onboarding" in Eta = getting through the permission prompt and adding your first friend — there is no separate onboarding screen
+- **Completion rate**: % of sessions where the user added at least one friend. If this is low, the permission + add-friends flow has too much friction.
+- **Duration**: Time from app launch to first friend added. Longer = more friction in the add flow.
+- "Onboarding" in Eta = getting through the contacts permission + adding your first friend. There is no separate onboarding screen.
 
 ### Connections
-- Number of friends added per user (`avgPerUser`)
-- **% of address book added** (`avgPercentageAdded`): computed from the final `ConnectionAdded` event per session — how much of their contacts list did they actually add to Eta?
-  - Denominator = full address book size at time of adding (never shrinks)
-  - `isInitialAdd: true` = first batch of adds (from address book picker); `isInitialAdd: false` = follow-up adds within the same session
-- Edit rate (connections edited after adding)
-- "Show Selected" button clicks
+- **Avg friends added per user**: Core adoption metric — are users actually populating their list?
+- **% of address book added** (`avgPercentageAdded`): What fraction of their contacts did they bring into Eta? Low % may mean the picker UI is too slow to scroll, or they only added a few manually.
+  - Computed from the *final* `ConnectionAdded` event per session, so it reflects where the user stopped, not an average mid-add.
+  - `isInitialAdd: true` = added from the picker in the first pass; `isInitialAdd: false` = went back and added more.
+- **Removed**: Did any users delete a friend? High removal rate suggests the add flow is too easy to accidentally add someone.
+- **Edit rate**: Did users update friend info after adding? Signals whether the auto-populated data (name, phone) was wrong.
+- **Show Selected clicks**: How often users filter to view only selected contacts in the picker.
 
 ### Suggestions
-- Number of suggestions generated per session
-- Suggestion view rate
-- Tap/interaction rate (yes vs maybe)
+- **Generated per session**: Is the algorithm surfacing anything at all? Zero means no free slot + overdue friend overlap was found.
+- **Tap rate vs. dismiss rate**: The core quality signal. High dismiss rate = suggestions are off-target (wrong person, wrong time). High tap rate = the algorithm is working.
+- `SuggestionTapped` = "Yes, let's do it!" (user engaged). `SuggestionDismissed` = "Maybe Later" (user passed).
 
-### Invitations *(ready for when feature ships)*
-- Initiation rate, completion rate, abandonment rate
-- Response breakdown (yes/maybe/no)
-- Time to send
-- Activity type preferences
-- Time of day preferences (morning/afternoon/evening)
-- Free slot suggested and accepted
+### Invitations
+The invitation funnel — drop-off at each stage points to a different problem:
+
+```
+SuggestionViewed
+        ↓
+SuggestionTapped / InvitationInitiated   ("Yes, let's do it!")
+        ↓  drop-off here = ScheduledView caused hesitation
+InvitationCompleted                       ("Send Invite" tapped → iMessage opened)
+```
+
+- **Initiation rate**: Of users who see a suggestion, how many tap "Yes"? (= `InvitationInitiated` / `SuggestionViewed`)
+- **Completion rate**: Of users who tapped "Yes", how many actually sent the iMessage? Drop-off means the ScheduledView screen created second thoughts.
+- **Time to send** (`timeElapsed`): How long between "Yes" and tapping "Send Invite"? Long time = hesitation on the confirmation screen.
+- **Activity type**: Which activities convert best — useful for pruning the activity pool.
+- **Time of day**: Are certain time slots (morning/afternoon/evening) more likely to convert?
+- **Free slot suggested**: Was the AI-suggested time used? (`isFreeSlotSuggested: true` on all current invitations since the app always provides a suggested slot.)
+
+*Not yet wired (require future UI):*
+- `InvitationAbandoned` — backing out of ScheduledView without sending; needs a cancel/back gesture
+- `InvitationResponse` — tracking whether the recipient said yes/maybe/no; needs recipient-side feature
+- `FreeSlotAccepted` — whether user changed the suggested time; needs time-editing UI in ScheduledView
+
+### Connections
+- **Avg friends added per user**: Core adoption metric — are users actually populating their list?
+- **% of address book added** (`avgPercentageAdded`): What fraction of their contacts did they bring into Eta? Low % may mean the picker UI is too slow, or they only added a few manually.
+  - Computed from the *final* `ConnectionAdded` event per session, so it reflects where the user stopped.
+  - `isInitialAdd: true` = first batch from the picker; `isInitialAdd: false` = went back and added more later.
+- **Removed**: Did any users delete a friend? Signals friction in the add flow (added the wrong person).
+- **Edit rate** and **Show Selected**: *Not yet wired* — no contact editing flow or "Show Selected" button exists in the current app.
 
 ### Navigation & Screen Time
-- Time spent on each screen
-- Navigation path to invitation
-- Button tap sequences
+- **Time per screen**: Unusually long time on a screen often means confusion. Tracked on: `SuggestionView`, `ConnectionsView`, `AddConnectionSheet`.
+- **Button tap sequences**: Full trace of taps in order — useful for spotting unexpected navigation paths.
+- **Steps to invitation**: How many screen transitions happened before the first invite was sent?
 
 ## Privacy Note
 
