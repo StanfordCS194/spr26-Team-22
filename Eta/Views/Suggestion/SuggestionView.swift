@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SuggestionView: View {
     let viewModel: SuggestionViewModel
+    let analyticsService: AnalyticsService
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -23,9 +24,18 @@ struct SuggestionView: View {
                                 displayName: viewModel.displayName(for: suggestion),
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
-                                onDismiss: { viewModel.dismiss() },
+                                onDismiss: {
+                                    analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
+                                    viewModel.dismiss()
+                                },
                                 onSchedule: { viewModel.schedule() }
                             )
+                            .onAppear {
+                                analyticsService.logSuggestionViewed(
+                                    contactName: viewModel.displayName(for: suggestion),
+                                    daysSinceLastHangout: nil
+                                )
+                            }
                         } else {
                             ContentUnavailableView(
                                 "Nothing to suggest right now",
@@ -44,12 +54,21 @@ struct SuggestionView: View {
         }
         .task {
             await viewModel.refresh()
+            
+            // Track suggestions generated
+            if let suggestion = viewModel.suggestion {
+                analyticsService.logSuggestionsGenerated(
+                    count: 1,
+                    contactNames: [viewModel.displayName(for: suggestion)]
+                )
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await viewModel.refresh() }
             }
         }
+        .trackScreen("SuggestionView", analytics: analyticsService)
     }
 }
 
