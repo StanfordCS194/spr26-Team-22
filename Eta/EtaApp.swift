@@ -59,7 +59,6 @@ struct EtaApp: App {
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
-            contactRepository: repository,
             formatter: formatter
         )
         

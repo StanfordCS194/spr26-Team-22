@@ -19,27 +19,17 @@ final class UpcomingEventsViewModel {
     /// Feeds the EventHistoryView.
     private(set) var allItems: [HangoutDisplayItem] = []
 
-    /// All tracked contacts — supplied to HangoutFormSheet for the contact picker.
-    private(set) var contacts: [TrackedContact] = []
-
     private let hangoutRepository: ScheduledHangoutRepository
-    private let contactRepository: ContactRepository
     private let formatter: ContactFormatter
 
-    init(
-        hangoutRepository: ScheduledHangoutRepository,
-        contactRepository: ContactRepository,
-        formatter: ContactFormatter
-    ) {
+    init(hangoutRepository: ScheduledHangoutRepository, formatter: ContactFormatter) {
         self.hangoutRepository = hangoutRepository
-        self.contactRepository = contactRepository
         self.formatter = formatter
     }
 
     func refresh() async {
         do {
             let hangouts = try hangoutRepository.fetchAll()
-            contacts = try contactRepository.fetchAll()
             let startOfToday = Calendar.current.startOfDay(for: .now)
 
             let items: [HangoutDisplayItem] = hangouts
@@ -54,15 +44,5 @@ final class UpcomingEventsViewModel {
         } catch {
             // SwiftData fetch failed; leave existing data in place.
         }
-    }
-
-    /// Formatted display name for a contact — for use in the form sheet picker.
-    func contactDisplayName(for contact: TrackedContact) -> String {
-        formatter.displayName(for: contact)
-    }
-
-    func deleteHangout(_ hangout: ScheduledHangout) async {
-        try? hangoutRepository.remove(hangout)
-        await refresh()
     }
 }
