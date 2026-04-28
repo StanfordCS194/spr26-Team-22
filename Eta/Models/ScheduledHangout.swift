@@ -1,6 +1,13 @@
 import Foundation
 import SwiftData
 
+/// The raw response stored on the model. Status is derived from this — never stored directly.
+enum InviteeResponse: String, Codable {
+    case pending    // awaiting reply
+    case confirmed  // invitee accepted
+    case declined   // invitee declined
+}
+
 @Model
 final class ScheduledHangout {
     var id: UUID
@@ -9,6 +16,7 @@ final class ScheduledHangout {
     var startDate: Date
     var endDate: Date
     var scheduledAt: Date
+    var inviteeResponse: InviteeResponse
 
     init(
         id: UUID = UUID(),
@@ -23,6 +31,7 @@ final class ScheduledHangout {
         self.startDate = proposedTime.start
         self.endDate = proposedTime.end
         self.scheduledAt = scheduledAt
+        self.inviteeResponse = .pending
     }
 
     var proposedTime: DateInterval {
@@ -31,5 +40,15 @@ final class ScheduledHangout {
 
     var resolvedActivity: Activity? {
         Activity(rawValue: activity)
+    }
+
+    /// Derived from inviteeResponse — never stored or set directly.
+    /// Update inviteeResponse to change status.
+    var status: HangoutStatus {
+        switch inviteeResponse {
+        case .pending:   return .pending
+        case .confirmed: return .confirmed
+        case .declined:  return .canceled
+        }
     }
 }

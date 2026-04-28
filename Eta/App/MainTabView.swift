@@ -7,6 +7,7 @@ fileprivate enum TabChoice: Hashable {
 struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
+    let upcomingEventsViewModel: UpcomingEventsViewModel
     let analyticsService: AnalyticsService
     
     @State private var selectedTab: TabChoice = .events
@@ -20,7 +21,7 @@ struct MainTabView: View {
                 )
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
-                UpcomingEventsDashboard()
+                UpcomingEventsDashboard(viewModel: upcomingEventsViewModel)
             }
             Tab("Suggestions", systemImage: "sparkles", value: .activites) {
                 SuggestionView(

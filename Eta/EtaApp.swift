@@ -13,6 +13,7 @@ struct EtaApp: App {
     private let container: ModelContainer
     private let connectionsViewModel: ConnectionsViewModel
     private let suggestionViewModel: SuggestionViewModel
+    private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
 
     init() {
@@ -56,6 +57,11 @@ struct EtaApp: App {
             inviteService: inviteService,
             formatter: formatter
         )
+        self.upcomingEventsViewModel = UpcomingEventsViewModel(
+            hangoutRepository: hangoutRepository,
+            contactRepository: repository,
+            formatter: formatter
+        )
         
         // Track app lifecycle events
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -66,6 +72,7 @@ struct EtaApp: App {
             MainTabView(
                 connectionsViewModel: connectionsViewModel,
                 suggestionViewModel: suggestionViewModel,
+                upcomingEventsViewModel: upcomingEventsViewModel,
                 analyticsService: analyticsService
             )
         }
