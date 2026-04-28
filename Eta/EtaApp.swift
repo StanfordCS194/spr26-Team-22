@@ -7,15 +7,18 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct EtaApp: App {
     private let container: ModelContainer
     private let connectionsViewModel: ConnectionsViewModel
     private let suggestionViewModel: SuggestionViewModel
+    // Must be held strongly — UNUserNotificationCenter.delegate is weak.
+    private let notificationDelegate: NotificationDelegate
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, Invitation.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
@@ -41,6 +44,15 @@ struct EtaApp: App {
             calendarDataProvider: calendarDataProvider
         )
 
+        let notificationService = LocalNotificationService()
+        let invitationManager = InvitationManager(
+            notificationService: notificationService,
+            modelContext: container.mainContext
+        )
+        let notificationDelegate = NotificationDelegate(invitationManager: invitationManager)
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        self.notificationDelegate = notificationDelegate
+
         self.connectionsViewModel = ConnectionsViewModel(
             repository: repository,
             formatter: formatter,
@@ -49,6 +61,7 @@ struct EtaApp: App {
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
             inviteService: inviteService,
+            invitationManager: invitationManager,
             formatter: formatter
         )
     }

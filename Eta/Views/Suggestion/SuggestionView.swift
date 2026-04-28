@@ -15,8 +15,8 @@ struct SuggestionView: View {
                     switch viewModel.scheduleState {
                     case .accepted:
                         AcceptedView()
-                    case .scheduled(let timeLabel):
-                        ScheduledView(timeLabel: timeLabel, onSend: { viewModel.finishAndSend() })
+                    case .invitationSent(let friendName):
+                        InvitationSentView(friendName: friendName, onDone: { viewModel.done() })
                     case .idle:
                         if let suggestion = viewModel.suggestion {
                             SuggestionCard(
@@ -58,10 +58,10 @@ struct SuggestionView: View {
 private struct AcceptedView: View {
     var body: some View {
         VStack(spacing: 8) {
-            Text("Invitation accepted! 🎉")
+            Text("Scheduling your hangout...")
                 .font(.title)
                 .fontWeight(.semibold)
-            Text("Creating your calendar event...")
+            Text("Setting up your calendar event and invitation.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -70,27 +70,27 @@ private struct AcceptedView: View {
     }
 }
 
-private struct ScheduledView: View {
-    let timeLabel: String
-    let onSend: () -> Void
+private struct InvitationSentView: View {
+    let friendName: String
+    let onDone: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer()
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Hangout scheduled for \(timeLabel)!")
+                Text("Invitation sent to \(friendName)!")
                     .font(.title)
                     .fontWeight(.semibold)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Tap below to send the invite.")
+                Text("You'll get a notification when they respond.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Button("Send Invite", action: onSend)
+            Button("Done", action: onDone)
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
         }
