@@ -11,7 +11,7 @@ enum InviteeResponse: String, Codable {
 @Model
 final class ScheduledHangout {
     var id: UUID
-    var contactID: UUID
+    var contact: TrackedContact?
     var activity: String       // Activity.rawValue — stored as String; use resolvedActivity to get the enum
     var startDate: Date
     var endDate: Date
@@ -20,13 +20,13 @@ final class ScheduledHangout {
 
     init(
         id: UUID = UUID(),
-        contactID: UUID,
+        contact: TrackedContact,
         activity: Activity,
         proposedTime: DateInterval,
         scheduledAt: Date = .now
     ) {
         self.id = id
-        self.contactID = contactID
+        self.contact = contact
         self.activity = activity.rawValue
         self.startDate = proposedTime.start
         self.endDate = proposedTime.end
