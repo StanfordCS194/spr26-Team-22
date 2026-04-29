@@ -2,8 +2,8 @@ import UserNotifications
 
 final class LocalNotificationService: NotificationServiceProtocol {
     private let center = UNUserNotificationCenter.current()
-    // Simulated delay before "friend accepts" — short enough to demo clearly.
-    private let simulatedDelay: TimeInterval = 5.0
+    // Simulated delay before "friend accepts"
+    private let simulatedDelay: TimeInterval = 10.0
 
     func requestAuthorization() async throws {
         let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
