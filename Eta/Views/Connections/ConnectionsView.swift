@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectionsView: View {
     let viewModel: ConnectionsViewModel
+    let analyticsService: AnalyticsService
 
     @State private var showingAddSheet = false
 
@@ -21,7 +22,12 @@ struct ConnectionsView: View {
                         }
                         .onDelete { indexSet in
                             for index in indexSet {
-                                viewModel.removeContact(viewModel.contacts[index])
+                                let contact = viewModel.contacts[index]
+                                analyticsService.logConnectionRemoved(
+                                    contactName: contact.name,
+                                    totalContacts: viewModel.contacts.count - 1
+                                )
+                                viewModel.removeContact(contact)
                             }
                         }
                     }
@@ -31,6 +37,7 @@ struct ConnectionsView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        analyticsService.logButtonTapped(screen: "ConnectionsView", button: "AddConnection")
                         showingAddSheet = true
                     } label: {
                         Image(systemName: "plus")
@@ -38,12 +45,16 @@ struct ConnectionsView: View {
                 }
             }
             .sheet(isPresented: $showingAddSheet) {
-                AddConnectionSheet(viewModel: viewModel)
+                AddConnectionSheet(
+                    viewModel: viewModel,
+                    analyticsService: analyticsService
+                )
             }
             .task {
                 viewModel.loadContacts()
                 await viewModel.loadHealthScores()
             }
+            .trackScreen("ConnectionsView", analytics: analyticsService)
         }
     }
 }

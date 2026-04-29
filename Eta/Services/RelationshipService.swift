@@ -6,6 +6,8 @@ final class RelationshipService {
     private let providers: [any ImplicitDataProvider]
     private let repository: ContactRepository
     private let hangoutRepository: ScheduledHangoutRepository
+    private var analyticsService: AnalyticsService?
+    private var hasRequestedCalendarPermission = false
 
     init(
         providers: [any ImplicitDataProvider],
@@ -15,6 +17,10 @@ final class RelationshipService {
         self.providers = providers
         self.repository = repository
         self.hangoutRepository = hangoutRepository
+    }
+    
+    func setAnalyticsService(_ service: AnalyticsService) {
+        self.analyticsService = service
     }
 
     /// Returns one RelationshipHealth per active tracked contact.
@@ -34,8 +40,9 @@ final class RelationshipService {
         let upcoming = (try? hangoutRepository.fetchUpcoming()) ?? []
         var upcomingByContactID: [UUID: ScheduledHangout] = [:]
         for hangout in upcoming {
-            if upcomingByContactID[hangout.contactID] == nil {
-                upcomingByContactID[hangout.contactID] = hangout
+            guard let contactID = hangout.contact?.id else { continue }
+            if upcomingByContactID[contactID] == nil {
+                upcomingByContactID[contactID] = hangout
             }
         }
 
@@ -45,10 +52,34 @@ final class RelationshipService {
         var allEvents: [HangoutEvent] = []
         await withTaskGroup(of: [HangoutEvent].self) { group in
             for provider in providers {
-                group.addTask {
+                group.addTask { [weak self] in
                     print("[RelationshipService] requesting access from \(type(of: provider))")
+                    
+                    // Track calendar permission request (only once)
+                    if let strongSelf = self, !strongSelf.hasRequestedCalendarPermission {
+                        strongSelf.analyticsService?.logPermissionRequested(type: "Calendar")
+                        strongSelf.hasRequestedCalendarPermission = true
+                    }
+                    
+                    let requestTime = Date()
                     let hasAccess = await provider.requestAccess()
+                    let timeElapsed = Date().timeIntervalSince(requestTime)
+                    
                     print("[RelationshipService] \(type(of: provider)) access granted: \(hasAccess)")
+                    
+                    // Track permission result
+                    if hasAccess {
+                        self?.analyticsService?.logPermissionGranted(
+                            type: "Calendar",
+                            timeElapsed: timeElapsed
+                        )
+                    } else {
+                        self?.analyticsService?.logPermissionDenied(
+                            type: "Calendar",
+                            timeElapsed: timeElapsed
+                        )
+                    }
+                    
                     guard hasAccess else { return [] }
                     print("[RelationshipService] calling fetchEvents on \(type(of: provider))")
                     return (try? await provider.fetchEvents(for: contacts, since: since)) ?? []

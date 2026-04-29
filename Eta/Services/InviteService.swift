@@ -19,7 +19,7 @@ final class InviteService {
     /// Call this when the user confirms ("Yes, let's do it!").
     func book(suggestion: Suggestion) {
         let hangout = ScheduledHangout(
-            contactID: suggestion.contact.id,
+            contact: suggestion.contact,
             activity: suggestion.activity,
             proposedTime: suggestion.proposedTime
         )

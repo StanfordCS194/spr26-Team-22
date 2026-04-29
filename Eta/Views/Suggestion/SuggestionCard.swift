@@ -6,6 +6,7 @@ struct SuggestionCard: View {
     let suggestion: Suggestion
     let onDismiss: () -> Void
     let onSchedule: () -> Void
+    let analyticsService: AnalyticsService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,11 +29,18 @@ struct SuggestionCard: View {
                 .padding(.bottom, 32)
 
             VStack(spacing: 12) {
-                Button("Yes, let's do it!", action: onSchedule)
+                Button("Yes, let's do it!") {
+                    analyticsService.logSuggestionTapped(contactName: displayName)
+                    analyticsService.logButtonTapped(screen: "SuggestionCard", button: "YesLetsDoIt")
+                    onSchedule()
+                }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
 
-                Button("Maybe Later", action: onDismiss)
+                Button("Maybe Later") {
+                    analyticsService.logButtonTapped(screen: "SuggestionCard", button: "MaybeLater")
+                    onDismiss()
+                }
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
