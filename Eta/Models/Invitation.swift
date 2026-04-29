@@ -4,6 +4,7 @@ import Foundation
 enum InvitationStatus: String, Codable {
     case pending    // invitation sent, waiting for response
     case confirmed  // invitee accepted
+    case declined   // invitee declined
 }
 
 @Model
@@ -14,6 +15,7 @@ final class Invitation {
     var scheduledTime: Date
     var createdAt: Date
     var invitationStatusRaw: String
+    var hangoutID: UUID?
 
     var status: InvitationStatus {
         get { InvitationStatus(rawValue: invitationStatusRaw) ?? .pending }
@@ -26,7 +28,8 @@ final class Invitation {
         friendName: String,
         scheduledTime: Date,
         createdAt: Date = Date(),
-        status: InvitationStatus = .pending
+        status: InvitationStatus = .pending,
+        hangoutID: UUID? = nil
     ) {
         self.id = id
         self.activityName = activityName
@@ -34,5 +37,6 @@ final class Invitation {
         self.scheduledTime = scheduledTime
         self.createdAt = createdAt
         self.invitationStatusRaw = status.rawValue
+        self.hangoutID = hangoutID
     }
 }

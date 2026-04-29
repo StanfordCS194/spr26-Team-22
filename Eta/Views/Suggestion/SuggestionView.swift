@@ -18,15 +18,7 @@ struct SuggestionView: View {
                     case .accepted:
                         AcceptedView()
                     case .invitationSent(let friendName):
-                    InvitationSentView(friendName: friendName, onDone: { viewModel.done() })
-                    case .scheduled(let timeLabel):
-                    ScheduledView(timeLabel: timeLabel, onSend: {
-                        let name = viewModel.suggestion.map { viewModel.displayName(for: $0) } ?? ""
-                        let elapsed = scheduleStartTime.map { Date().timeIntervalSince($0) } ?? 0
-                        analyticsService.logInvitationCompleted(contactName: name, method: "iMessage", timeElapsed: elapsed)
-                        analyticsService.logButtonTapped(screen: "ScheduledView", button: "SendInvite")
-                        viewModel.finishAndSend()
-                    })
+                        InvitationSentView(friendName: friendName, onDone: { viewModel.done() })
                     case .idle:
                         if let suggestion = viewModel.suggestion {
                             SuggestionCard(
