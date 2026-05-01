@@ -31,5 +31,29 @@ final class ContactRepository {
         )
         return try modelContext.fetch(descriptor)
     }
+
+    /// Adds a new contact from onboarding data.
+    /// The `desiredFrequencyDays` parameter is accepted for future per-contact frequency overrides
+    /// but is currently stored only in UserPreferencesService.
+    func addContact(
+        givenName: String,
+        familyName: String,
+        phoneNumber: String?,
+        externalID: String,
+        desiredFrequencyDays: Int? = nil
+    ) {
+        let fullName = "\(givenName) \(familyName)".trimmingCharacters(in: .whitespaces)
+        let contact = TrackedContact(
+            cnContactIdentifier: externalID,
+            name: fullName,
+            givenName: givenName,
+            familyName: familyName,
+            phoneNumber: phoneNumber,
+            isActive: true,
+            addedAt: Date()
+        )
+        modelContext.insert(contact)
+        try? modelContext.save()
+    }
 }
 
