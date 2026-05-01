@@ -64,6 +64,7 @@ struct EtaApp: App {
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
+            contactRepository: repository,
             formatter: formatter
         )
 
@@ -75,7 +76,6 @@ struct EtaApp: App {
             MainTabView(
                 connectionsViewModel: connectionsViewModel,
                 suggestionViewModel: suggestionViewModel,
-                upcomingEventsViewModel: upcomingEventsViewModel,
                 analyticsService: analyticsService
             )
             .environmentObject(preferencesService)
