@@ -364,7 +364,14 @@ struct PermissionInfo: View {
 
 struct OnboardingPagePreferences: View {
     let viewModel: OnboardingViewModel
-    @State private var selectedTime = Date()
+    @State private var enableNotifications: Bool = false
+    @State private var notificationTime: Date = {
+        var components = DateComponents()
+        components.hour = 10
+        components.minute = 0
+        return Calendar.current.date(from: components) ?? Date()
+    }()
+    @State private var preferredActivities: [String] = []
 
     var body: some View {
         VStack(spacing: 24) {
@@ -385,14 +392,14 @@ struct OnboardingPagePreferences: View {
                             ForEach(Activity.allCases, id: \.self) { activity in
                                 ActivityToggle(
                                     activity: activity,
-                                    isSelected: viewModel.userPreferences.preferredActivities.contains(activity.rawValue),
+                                    isSelected: preferredActivities.contains(activity.rawValue),
                                     onChange: { isSelected in
                                         if isSelected {
-                                            if !viewModel.userPreferences.preferredActivities.contains(activity.rawValue) {
-                                                viewModel.userPreferences.preferredActivities.append(activity.rawValue)
+                                            if !preferredActivities.contains(activity.rawValue) {
+                                                preferredActivities.append(activity.rawValue)
                                             }
                                         } else {
-                                            viewModel.userPreferences.preferredActivities.removeAll { $0 == activity.rawValue }
+                                            preferredActivities.removeAll { $0 == activity.rawValue }
                                         }
                                     }
                                 )
@@ -412,11 +419,11 @@ struct OnboardingPagePreferences: View {
                             
                             Spacer()
                             
-                            Toggle("", isOn: OnboardingViewModel.userPreferences.enableNotifications)
+                            Toggle("", isOn: $enableNotifications)
                                 .tint(.accentColor)
                         }
                         
-                        if viewModel.userPreferences.enableNotifications {
+                        if enableNotifications {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Suggestion Time")
                                     .font(.system(size: 13, weight: .medium))
@@ -424,7 +431,7 @@ struct OnboardingPagePreferences: View {
                                 
                                 DatePicker(
                                     "Time",
-                                    selection: viewModel.userPreferences.notificationTime,
+                                    selection: $notificationTime,
                                     displayedComponents: .hourAndMinute
                                 )
                                 .tint(.accentColor)
@@ -441,6 +448,20 @@ struct OnboardingPagePreferences: View {
             Spacer()
         }
         .padding(.horizontal, 24)
+        .onAppear {
+            enableNotifications = viewModel.userPreferences.enableNotifications
+            notificationTime = viewModel.userPreferences.notificationTime
+            preferredActivities = viewModel.userPreferences.preferredActivities
+        }
+        .onChange(of: enableNotifications) { _, newValue in
+            viewModel.userPreferences.enableNotifications = newValue
+        }
+        .onChange(of: notificationTime) { _, newValue in
+            viewModel.userPreferences.notificationTime = newValue
+        }
+        .onChange(of: preferredActivities) { _, newValue in
+            viewModel.userPreferences.preferredActivities = newValue
+        }
     }
 }
 
