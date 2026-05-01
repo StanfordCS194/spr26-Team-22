@@ -1,12 +1,13 @@
 import SwiftUI
 
+private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
+
 struct OnboardingView: View {
     @State private var currentPage = 0
     let viewModel: OnboardingViewModel
     
     var body: some View {
         ZStack {
-            // Gradient background
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color(red: 0.95, green: 0.92, blue: 0.98),
@@ -18,11 +19,10 @@ struct OnboardingView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Page indicator
                 HStack(spacing: 6) {
                     ForEach(0..<4, id: \.self) { index in
                         Capsule()
-                            .fill(index == currentPage ? Color.accentColor : Color.gray.opacity(0.3))
+                            .fill(index == currentPage ? etaTeal : Color.gray.opacity(0.3))
                             .frame(width: index == currentPage ? 32 : 8, height: 8)
                             .animation(.easeInOut(duration: 0.3), value: currentPage)
                     }
@@ -32,7 +32,6 @@ struct OnboardingView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
                 
-                // Page content
                 TabView(selection: $currentPage) {
                     OnboardingPageWelcome()
                         .tag(0)
@@ -49,7 +48,6 @@ struct OnboardingView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(maxHeight: .infinity)
                 
-                // Navigation buttons
                 HStack(spacing: 12) {
                     if currentPage > 0 {
                         Button(action: { withAnimation { currentPage -= 1 } }) {
@@ -58,11 +56,11 @@ struct OnboardingView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(Color.white)
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(etaTeal)
                                 .cornerRadius(10)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                        .stroke(etaTeal.opacity(0.3), lineWidth: 1)
                                 )
                         }
                     }
@@ -73,7 +71,7 @@ struct OnboardingView: View {
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.accentColor)
+                                .background(etaTeal)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
@@ -83,7 +81,7 @@ struct OnboardingView: View {
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.accentColor)
+                                .background(etaTeal)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
@@ -98,78 +96,61 @@ struct OnboardingView: View {
 
 struct OnboardingPageWelcome: View {
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             Spacer()
-            
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.accentColor.opacity(0.1),
-                                Color.accentColor.opacity(0.05)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 120, height: 120)
-                
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 56))
-                    .foregroundColor(.accentColor)
+
+            Image("AppLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 140, height: 140)
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 8)
+
+            VStack(spacing: 8) {
+                Text("Eta")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+
+                Text("Nurture the friendships\nthat matter most")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
-            
+
             VStack(spacing: 12) {
-                Text("Welcome to Eta")
-                    .font(.system(size: 32, weight: .bold))
-                    .tracking(0.3)
-                
-                Text("Your friendship companion")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.gray)
-            }
-            .multilineTextAlignment(.center)
-            
-            VStack(spacing: 16) {
-                HStack(spacing: 12) {
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.accentColor)
-                    
-                    Text("Maintain meaningful friendships")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(.black.opacity(0.7))
-                }
-                
-                HStack(spacing: 12) {
-                    Image(systemName: "calendar.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.accentColor)
-                    
-                    Text("Find the perfect time to connect")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(.black.opacity(0.7))
-                }
-                
-                HStack(spacing: 12) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 18))
-                        .foregroundColor(.accentColor)
-                    
-                    Text("Smart suggestions just for you")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(.black.opacity(0.7))
-                }
+                WelcomeFeatureRow(icon: "heart.fill", color: .pink, text: "Maintain meaningful friendships")
+                WelcomeFeatureRow(icon: "calendar", color: .blue, text: "Find the perfect time to connect")
+                WelcomeFeatureRow(icon: "sparkles", color: .orange, text: "Smart suggestions just for you")
             }
             .padding(20)
-            .background(Color.white.opacity(0.6))
-            .cornerRadius(16)
-            
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            Spacer()
             Spacer()
         }
         .padding(.horizontal, 24)
+    }
+}
+
+struct WelcomeFeatureRow: View {
+    let icon: String
+    let color: Color
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 28, height: 28)
+
+            Text(text)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.primary.opacity(0.75))
+
+            Spacer()
+        }
     }
 }
 
@@ -382,7 +363,6 @@ struct OnboardingPagePreferences: View {
             
             ScrollView {
                 VStack(spacing: 20) {
-                    // Activity Preferences
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Favorite Activities")
                             .font(.system(size: 15, weight: .semibold))
@@ -410,7 +390,6 @@ struct OnboardingPagePreferences: View {
                     .background(Color.white.opacity(0.6))
                     .cornerRadius(12)
                     
-                    // Notification Preferences
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Enable Notifications")
@@ -420,7 +399,7 @@ struct OnboardingPagePreferences: View {
                             Spacer()
                             
                             Toggle("", isOn: $enableNotifications)
-                                .tint(.accentColor)
+                                .tint(etaTeal)
                         }
                         
                         if enableNotifications {
@@ -434,7 +413,7 @@ struct OnboardingPagePreferences: View {
                                     selection: $notificationTime,
                                     displayedComponents: .hourAndMinute
                                 )
-                                .tint(.accentColor)
+                                .tint(etaTeal)
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
@@ -474,7 +453,7 @@ struct ActivityToggle: View {
         HStack(spacing: 12) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 20))
-                .foregroundColor(isSelected ? .accentColor : .gray.opacity(0.5))
+                .foregroundColor(isSelected ? etaTeal : .gray.opacity(0.5))
             
             Text(activity.rawValue)
                 .font(.system(size: 14, weight: .regular))
@@ -483,7 +462,7 @@ struct ActivityToggle: View {
             Spacer()
         }
         .padding(12)
-        .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+        .background(isSelected ? etaTeal.opacity(0.08) : Color.clear)
         .cornerRadius(8)
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
