@@ -2,9 +2,6 @@ import Foundation
 import EventKit
 
 /// Supplies hangout events from Apple Calendar via EKEventStore.
-///
-/// Implements `ImplicitDataProvider`. A future social-API provider would conform
-/// to the same protocol — no changes to RelationshipService needed.
 final class CalendarDataProvider: ImplicitDataProvider {
     private let eventStore = EKEventStore()
 

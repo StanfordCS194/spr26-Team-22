@@ -14,6 +14,8 @@ final class TrackedContact {
     var emailAddress: String?
     var isActive: Bool
     var addedAt: Date
+    @Relationship(deleteRule: .cascade, inverse: \ScheduledHangout.contact)
+    var hangouts: [ScheduledHangout] = []
 
     init(
         id: UUID = UUID(),

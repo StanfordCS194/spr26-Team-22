@@ -11,7 +11,7 @@ final class SuggestionViewModel {
     enum ScheduleState {
         case idle
         case accepted
-        case scheduled(timeLabel: String)
+        case invitationSent(friendName: String)
     }
 
     private(set) var suggestion: Suggestion?
@@ -20,15 +20,18 @@ final class SuggestionViewModel {
 
     private let suggestionService: SuggestionService
     private let inviteService: InviteService
+    private let invitationManager: InvitationManager
     private let formatter: ContactFormatter
 
     init(
         suggestionService: SuggestionService,
         inviteService: InviteService,
+        invitationManager: InvitationManager,
         formatter: ContactFormatter
     ) {
         self.suggestionService = suggestionService
         self.inviteService = inviteService
+        self.invitationManager = invitationManager
         self.formatter = formatter
     }
 
@@ -80,24 +83,31 @@ final class SuggestionViewModel {
         suggestion = nil
     }
 
-    /// Persists the hangout, creates a calendar event, then drives the confirmation
-    /// UI through accepted → scheduled states.
+    /// Persists the hangout, creates a calendar event, then sends the invitation
+    /// via push notification. Drives the UI through accepted → invitationSent states.
     func schedule() {
         guard let suggestion else { return }
-        let label = timeLabel(for: suggestion)
-        inviteService.book(suggestion: suggestion)
+        let name = displayName(for: suggestion)
+        let activityName = suggestion.activity.rawValue
+        let scheduledTime = suggestion.proposedTime.start
+
+        let hangoutID = inviteService.book(suggestion: suggestion)
+
         Task { @MainActor in
             scheduleState = .accepted
-            try? await Task.sleep(for: .seconds(1.2))
-            scheduleState = .scheduled(timeLabel: label)
+            _ = try? await invitationManager.acceptSuggestion(
+                activityName: activityName,
+                friendName: name,
+                scheduledTime: scheduledTime,
+                hangoutID: hangoutID
+            )
+            scheduleState = .invitationSent(friendName: name)
+            self.suggestion = nil
         }
     }
 
-    /// Opens Messages with the pre-filled invite, then clears the confirmation state.
-    func finishAndSend() {
-        guard let suggestion else { return }
-        inviteService.sendMessage(for: suggestion)
-        self.suggestion = nil
+    /// Returns the suggestion view to idle so the user can pull-to-refresh for a new suggestion.
+    func done() {
         scheduleState = .idle
     }
 }

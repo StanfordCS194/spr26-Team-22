@@ -1,6 +1,8 @@
 import Foundation
 
 struct HangoutDisplayItem: Identifiable {
+    /// The underlying model — @Observable, so status reads in a View body
+    /// register observation automatically and re-render when inviteeResponse changes.
     let hangout: ScheduledHangout
     let contactName: String
 
@@ -9,18 +11,19 @@ struct HangoutDisplayItem: Identifiable {
 
 @Observable
 final class UpcomingEventsViewModel {
+    /// Events from today onwards, sorted soonest first.
+    /// Includes canceled events until their intended date passes.
     private(set) var upcomingItems: [HangoutDisplayItem] = []
+
+    /// All events ever scheduled, sorted by startDate ascending.
+    /// Feeds the EventHistoryView.
     private(set) var allItems: [HangoutDisplayItem] = []
 
     private let hangoutRepository: ScheduledHangoutRepository
-    private let contactRepository: ContactRepository
     private let formatter: ContactFormatter
 
-    init(hangoutRepository: ScheduledHangoutRepository,
-         contactRepository: ContactRepository,
-         formatter: ContactFormatter) {
+    init(hangoutRepository: ScheduledHangoutRepository, formatter: ContactFormatter) {
         self.hangoutRepository = hangoutRepository
-        self.contactRepository = contactRepository
         self.formatter = formatter
     }
 
@@ -32,8 +35,7 @@ final class UpcomingEventsViewModel {
             let items: [HangoutDisplayItem] = hangouts
                 .sorted { $0.startDate < $1.startDate }
                 .map { hangout in
-                    let contact = contactRepository.fetch(by: hangout.contactID)
-                    let name = contact.map { formatter.displayName(for: $0) } ?? "Unknown"
+                    let name = hangout.contact.map { formatter.displayName(for: $0) } ?? "Unknown"
                     return HangoutDisplayItem(hangout: hangout, contactName: name)
                 }
 
