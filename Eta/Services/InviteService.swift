@@ -16,15 +16,17 @@ final class InviteService {
     }
 
     /// Persists the scheduled hangout and creates a calendar event on the user's calendar.
-    /// Call this when the user confirms ("Yes, let's do it!").
-    func book(suggestion: Suggestion) {
+    /// Returns the hangout's UUID so the caller can link the resulting Invitation to it.
+    @discardableResult
+    func book(suggestion: Suggestion) -> UUID {
         let hangout = ScheduledHangout(
-            contactID: suggestion.contact.id,
+            contact: suggestion.contact,
             activity: suggestion.activity,
             proposedTime: suggestion.proposedTime
         )
         try? hangoutRepository.add(hangout)
         calendarDataProvider.createEvent(for: suggestion)
+        return hangout.id
     }
 
     /// Opens Messages with a pre-filled invite text.

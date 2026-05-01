@@ -5,6 +5,7 @@ struct ConnectionsView: View {
     let analyticsService: AnalyticsService
 
     @State private var showingAddSheet = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,11 @@ struct ConnectionsView: View {
             .task {
                 viewModel.loadContacts()
                 await viewModel.loadHealthScores()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    Task { await viewModel.loadHealthScores() }
+                }
             }
             .trackScreen("ConnectionsView", analytics: analyticsService)
         }

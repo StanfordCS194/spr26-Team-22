@@ -40,8 +40,9 @@ final class RelationshipService {
         let upcoming = (try? hangoutRepository.fetchUpcoming()) ?? []
         var upcomingByContactID: [UUID: ScheduledHangout] = [:]
         for hangout in upcoming {
-            if upcomingByContactID[hangout.contactID] == nil {
-                upcomingByContactID[hangout.contactID] = hangout
+            guard let contactID = hangout.contact?.id else { continue }
+            if upcomingByContactID[contactID] == nil {
+                upcomingByContactID[contactID] = hangout
             }
         }
 
