@@ -18,7 +18,7 @@ struct EtaApp: App {
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
-    private let onboardingViewModel: OnboardingViewModel
+    @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
         let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
@@ -77,7 +77,7 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
-        self.onboardingViewModel = OnboardingViewModel(preferencesService: preferencesService)
+        self._onboardingViewModel = State(initialValue: OnboardingViewModel(preferencesService: preferencesService))
 
         // Track app lifecycle events
         setupLifecycleTracking(analyticsService: analyticsService)
