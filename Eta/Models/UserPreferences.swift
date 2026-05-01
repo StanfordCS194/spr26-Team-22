@@ -1,16 +1,30 @@
 import Foundation
 
 struct UserPreferences: Codable {
-    var preferredActivities: [String] = Activity.allCases.map { $0.rawValue }
-    var relationshipHealthThreshold: Double = 7.0 // Days before someone is "overdue"
-    var lookAheadDays: Int = 3
-    var enableNotifications: Bool = true
-    var notificationTime: Date = {
-        var components = DateComponents()
-        components.hour = 10
-        components.minute = 0
-        return Calendar.current.date(from: components) ?? Date()
-    }()
+    var preferredActivities: [String]
+    var relationshipHealthThreshold: Double
+    var lookAheadDays: Int
+    var enableNotifications: Bool
+    var notificationTime: Date
+
+    init(
+        preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
+        relationshipHealthThreshold: Double = 7.0,
+        lookAheadDays: Int = 3,
+        enableNotifications: Bool = true,
+        notificationTime: Date = {
+            var components = DateComponents()
+            components.hour = 10
+            components.minute = 0
+            return Calendar.current.date(from: components) ?? Date()
+        }()
+    ) {
+        self.preferredActivities = preferredActivities
+        self.relationshipHealthThreshold = relationshipHealthThreshold
+        self.lookAheadDays = lookAheadDays
+        self.enableNotifications = enableNotifications
+        self.notificationTime = notificationTime
+    }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)

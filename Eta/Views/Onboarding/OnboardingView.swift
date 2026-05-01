@@ -412,7 +412,7 @@ struct OnboardingPagePreferences: View {
                             
                             Spacer()
                             
-                            Toggle("", isOn: $viewModel.userPreferences.enableNotifications)
+                            Toggle("", isOn: viewModel.userPreferences.enableNotifications)
                                 .tint(.accentColor)
                         }
                         
@@ -424,7 +424,7 @@ struct OnboardingPagePreferences: View {
                                 
                                 DatePicker(
                                     "Time",
-                                    selection: $viewModel.userPreferences.notificationTime,
+                                    selection: viewModel.userPreferences.notificationTime,
                                     displayedComponents: .hourAndMinute
                                 )
                                 .tint(.accentColor)

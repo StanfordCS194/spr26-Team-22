@@ -2,7 +2,15 @@ import Foundation
 
 @Observable
 class OnboardingViewModel {
-    var userPreferences: UserPreferences = UserPreferences()
+    private let preferencesService: PreferencesService
+    var userPreferences: UserPreferences {
+        get {
+            preferencesService.preferences
+        }
+        set {
+            preferencesService.updatePreferences(newValue)
+        }
+    }
 
     var hasCompletedOnboarding: Bool {
         get {
@@ -13,25 +21,12 @@ class OnboardingViewModel {
         }
     }
 
-    init() {
-        loadPreferences()
-    }
-
-    func loadPreferences() {
-        if let data = UserDefaults.standard.data(forKey: "userPreferences"),
-           let decoded = try? JSONDecoder().decode(UserPreferences.self, from: data) {
-            userPreferences = decoded
-        }
-    }
-
-    func savePreferences() {
-        if let encoded = try? JSONEncoder().encode(userPreferences) {
-            UserDefaults.standard.set(encoded, forKey: "userPreferences")
-        }
+    init(preferencesService: PreferencesService) {
+        self.preferencesService = preferencesService
     }
 
     func completeOnboarding() {
-        savePreferences()
+        preferencesService.updatePreferences(userPreferences)
         hasCompletedOnboarding = true
     }
 }

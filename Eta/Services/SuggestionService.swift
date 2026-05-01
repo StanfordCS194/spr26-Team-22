@@ -26,7 +26,8 @@ final class SuggestionService {
     }
 
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
-    /// nil otherwise.
+    /// nil otherwise. Uses all user preferences for calendar window, activity filtering,
+    /// and relationship health thresholds.
     func generateSuggestion() async -> Suggestion? {
         // Signal 1: opportunity. Check first — it's synchronous and cheap.
         guard let freeSlot = calendar.findFreeSlot() else { return nil }

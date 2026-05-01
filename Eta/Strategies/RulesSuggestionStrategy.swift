@@ -3,26 +3,32 @@ import Foundation
 /// Selects a hangout suggestion from a ranked list of relationship health scores.
 ///
 /// Returns nil when the highest-scoring active contact has a score below
-/// `minimumScoreThreshold` — interpreted as "you've seen everyone recently,
-/// no suggestion needed." This is the demand half of the opportunity-and-demand gate;
-/// SuggestionService handles the opportunity half (free calendar slot).
+/// the user's configured `relationshipHealthThreshold` — interpreted as "you've seen
+/// everyone recently, no suggestion needed." This is the demand half of the
+/// opportunity-and-demand gate; SuggestionService handles the opportunity half (free calendar slot).
 ///
 /// The `proposedTime` in the returned Suggestion is a throwaway placeholder.
 /// SuggestionService always overwrites it with the actual free slot before returning
 /// to the caller — the strategy has no knowledge of calendar availability.
 final class RulesSuggestionStrategy: SuggestionStrategy {
+    private let preferencesService: PreferencesService
 
-    /// Contacts with a score below this threshold are considered "recently seen"
-    /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
-    private let minimumScoreThreshold: Double = 7
+    init(preferencesService: PreferencesService) {
+        self.preferencesService = preferencesService
+    }
 
     func suggest(from healthScores: [RelationshipHealth]) -> Suggestion? {
+        let minimumScoreThreshold = preferencesService.preferences.relationshipHealthThreshold
+        
         guard let top = healthScores
             .filter({ $0.contact.isActive && $0.score >= minimumScoreThreshold })
             .max(by: { $0.score < $1.score })
         else { return nil }
 
-        guard let activity = Activity.allCases.randomElement() else { return nil }
+        // Filter to user's preferred activities
+        let preferredActivityNames = preferencesService.preferences.preferredActivities
+        let availableActivities = Activity.allCases.filter { preferredActivityNames.contains($0.rawValue) }
+        guard let activity = availableActivities.randomElement() else { return nil }
 
         return Suggestion(
             contact: top.contact,

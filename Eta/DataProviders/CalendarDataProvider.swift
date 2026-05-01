@@ -4,6 +4,11 @@ import EventKit
 /// Supplies hangout events from Apple Calendar via EKEventStore.
 final class CalendarDataProvider: ImplicitDataProvider {
     private let eventStore = EKEventStore()
+    private let preferencesService: PreferencesService
+
+    init(preferencesService: PreferencesService) {
+        self.preferencesService = preferencesService
+    }
 
     func requestAccess() async -> Bool {
         let current = EKEventStore.authorizationStatus(for: .event)
@@ -57,8 +62,8 @@ final class CalendarDataProvider: ImplicitDataProvider {
     
     // MARK: - Free slot detection
 
-    /// Returns the earliest free slot in the user's calendar within `lookAheadDays` days
-    /// that is at least `minimumDuration` seconds long, or nil if none is found.
+    /// Returns the earliest free slot in the user's calendar within the user's preferences-configured
+    /// look-ahead window that is at least the user's configured minimum duration, or nil if none is found.
     ///
     /// Search window per day: 9am–9pm. For today, the window starts at the current time
     /// if it falls within the window.
@@ -66,7 +71,10 @@ final class CalendarDataProvider: ImplicitDataProvider {
     /// This method is not on ImplicitDataProvider — free slot detection is a distinct
     /// capability from historical event fetching. SuggestionService depends on this
     /// concretely. See CLAUDE.md "What is intentionally NOT abstracted".
-    func findFreeSlot(within lookAheadDays: Int = 3, minimumDuration: TimeInterval = 3600) -> DateInterval? {
+    func findFreeSlot() -> DateInterval? {
+        let lookAheadDays = preferencesService.preferences.lookAheadDays
+        let minimumDuration = TimeInterval(3600) // 1 hour minimum
+        
         let cal = Calendar.current
         let now = Date()
 

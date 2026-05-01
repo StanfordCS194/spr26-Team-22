@@ -30,15 +30,17 @@ struct EtaApp: App {
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
         let formatter = ContactFormatter()
-        let calendarDataProvider = CalendarDataProvider()
+        let preferencesService = PreferencesService()
+        let calendarDataProvider = CalendarDataProvider(preferencesService: preferencesService)
 
         let relationshipService = RelationshipService(
             providers: [calendarDataProvider],
             repository: repository,
-            hangoutRepository: hangoutRepository
+            hangoutRepository: hangoutRepository,
+            preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
-        let rulesStrategy = RulesSuggestionStrategy()
+        let rulesStrategy = RulesSuggestionStrategy(preferencesService: preferencesService)
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
@@ -51,7 +53,7 @@ struct EtaApp: App {
             calendarDataProvider: calendarDataProvider
         )
 
-        let notificationService = LocalNotificationService()
+        let notificationService = LocalNotificationService(preferencesService: preferencesService)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
             modelContext: container.mainContext
@@ -75,7 +77,7 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
-        self.onboardingViewModel = OnboardingViewModel()
+        self.onboardingViewModel = OnboardingViewModel(preferencesService: preferencesService)
 
         // Track app lifecycle events
         setupLifecycleTracking(analyticsService: analyticsService)

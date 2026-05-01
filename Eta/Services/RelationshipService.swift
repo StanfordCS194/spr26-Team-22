@@ -6,17 +6,20 @@ final class RelationshipService {
     private let providers: [any ImplicitDataProvider]
     private let repository: ContactRepository
     private let hangoutRepository: ScheduledHangoutRepository
+    private let preferencesService: PreferencesService
     private var analyticsService: AnalyticsService?
     private var hasRequestedCalendarPermission = false
 
     init(
         providers: [any ImplicitDataProvider],
         repository: ContactRepository,
-        hangoutRepository: ScheduledHangoutRepository
+        hangoutRepository: ScheduledHangoutRepository,
+        preferencesService: PreferencesService
     ) {
         self.providers = providers
         self.repository = repository
         self.hangoutRepository = hangoutRepository
+        self.preferencesService = preferencesService
     }
     
     func setAnalyticsService(_ service: AnalyticsService) {
@@ -25,14 +28,16 @@ final class RelationshipService {
 
     /// Returns one RelationshipHealth per active tracked contact.
     ///
-    /// - Parameter lookBackDays: How far back to search for hangout events (default 90 days).
-    ///   Contacts with no events in this window receive a nil lastHangoutDate and
-    ///   the maximum possible score, surfacing them as most overdue.
-    func computeHealth(lookBackDays: Int = 90) async -> [RelationshipHealth] {
+    /// Uses the user's configured lookBackDays preference (default 90 days) to determine
+    /// how far back to search for hangout events.
+    /// Contacts with no events in this window receive a nil lastHangoutDate and
+    /// the maximum possible score, surfacing them as most overdue.
+    func computeHealth() async -> [RelationshipHealth] {
+        let lookBackDays = preferencesService.preferences.lookAheadDays > 0 ? preferencesService.preferences.lookAheadDays : 3
         let contacts = (try? repository.fetchAll()) ?? []
         guard !contacts.isEmpty else { return [] }
 
-        let since = Calendar.current.date(byAdding: .day, value: -lookBackDays, to: .now) ?? .now
+        let since = Calendar.current.date(byAdding: .day, value: -90, to: .now) ?? .now
 
         // Build a lookup of the nearest upcoming hangout per contact.
         // fetchUpcoming() returns results sorted by startDate ascending, so the first
