@@ -18,6 +18,7 @@ struct EtaApp: App {
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
+    private let onboardingViewModel: OnboardingViewModel
 
     init() {
         let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
@@ -74,6 +75,7 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
+        self.onboardingViewModel = OnboardingViewModel()
 
         // Track app lifecycle events
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -81,12 +83,16 @@ struct EtaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(
-                connectionsViewModel: connectionsViewModel,
-                suggestionViewModel: suggestionViewModel,
-                upcomingEventsViewModel: upcomingEventsViewModel,
-                analyticsService: analyticsService
-            )
+            if onboardingViewModel.hasCompletedOnboarding {
+                MainTabView(
+                    connectionsViewModel: connectionsViewModel,
+                    suggestionViewModel: suggestionViewModel,
+                    upcomingEventsViewModel: upcomingEventsViewModel,
+                    analyticsService: analyticsService
+                )
+            } else {
+                OnboardingView(viewModel: onboardingViewModel)
+            }
         }
         .modelContainer(container)
     }
