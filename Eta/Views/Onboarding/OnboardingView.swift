@@ -412,7 +412,7 @@ struct OnboardingPagePreferences: View {
                             
                             Spacer()
                             
-                            Toggle("", isOn: viewModel.userPreferences.enableNotifications)
+                            Toggle("", isOn: $viewModel.userPreferences.enableNotifications)
                                 .tint(.accentColor)
                         }
                         
@@ -473,5 +473,5 @@ struct ActivityToggle: View {
 }
 
 #Preview {
-    OnboardingView(viewModel: OnboardingViewModel())
+    OnboardingView(viewModel: OnboardingViewModel(preferencesService: PreferencesService()))
 }
