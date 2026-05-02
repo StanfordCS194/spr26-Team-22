@@ -37,7 +37,7 @@ final class RelationshipService {
         let contacts = (try? repository.fetchAll()) ?? []
         guard !contacts.isEmpty else { return [] }
 
-        let since = Calendar.current.date(byAdding: .day, value: -90, to: .now) ?? .now
+        let since = Calendar.current.date(byAdding: .day, value: -lookBackDays, to: .now) ?? .now
 
         // Build a lookup of the nearest upcoming hangout per contact.
         // fetchUpcoming() returns results sorted by startDate ascending, so the first
