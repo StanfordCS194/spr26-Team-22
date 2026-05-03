@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2FF4914C2FA646BD00F5BAB8 /* Messages.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2FF4914B2FA646BD00F5BAB8 /* Messages.framework */; };
+		2FF491582FA646BE00F5BAB8 /* ETA-imessage-extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2FF4914A2FA646BD00F5BAB8 /* ETA-imessage-extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C9BE732D2F9B16F50064E1E8 /* MessageUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */; };
 /* End PBXBuildFile section */
 
@@ -25,15 +27,48 @@
 			remoteGlobalIDString = 2152948F2F9707B800AD5B58;
 			remoteInfo = Eta;
 		};
+		2FF491562FA646BE00F5BAB8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 215294882F9707B800AD5B58 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2FF491492FA646BD00F5BAB8;
+			remoteInfo = "ETA-imessage-extension";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2FF491592FA646BE00F5BAB8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2FF491582FA646BE00F5BAB8 /* ETA-imessage-extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		215294902F9707B800AD5B58 /* Eta.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Eta.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2152949D2F9707BC00AD5B58 /* EtaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EtaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		215294A72F9707BC00AD5B58 /* EtaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EtaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		21791F112F9A19F900F9004A /* Eta.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Eta.xcodeproj; sourceTree = "<group>"; };
+		2FF4914A2FA646BD00F5BAB8 /* ETA-imessage-extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ETA-imessage-extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FF4914B2FA646BD00F5BAB8 /* Messages.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Messages.framework; path = System/Library/Frameworks/Messages.framework; sourceTree = SDKROOT; };
 		C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MessageUI.framework; path = System/Library/Frameworks/MessageUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2FF4915C2FA646BE00F5BAB8 /* Exceptions for "ETA-imessage-extension" folder in "ETA-imessage-extension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2FF491492FA646BD00F5BAB8 /* ETA-imessage-extension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		215294922F9707B800AD5B58 /* Eta */ = {
@@ -49,6 +84,14 @@
 		215294AA2F9707BC00AD5B58 /* EtaUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = EtaUITests;
+			sourceTree = "<group>";
+		};
+		2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2FF4915C2FA646BE00F5BAB8 /* Exceptions for "ETA-imessage-extension" folder in "ETA-imessage-extension" target */,
+			);
+			path = "ETA-imessage-extension";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -76,6 +119,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2FF491472FA646BD00F5BAB8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2FF4914C2FA646BD00F5BAB8 /* Messages.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -85,6 +136,7 @@
 				215294922F9707B800AD5B58 /* Eta */,
 				215294A02F9707BC00AD5B58 /* EtaTests */,
 				215294AA2F9707BC00AD5B58 /* EtaUITests */,
+				2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */,
 				C9BE732B2F9B16F50064E1E8 /* Frameworks */,
 				215294912F9707B800AD5B58 /* Products */,
 			);
@@ -96,6 +148,7 @@
 				215294902F9707B800AD5B58 /* Eta.app */,
 				2152949D2F9707BC00AD5B58 /* EtaTests.xctest */,
 				215294A72F9707BC00AD5B58 /* EtaUITests.xctest */,
+				2FF4914A2FA646BD00F5BAB8 /* ETA-imessage-extension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -109,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */,
+				2FF4914B2FA646BD00F5BAB8 /* Messages.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -123,10 +177,12 @@
 				2152948C2F9707B800AD5B58 /* Sources */,
 				2152948D2F9707B800AD5B58 /* Frameworks */,
 				2152948E2F9707B800AD5B58 /* Resources */,
+				2FF491592FA646BE00F5BAB8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				2FF491572FA646BE00F5BAB8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				215294922F9707B800AD5B58 /* Eta */,
@@ -184,6 +240,28 @@
 			productReference = 215294A72F9707BC00AD5B58 /* EtaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		2FF491492FA646BD00F5BAB8 /* ETA-imessage-extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2FF4915D2FA646BE00F5BAB8 /* Build configuration list for PBXNativeTarget "ETA-imessage-extension" */;
+			buildPhases = (
+				2FF491462FA646BD00F5BAB8 /* Sources */,
+				2FF491472FA646BD00F5BAB8 /* Frameworks */,
+				2FF491482FA646BD00F5BAB8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */,
+			);
+			name = "ETA-imessage-extension";
+			packageProductDependencies = (
+			);
+			productName = "ETA-imessage-extension";
+			productReference = 2FF4914A2FA646BD00F5BAB8 /* ETA-imessage-extension.appex */;
+			productType = "com.apple.product-type.app-extension.messages";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -204,6 +282,9 @@
 					215294A62F9707BC00AD5B58 = {
 						CreatedOnToolsVersion = 26.4.1;
 						TestTargetID = 2152948F2F9707B800AD5B58;
+					};
+					2FF491492FA646BD00F5BAB8 = {
+						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
 			};
@@ -230,6 +311,7 @@
 				2152948F2F9707B800AD5B58 /* Eta */,
 				2152949C2F9707BC00AD5B58 /* EtaTests */,
 				215294A62F9707BC00AD5B58 /* EtaUITests */,
+				2FF491492FA646BD00F5BAB8 /* ETA-imessage-extension */,
 			);
 		};
 /* End PBXProject section */
@@ -250,6 +332,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		215294A52F9707BC00AD5B58 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2FF491482FA646BD00F5BAB8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -280,6 +369,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2FF491462FA646BD00F5BAB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -292,6 +388,11 @@
 			isa = PBXTargetDependency;
 			target = 2152948F2F9707B800AD5B58 /* Eta */;
 			targetProxy = 215294A82F9707BC00AD5B58 /* PBXContainerItemProxy */;
+		};
+		2FF491572FA646BE00F5BAB8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2FF491492FA646BD00F5BAB8 /* ETA-imessage-extension */;
+			targetProxy = 2FF491562FA646BE00F5BAB8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -565,6 +666,64 @@
 			};
 			name = Release;
 		};
+		2FF4915A2FA646BE00F5BAB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ETA-imessage-extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "ETA-imessage-extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "edu.stanford.Eta.ETA-imessage-extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2FF4915B2FA646BE00F5BAB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ETA-imessage-extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "ETA-imessage-extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "edu.stanford.Eta.ETA-imessage-extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -600,6 +759,15 @@
 			buildConfigurations = (
 				215294B82F9707BC00AD5B58 /* Debug */,
 				215294B92F9707BC00AD5B58 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2FF4915D2FA646BE00F5BAB8 /* Build configuration list for PBXNativeTarget "ETA-imessage-extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2FF4915A2FA646BE00F5BAB8 /* Debug */,
+				2FF4915B2FA646BE00F5BAB8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
