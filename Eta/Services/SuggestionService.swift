@@ -7,37 +7,66 @@ import Foundation
 /// Both signals must be present. If either is absent, generateSuggestion() returns nil
 /// and the For You inbox remains empty.
 ///
+/// Contact selection (the "need" half) is handled inline here — health score ranking
+/// is stable rules logic that does not need to be swapped independently.
+/// Activity and reason selection is delegated to the injected ActivityStrategy.
+///
 /// SuggestionService depends on CalendarDataProvider concretely (not via a protocol)
 /// for free slot detection, since that capability is distinct from ImplicitDataProvider's
 /// historical event fetching and no second implementation is anticipated. See CLAUDE.md.
 final class SuggestionService {
     private let calendar: CalendarDataProvider
     private let relationshipService: RelationshipService
-    private let strategy: any SuggestionStrategy
+    private let contextEngine: any ContextEngine
+    private let activityStrategy: any ActivityStrategy
+
+    /// Contacts with a health score below this threshold are considered "recently seen"
+    /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
+    private let minimumScoreThreshold: Double = 7
 
     init(
         calendar: CalendarDataProvider,
         relationshipService: RelationshipService,
-        strategy: any SuggestionStrategy
+        contextEngine: any ContextEngine,
+        activityStrategy: any ActivityStrategy
     ) {
         self.calendar = calendar
         self.relationshipService = relationshipService
-        self.strategy = strategy
+        self.contextEngine = contextEngine
+        self.activityStrategy = activityStrategy
     }
 
-    /// Returns a Suggestion when both a free slot and an overdue contact exist,
-    /// nil otherwise.
+    /// Returns a Suggestion when both a free slot and an overdue contact exist, nil otherwise.
     func generateSuggestion() async -> Suggestion? {
-        // Signal 1: opportunity. Check first — it's synchronous and cheap.
+        // Signal 1: opportunity. Check first — synchronous and cheap.
         guard let freeSlot = calendar.findFreeSlot() else { return nil }
 
-        // Signal 2: need. Fetch health scores and let the strategy decide.
+        // Signal 2: need. Rank contacts by health score.
         let healthScores = await relationshipService.computeHealth()
-        guard var suggestion = strategy.suggest(from: healthScores) else { return nil }
+        guard let topHealth = topContact(from: healthScores) else { return nil }
 
-        // Attach the real free slot. The strategy sets a throwaway proposedTime
-        // because it has no knowledge of calendar availability.
-        suggestion.proposedTime = freeSlot
-        return suggestion
+        // Fetch context for the chosen contact. Failures produce empty context rather
+        // than aborting — a suggestion without context is better than no suggestion.
+        let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
+
+        // Delegate activity and reason selection to the strategy.
+        guard let proposal = try? await activityStrategy.propose(for: topHealth, context: context) else { return nil }
+
+        return Suggestion(
+            contact: topHealth.contact,
+            activityDescription: proposal.activityDescription,
+            reason: proposal.reason,
+            proposedTime: freeSlot,
+            generatedAt: .now
+        )
+    }
+
+    // MARK: - Private
+
+    /// Returns the most overdue active contact above the score threshold, or nil if none qualifies.
+    private func topContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
+        healthScores
+            .filter { $0.contact.isActive && $0.score >= minimumScoreThreshold }
+            .max(by: { $0.score < $1.score })
     }
 }

@@ -20,11 +20,12 @@ struct EtaApp: App {
     private let analyticsService: AnalyticsService
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, FeedbackEntry.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
         let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
+        let feedbackRepository = FeedbackRepository(modelContext: container.mainContext)
 
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
@@ -37,11 +38,23 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository
         )
         relationshipService.setAnalyticsService(analyticsService)
-        let rulesStrategy = RulesSuggestionStrategy()
+
+        // Context engine — fans out to all data sources in parallel on each query.
+        let contextEngine = DefaultContextEngine(sources: [
+            EventHistoryContextSource(relationshipService: relationshipService),
+            FeedbackContextSource(repository: feedbackRepository),
+            PreferencesContextSource()
+        ])
+
+        // Activity strategy — swap RulesActivityStrategy for LLMActivityStrategy(runner:)
+        // once a real LLMRunner conformer is available.
+        let activityStrategy = LLMActivityStrategy(runner: StubLLMRunner())
+
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
-            strategy: rulesStrategy
+            contextEngine: contextEngine,
+            activityStrategy: activityStrategy
         )
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(

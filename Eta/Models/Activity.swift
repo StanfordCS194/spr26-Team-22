@@ -12,3 +12,20 @@ enum Activity: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 }
+
+// MARK: - ActivityRepresentable
+
+extension Activity: ActivityRepresentable {
+    /// Plain-English display string — forwards to rawValue.
+    var description: String { rawValue }
+}
+
+// MARK: - Comparable
+
+extension Activity: Comparable {
+    static func < (lhs: Activity, rhs: Activity) -> Bool {
+        let cases = Activity.allCases
+        guard let l = cases.firstIndex(of: lhs), let r = cases.firstIndex(of: rhs) else { return false }
+        return l < r
+    }
+}
