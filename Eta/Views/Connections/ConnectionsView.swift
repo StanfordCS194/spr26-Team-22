@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectionsView: View {
     let viewModel: ConnectionsViewModel
+    let homeViewModel: HomeViewModel
     let analyticsService: AnalyticsService
 
     @State private var showingAddSheet = false
@@ -19,7 +20,23 @@ struct ConnectionsView: View {
                 } else {
                     List {
                         ForEach(viewModel.contacts) { contact in
-                            ContactRow(contact: contact, viewModel: viewModel)
+                            NavigationLink {
+                                FriendDetailView(
+                                    contact: contact,
+                                    health: viewModel.healthScores[contact.id] ?? RelationshipHealth(
+                                        contact: contact,
+                                        lastHangoutDate: nil,
+                                        lastHangoutTitle: nil,
+                                        hangoutCount: 0,
+                                        score: 0,
+                                        upcomingHangout: nil
+                                    ),
+                                    displayName: viewModel.displayName(for: contact),
+                                    homeViewModel: homeViewModel
+                                )
+                            } label: {
+                                ContactRow(contact: contact, viewModel: viewModel)
+                            }
                         }
                         .onDelete { indexSet in
                             for index in indexSet {

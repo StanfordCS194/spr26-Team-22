@@ -1,0 +1,425 @@
+import SwiftUI
+
+struct FriendDetailView: View {
+    let contact: TrackedContact
+    let health: RelationshipHealth
+    let displayName: String
+    let homeViewModel: HomeViewModel
+    var onAddGoal: (() -> Void)?
+
+    @Environment(\.openURL) private var openURL
+    @State private var showingGoalCreation = false
+    @State private var editingNotes = false
+    @State private var notesText = ""
+
+    private var profile: ContactProfile {
+        homeViewModel.contactProfile(for: contact)
+    }
+
+    private var goals: [Goal] {
+        homeViewModel.goals(for: contact)
+    }
+
+    private var recentHangouts: [ScheduledHangout] {
+        homeViewModel.pastHangouts(for: contact)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                profileHeader
+                insightSummary
+                preferencesSection
+                activeGoalsSection
+                hangoutHistorySection
+                ctaButtons
+            }
+            .padding()
+            .padding(.bottom, 32)
+        }
+        .navigationTitle(displayName)
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear { notesText = profile.notes }
+        .sheet(isPresented: $showingGoalCreation) {
+            GoalCreationSheet(
+                contacts: homeViewModel.contacts,
+                formatter: homeViewModel.formatter,
+                preselectedContact: contact,
+                health: health,
+                likedActivities: profile.likedActivities,
+                onGoalCreated: { goal in
+                    homeViewModel.createGoal(goal)
+                }
+            )
+        }
+    }
+
+    // MARK: - Sections
+
+    private var profileHeader: some View {
+        HStack(spacing: 16) {
+            Text(initials)
+                .font(.title.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 72, height: 72)
+                .background(avatarColor, in: Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(displayName)
+                    .font(.title2.weight(.semibold))
+
+                if let days = health.daysSinceLastHangout {
+                    Text("Last hung out \(days) day\(days == 1 ? "" : "s") ago")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("No hangouts recorded yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var insightSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Relationship snapshot")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 20) {
+                statPill(
+                    value: health.hangoutCount > 0 ? "\(health.hangoutCount)" : "—",
+                    label: "meetups (90d)"
+                )
+
+                if let days = health.daysSinceLastHangout {
+                    statPill(value: "\(days)d", label: "since last")
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func statPill(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.headline.weight(.bold))
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var preferencesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Preferences")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            // Pending inference prompt
+            if let pending = profile.pendingInference {
+                pendingInferenceCard(pending)
+            }
+
+            // Liked activities
+            if !profile.likedActivities.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Likes")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    activityChipRow(activities: profile.likedActivities, sentiment: .like)
+                }
+            }
+
+            // Disliked activities
+            if !profile.dislikedActivities.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Not a fit")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    activityChipRow(activities: profile.dislikedActivities, sentiment: .dislike)
+                }
+            }
+
+            // Quick-add from remaining activities
+            let remaining = Activity.allCases.filter {
+                !profile.likedActivities.contains($0) && !profile.dislikedActivities.contains($0)
+            }
+            if !remaining.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Add preference")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    activityAddRow(activities: remaining)
+                }
+            }
+
+            // Notes
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                if editingNotes {
+                    TextField("e.g. prefers mornings, she's vegan", text: $notesText, axis: .vertical)
+                        .font(.subheadline)
+                        .lineLimit(3...)
+                        .padding(10)
+                        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+                        .onSubmit {
+                            homeViewModel.updateNotes(notesText, for: contact)
+                            editingNotes = false
+                        }
+                    HStack {
+                        Spacer()
+                        Button("Save") {
+                            homeViewModel.updateNotes(notesText, for: contact)
+                            editingNotes = false
+                        }
+                        .font(.caption.weight(.semibold))
+                    }
+                } else {
+                    Button {
+                        notesText = profile.notes
+                        editingNotes = true
+                    } label: {
+                        Text(profile.notes.isEmpty ? "Add a note…" : profile.notes)
+                            .font(.subheadline)
+                            .foregroundStyle(profile.notes.isEmpty ? .secondary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func pendingInferenceCard(_ activity: Activity) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Looks like you and \(contact.givenName) usually \(activity.rawValue.lowercased()) — add as a preference?")
+                .font(.subheadline)
+            HStack(spacing: 10) {
+                Button("Yes, add it") {
+                    homeViewModel.confirmPattern(for: contact)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button("Not really") {
+                    homeViewModel.dismissPattern(for: contact)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor.opacity(0.25), lineWidth: 1))
+    }
+
+    private enum ChipSentiment { case like, dislike }
+
+    private func activityChipRow(activities: [Activity], sentiment: ChipSentiment) -> some View {
+        FlexibleWrap {
+            ForEach(activities, id: \.self) { activity in
+                Text(activity.rawValue)
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        sentiment == .like
+                            ? Color.green.opacity(0.12)
+                            : Color.red.opacity(0.10),
+                        in: Capsule()
+                    )
+                    .foregroundStyle(sentiment == .like ? Color.green : Color.red)
+                    .contextMenu {
+                        if sentiment == .like {
+                            Button("Mark as not a fit") {
+                                homeViewModel.recordDislike(activity, for: contact)
+                            }
+                        } else {
+                            Button("Mark as liked") {
+                                homeViewModel.recordLike(activity, for: contact)
+                            }
+                        }
+                        Button("Remove", role: .destructive) {
+                            homeViewModel.removeSentiment(for: activity, contact: contact)
+                        }
+                    }
+            }
+        }
+    }
+
+    private func activityAddRow(activities: [Activity]) -> some View {
+        FlexibleWrap {
+            ForEach(activities, id: \.self) { activity in
+                Menu {
+                    Button("Like") { homeViewModel.recordLike(activity, for: contact) }
+                    Button("Not a fit") { homeViewModel.recordDislike(activity, for: contact) }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.caption2.weight(.bold))
+                        Text(activity.rawValue)
+                            .font(.caption.weight(.medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.10), in: Capsule())
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var activeGoalsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Active goals")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if goals.isEmpty {
+                Text("No goals yet for \(contact.givenName).")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(goals) { goal in
+                    HStack {
+                        Circle()
+                            .fill(statusColor(for: goal.status))
+                            .frame(width: 8, height: 8)
+                        Text(goal.title)
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(goal.progress)/\(goal.target)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var hangoutHistorySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Interaction history")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if recentHangouts.isEmpty {
+                Text("No hangouts recorded in the last 60 days.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(recentHangouts.prefix(5)) { hangout in
+                    HStack {
+                        Image(systemName: "calendar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 18)
+                        Text(hangout.resolvedActivity?.rawValue ?? "Hangout")
+                            .font(.subheadline)
+                        Spacer()
+                        Text(hangout.startDate, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let activity = hangout.resolvedActivity {
+                            Menu {
+                                Button {
+                                    homeViewModel.recordLike(activity, for: contact)
+                                } label: {
+                                    Label("Like this activity", systemImage: "hand.thumbsup")
+                                }
+                                Button {
+                                    homeViewModel.recordDislike(activity, for: contact)
+                                } label: {
+                                    Label("Not a great fit", systemImage: "hand.thumbsdown")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var ctaButtons: some View {
+        VStack(spacing: 12) {
+            if let phone = contact.phoneNumber, !phone.isEmpty {
+                Button {
+                    let body = "Hey! Want to hang out soon?"
+                    if let encoded = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                       let url = URL(string: "sms:\(phone)&body=\(encoded)") {
+                        openURL(url)
+                    }
+                } label: {
+                    Label("Send a check-in", systemImage: "message")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            Button {
+                showingGoalCreation = true
+            } label: {
+                Label("Add a goal", systemImage: "target")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var initials: String {
+        let first = contact.givenName.prefix(1)
+        let last = contact.familyName.prefix(1)
+        return "\(first)\(last)".uppercased()
+    }
+
+    private var avatarColor: Color {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .mint, .cyan]
+        return colors[abs(contact.id.hashValue) % colors.count]
+    }
+
+    private func statusColor(for status: GoalStatus) -> Color {
+        switch status {
+        case .onTrack:  return Color(red: 0.2, green: 0.7,  blue: 0.45)
+        case .atRisk:   return Color(red: 0.9, green: 0.65, blue: 0.1)
+        case .behind:   return Color(red: 0.85, green: 0.35, blue: 0.28)
+        case .achieved: return Color(red: 0.3, green: 0.55, blue: 0.9)
+        }
+    }
+}
+
+// MARK: - FlexibleWrap layout
+
+/// Simple wrapping layout for activity chips.
+private struct FlexibleWrap<Content: View>: View {
+    let content: Content
+    init(@ViewBuilder content: () -> Content) { self.content = content() }
+
+    var body: some View {
+        // Use a LazyVGrid with adaptive columns for wrapping chip behaviour.
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 100), spacing: 6)],
+            alignment: .leading,
+            spacing: 6
+        ) {
+            content
+        }
+    }
+}
