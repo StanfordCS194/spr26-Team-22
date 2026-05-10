@@ -8,7 +8,11 @@ import Foundation
 ///
 /// No contact-specific facts are produced by this source — preferences apply globally.
 final class PreferencesContextSource: ContextSource {
-    static let preferredActivitiesKey = "preferredActivities"
+    private let preferencesService: PreferencesService
+    
+    init (preferencesService: PreferencesService) {
+        self.preferencesService = preferencesService
+    }
 
     func facts(for contact: TrackedContact) async throws -> [ContextFact] {
         // Preferences are user-level, not contact-specific.
@@ -16,8 +20,11 @@ final class PreferencesContextSource: ContextSource {
     }
 
     func userGoals() async throws -> [ContextFact] {
-        guard let preferred = UserDefaults.standard.stringArray(forKey: Self.preferredActivitiesKey),
-              !preferred.isEmpty else { return [] }
+        let preferred = preferencesService.preferences.preferredActivities
+        
+        guard !preferred.isEmpty else {
+            return []
+        }
 
         let list = preferred.joined(separator: ", ")
         return [ContextFact(

@@ -2,8 +2,13 @@ import UserNotifications
 
 final class LocalNotificationService: NotificationServiceProtocol {
     private let center = UNUserNotificationCenter.current()
+    private let preferencesService: PreferencesService
     // Simulated delay before "friend accepts"
     private let simulatedDelay: TimeInterval = 10.0
+
+    init(preferencesService: PreferencesService) {
+        self.preferencesService = preferencesService
+    }
 
     func requestAuthorization() async throws {
         let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -11,6 +16,9 @@ final class LocalNotificationService: NotificationServiceProtocol {
     }
 
     func sendInvitation(for invitation: Invitation) async throws {
+        // Skip if notifications are disabled
+        guard preferencesService.preferences.enableNotifications else { return }
+        
         let content = UNMutableNotificationContent()
         content.title = "Eta"
         content.body = "\(invitation.friendName) accepted your invite for \(invitation.activityName) at \(formattedTime(invitation.scheduledTime))!"

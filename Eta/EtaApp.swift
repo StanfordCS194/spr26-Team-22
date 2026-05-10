@@ -18,6 +18,7 @@ struct EtaApp: App {
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
+    @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
         let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, FeedbackEntry.self)
@@ -30,12 +31,14 @@ struct EtaApp: App {
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
         let formatter = ContactFormatter()
-        let calendarDataProvider = CalendarDataProvider()
+        let preferencesService = PreferencesService()
+        let calendarDataProvider = CalendarDataProvider(preferencesService: preferencesService)
 
         let relationshipService = RelationshipService(
             providers: [calendarDataProvider],
             repository: repository,
-            hangoutRepository: hangoutRepository
+            hangoutRepository: hangoutRepository,
+            preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
 
@@ -43,7 +46,7 @@ struct EtaApp: App {
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
             FeedbackContextSource(repository: feedbackRepository),
-            PreferencesContextSource()
+            PreferencesContextSource(preferencesService: preferencesService)
         ])
 
         // Activity strategy — swap RulesActivityStrategy for LLMActivityStrategy(runner:)
@@ -63,7 +66,7 @@ struct EtaApp: App {
             calendarDataProvider: calendarDataProvider
         )
 
-        let notificationService = LocalNotificationService()
+        let notificationService = LocalNotificationService(preferencesService: preferencesService)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
             modelContext: container.mainContext
@@ -87,6 +90,7 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
+        self._onboardingViewModel = State(initialValue: OnboardingViewModel(preferencesService: preferencesService))
 
         // Track app lifecycle events
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -94,12 +98,16 @@ struct EtaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(
-                connectionsViewModel: connectionsViewModel,
-                suggestionViewModel: suggestionViewModel,
-                upcomingEventsViewModel: upcomingEventsViewModel,
-                analyticsService: analyticsService
-            )
+            if onboardingViewModel.hasCompletedOnboarding {
+                MainTabView(
+                    connectionsViewModel: connectionsViewModel,
+                    suggestionViewModel: suggestionViewModel,
+                    upcomingEventsViewModel: upcomingEventsViewModel,
+                    analyticsService: analyticsService
+                )
+            } else {
+                OnboardingView(viewModel: onboardingViewModel)
+            }
         }
         .modelContainer(container)
     }

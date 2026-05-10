@@ -36,21 +36,32 @@ final class SuggestionService {
         self.activityStrategy = activityStrategy
     }
 
-    /// Returns a Suggestion when both a free slot and an overdue contact exist, nil otherwise.
+    /// Returns a Suggestion when both a free slot and an overdue contact exist,
+    /// nil otherwise. Uses all user preferences for calendar window, activity filtering,
+    /// and relationship health thresholds.
     func generateSuggestion() async -> Suggestion? {
         // Signal 1: opportunity. Check first — synchronous and cheap.
-        guard let freeSlot = calendar.findFreeSlot() else { return nil }
+        guard let freeSlot = calendar.findFreeSlot() else {
+            print("[SuggestionService] No free slot found")
+            return nil
+        }
 
         // Signal 2: need. Rank contacts by health score.
         let healthScores = await relationshipService.computeHealth()
-        guard let topHealth = topContact(from: healthScores) else { return nil }
+        guard let topHealth = topContact(from: healthScores) else {
+            print("[SuggestionService] No friend in need found")
+            return nil
+        }
 
         // Fetch context for the chosen contact. Failures produce empty context rather
         // than aborting — a suggestion without context is better than no suggestion.
         let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
 
         // Delegate activity and reason selection to the strategy.
-        guard let proposal = try? await activityStrategy.propose(for: topHealth, context: context) else { return nil }
+        guard let proposal = try? await activityStrategy.propose(for: topHealth, context: context) else {
+            print("[SuggestionService] Failed to propose a suggestion")
+            return nil
+        }
 
         return Suggestion(
             contact: topHealth.contact,
@@ -65,8 +76,12 @@ final class SuggestionService {
 
     /// Returns the most overdue active contact above the score threshold, or nil if none qualifies.
     private func topContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
-        healthScores
+        print("[SuggestionService] Finding most needed hangut from:\n\(healthScores)")
+        
+        let topScore = healthScores
             .filter { $0.contact.isActive && $0.score >= minimumScoreThreshold }
             .max(by: { $0.score < $1.score })
+        
+        return topScore
     }
 }
