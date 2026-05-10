@@ -51,7 +51,7 @@ struct EtaApp: App {
 
         // Activity strategy — swap RulesActivityStrategy for LLMActivityStrategy(runner:)
         // once a real LLMRunner conformer is available.
-        let activityStrategy = LLMActivityStrategy(runner: StubLLMRunner())
+        let activityStrategy = LLMActivityStrategy(runner: AnthropicLLMRunner())
 
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
