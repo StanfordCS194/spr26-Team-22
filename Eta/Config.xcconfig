@@ -1,0 +1,21 @@
+//
+//  Config.xcconfig
+//  Eta
+//
+//  Created by Nick Riedman on 5/10/26.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+// FOR DEVELOPMENT:
+// Add local API key here to enable LLM-based suggestions.
+//
+// If no API key is given, defaults to picking a random activity
+// from a set of pre-defined activities (this is the same behavior
+// as before LLM-based suggestions).
+//
+// DO NOT PUSH API KEYS TO REMOTE
+// DO NOT PUSH API KEYS TO REMOTE
+// DO NOT PUSH API KEYS TO REMOTE
+ANTHROPIC_API_KEY =
