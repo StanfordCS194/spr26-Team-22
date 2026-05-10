@@ -56,7 +56,16 @@ final class SuggestionService {
         let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
 
         // Delegate activity and reason selection to the strategy.
-        guard let proposal = try? await activityStrategy.propose(for: topHealth, context: context) else {
+        let proposal: ActivityProposal
+        
+        do {
+            guard let proposalAttempt = try await activityStrategy.propose(for: topHealth, context: context) else {
+                return nil
+            }
+            
+            proposal = proposalAttempt
+        } catch {
+            print(error.localizedDescription)
             return nil
         }
 

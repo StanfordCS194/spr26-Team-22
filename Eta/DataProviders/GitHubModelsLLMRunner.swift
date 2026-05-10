@@ -3,7 +3,7 @@ import Foundation
 /// LLMRunner that calls the GitHub Models inference API (OpenAI-compatible) via URLSession.
 ///
 /// Uses Meta Llama 3.1 8B Instruct — free under the GitHub Models free tier.
-/// API key is a GitHub personal access token read from the app bundle under `GITHUB_TOKEN`.
+/// API key is a GitHub personal access token read from the app bundle under `LLM_API_KEY`.
 /// Set this in Info.plist referencing a build variable (e.g. via an xcconfig file)
 /// so the key is never checked into source control.
 final class GitHubModelsLLMRunner: LLMRunner {
@@ -64,6 +64,9 @@ final class GitHubModelsLLMRunner: LLMRunner {
         guard let text = decoded.choices.first?.message.content else {
             throw LLMError.emptyResponse
         }
+        
+        print("[GitHubLLMRunner] \(body.model) suggested: \(text)")
+        
         return text
     }
 }

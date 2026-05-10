@@ -41,7 +41,7 @@ final class LLMActivityStrategy: ActivityStrategy {
         Context about the user's relationship with \(contactName):
         \(factLines)
 
-        Suggest one activity for them to do together.
+        Suggest one new activity for them to do together not previously seen.
         """
 
         let raw = try await runner.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
