@@ -31,7 +31,7 @@ final class AnthropicLLMRunner: LLMRunner {
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "ANTHROPIC_API_KEY") as? String,
               !apiKey.isEmpty else {
-            throw LLMError.missingAPIKey
+            return Activity.allCases.randomElement()?.description ?? "Grab coffee"
         }
 
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -65,13 +65,11 @@ final class AnthropicLLMRunner: LLMRunner {
 }
 
 private enum LLMError: LocalizedError {
-    case missingAPIKey
     case httpError(Int)
     case emptyResponse
 
     var errorDescription: String? {
         switch self {
-        case .missingAPIKey:  return "ANTHROPIC_API_KEY not set in app bundle."
         case .httpError(let code): return "Anthropic API returned HTTP \(code)."
         case .emptyResponse:  return "Anthropic API returned no text content."
         }
