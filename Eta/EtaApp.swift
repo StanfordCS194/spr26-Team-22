@@ -21,12 +21,11 @@ struct EtaApp: App {
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, FeedbackEntry.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
         let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
-        let feedbackRepository = FeedbackRepository(modelContext: container.mainContext)
 
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
@@ -45,7 +44,6 @@ struct EtaApp: App {
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
-            FeedbackContextSource(repository: feedbackRepository),
             PreferencesContextSource(preferencesService: preferencesService)
         ])
 
