@@ -8,7 +8,7 @@ import Foundation
 /// Today: Activity enum (structured, hardcoded pool).
 /// Tomorrow: String (LLM-generated, open-ended).
 /// Both paths erase to description: String at the ActivityProposal boundary.
-protocol ActivityRepresentable: Comparable {
+protocol ActivityRepresentable {
     var description: String { get }
 }
 
