@@ -33,7 +33,7 @@ final class RelationshipService {
     /// Contacts with no events in this window receive a nil lastHangoutDate and
     /// the maximum possible score, surfacing them as most overdue.
     func computeHealth() async -> [RelationshipHealth] {
-        let lookBackDays = preferencesService.preferences.lookAheadDays > 0 ? preferencesService.preferences.lookAheadDays : 3
+        let lookBackDays = preferencesService.preferences.lookAheadDays > 0 ? preferencesService.preferences.lookAheadDays : 90
         let contacts = (try? repository.fetchAll()) ?? []
         guard !contacts.isEmpty else { return [] }
 

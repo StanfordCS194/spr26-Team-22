@@ -46,7 +46,7 @@ final class iMessageInviteProvider: NSObject, InviteProvider, MFMessageComposeVi
     // MARK: - Private
 
     private func messageBody(for suggestion: Suggestion) -> String {
-        let activity = suggestion.activity.rawValue.prefix(1).lowercased() + suggestion.activity.rawValue.dropFirst()
+        let activity = suggestion.activityDescription.prefix(1).lowercased() + suggestion.activityDescription.dropFirst()
         return "Hey! Are you free \(timePhrase(for: suggestion.proposedTime.start))? Would you be down to \(activity)?"
     }
 
@@ -65,7 +65,7 @@ final class iMessageInviteProvider: NSObject, InviteProvider, MFMessageComposeVi
             "DTSTAMP:\(icsDate(.now))",
             "DTSTART:\(icsDate(suggestion.proposedTime.start))",
             "DTEND:\(icsDate(suggestion.proposedTime.end))",
-            "SUMMARY:\(suggestion.activity.rawValue) with \(firstName)",
+            "SUMMARY:\(suggestion.activityDescription) with \(firstName)",
             "DESCRIPTION:\(suggestion.reason)",
             "END:VEVENT",
             "END:VCALENDAR"

@@ -88,7 +88,7 @@ final class SuggestionViewModel {
     func schedule() {
         guard let suggestion else { return }
         let name = displayName(for: suggestion)
-        let activityName = suggestion.activity.rawValue
+        let activityName = suggestion.activityDescription
         let scheduledTime = suggestion.proposedTime.start
 
         let hangoutID = inviteService.book(suggestion: suggestion)

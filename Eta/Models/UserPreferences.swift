@@ -10,7 +10,7 @@ struct UserPreferences: Codable {
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
         relationshipHealthThreshold: Double = 7.0,
-        lookAheadDays: Int = 3,
+        lookAheadDays: Int = 90,
         enableNotifications: Bool = true,
         notificationTime: Date = {
             var components = DateComponents()

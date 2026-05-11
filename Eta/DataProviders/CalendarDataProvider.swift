@@ -123,7 +123,7 @@ final class CalendarDataProvider: ImplicitDataProvider {
     func createEvent(for suggestion: Suggestion) {
         let event = EKEvent(eventStore: eventStore)
         let firstName = suggestion.contact.givenName.isEmpty ? suggestion.contact.name : suggestion.contact.givenName
-        event.title = "\(suggestion.activity.rawValue) with \(firstName)"
+        event.title = "\(suggestion.activityDescription) with \(firstName)"
         event.startDate = suggestion.proposedTime.start
         event.endDate = suggestion.proposedTime.end
         event.notes = suggestion.reason

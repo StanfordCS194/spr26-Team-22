@@ -9,6 +9,9 @@
 xcuserdata/
 *DS_Store
 
+## Config file with sensitive API keys
+*Config.xcconfig
+
 ## Obj-C/Swift specific
 *.hmap
 

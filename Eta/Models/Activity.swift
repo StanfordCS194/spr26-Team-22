@@ -12,3 +12,10 @@ enum Activity: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 }
+
+// MARK: - ActivityRepresentable
+
+extension Activity: ActivityRepresentable {
+    /// Plain-English display string — forwards to rawValue.
+    var description: String { rawValue }
+}

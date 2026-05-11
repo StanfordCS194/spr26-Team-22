@@ -40,11 +40,21 @@ struct EtaApp: App {
             preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
-        let rulesStrategy = RulesSuggestionStrategy(preferencesService: preferencesService)
+
+        // Context engine — fans out to all data sources in parallel on each query.
+        let contextEngine = DefaultContextEngine(sources: [
+            EventHistoryContextSource(relationshipService: relationshipService),
+            PreferencesContextSource(preferencesService: preferencesService)
+        ])
+
+        // Activity strategy — chooses an activity
+        let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
+
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
-            strategy: rulesStrategy
+            contextEngine: contextEngine,
+            activityStrategy: activityStrategy
         )
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(

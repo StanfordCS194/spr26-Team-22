@@ -50,7 +50,7 @@ struct SuggestionCard: View {
     }
 
     private var activityPhrase: String {
-        let raw = suggestion.activity.rawValue
+        let raw = suggestion.activityDescription
         return raw.prefix(1).lowercased() + raw.dropFirst()
     }
 }

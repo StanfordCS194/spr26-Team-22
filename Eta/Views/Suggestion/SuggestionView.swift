@@ -40,7 +40,7 @@ struct SuggestionView: View {
                                     }
                                     analyticsService.logInvitationInitiated(
                                         contactName: name,
-                                        activity: suggestion.activity.rawValue,
+                                        activity: suggestion.activityDescription,
                                         timeOfDay: timeOfDay,
                                         isFreeSlotSuggested: true
                                     )
