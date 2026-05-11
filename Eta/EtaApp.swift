@@ -47,8 +47,7 @@ struct EtaApp: App {
             PreferencesContextSource(preferencesService: preferencesService)
         ])
 
-        // Activity strategy — swap RulesActivityStrategy for LLMActivityStrategy(runner:)
-        // once a real LLMRunner conformer is available.
+        // Activity strategy — chooses an activity
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
 
         let suggestionService = SuggestionService(
