@@ -58,19 +58,22 @@ without a clear reason.
 Eta/
 ├── App/
 │   ├── EtaApp.swift              # ModelContainer setup + dependency wiring
-│   └── MainTabView.swift         # Root TabView — "For You" | "Friends"
+│   ├── MainTabView.swift         # Root TabView — Friends | Events | Suggestions
+│   └── NotificationDelegate.swift # UNUserNotificationCenterDelegate — routes taps to InvitationManager or ReminderPhotoState
 │
 ├── Models/
 │   ├── TrackedContact.swift      # @Model — SwiftData persisted contact
 │   ├── HangoutEvent.swift        # Value type — parsed calendar event
 │   ├── RelationshipHealth.swift  # Value type — computed score + metadata per contact
 │   ├── Suggestion.swift          # Value type — friend + activity + reason string
-│   └── Activity.swift            # enum — hardcoded pool for MVP
+│   ├── Activity.swift            # enum — hardcoded pool for MVP
+│   └── ActivityPhoto.swift       # @Model — activity-scoped photo captured during/after a hangout
 │
 ├── Protocols/
 │   ├── ImplicitDataProvider.swift
 │   ├── SuggestionStrategy.swift
-│   └── InviteProvider.swift
+│   ├── InviteProvider.swift
+│   └── NotificationServiceProtocol.swift  # scheduleHangoutReminders / cancelHangoutReminders
 │
 ├── Formatters/
 │   └── ContactFormatter.swift           # Locale-aware name formatting via CNContactFormatter
@@ -85,24 +88,40 @@ Eta/
 │   └── iMessageInviteProvider.swift   # Concrete InviteProvider — iMessage URL scheme
 │
 ├── Repositories/
-│   └── ContactRepository.swift        # SwiftData CRUD for TrackedContact
+│   ├── ContactRepository.swift        # SwiftData CRUD for TrackedContact
+│   └── ActivityPhotoRepository.swift  # SwiftData CRUD for ActivityPhoto; fetches by Activity
 │
 ├── Services/
 │   ├── RelationshipService.swift      # [ImplicitDataProvider] + contacts → [RelationshipHealth]
 │   ├── SuggestionService.swift        # RelationshipService + SuggestionStrategy → Suggestion
-│   └── InviteService.swift            # Wraps InviteProvider; formats the invite message text
+│   ├── InviteService.swift            # Wraps InviteProvider; formats the invite message text
+│   ├── LocalNotificationService.swift # Concrete NotificationServiceProtocol — UNUserNotificationCenter
+│   └── ReminderPhotoState.swift       # @Observable shared state — signals UI to present photo sheet
 │
 ├── ViewModels/
-│   ├── SuggestionViewModel.swift      # Drives SuggestionView
-│   └── ConnectionsViewModel.swift     # Drives ConnectionsView
+│   ├── SuggestionViewModel.swift      # Drives SuggestionView; exposes latestPhotoData for suggestion
+│   ├── ConnectionsViewModel.swift     # Drives ConnectionsView
+│   └── UpcomingEventsViewModel.swift  # Drives UpcomingEventsDashboard
 │
 └── Views/
     ├── Suggestion/
-    │   ├── SuggestionView.swift
-    │   └── SuggestionCard.swift
-    └── Connections/
-        ├── ConnectionsView.swift
-        └── AddConnectionSheet.swift
+    │   ├── SuggestionView.swift       # Hosts global photo sheet for suggestion-context captures
+    │   └── SuggestionCard.swift       # Shows rotating activity photo thumbnail; camera toolbar button
+    ├── Connections/
+    │   ├── ConnectionsView.swift
+    │   └── AddConnectionSheet.swift
+    ├── UpcomingEvents/
+    │   ├── UpcomingEventsDashboard.swift  # Events tab root
+    │   ├── EventHistoryView.swift
+    │   └── UpcomingEventCardView.swift    # Camera icon visible only while event is ongoing
+    ├── Reminders/
+    │   ├── CameraView.swift           # UIViewControllerRepresentable wrapping UIImagePickerController
+    │   ├── ReminderPhotoSheet.swift   # Sheet: shows existing photo, prompts capture, ~20% skip if photos exist
+    │   └── ReminderDebugModifier.swift # Triple-tap bottom-left debug trigger for photo sheet
+    └── Analytics/
+        ├── AnalyticsDebugTrigger.swift   # Protocol + TripleTapBottomRightTrigger (bottom-right)
+        ├── AnalyticsDebugModifier.swift
+        └── AnalyticsDebugOverlay.swift
 ```
 
 ---
@@ -163,18 +182,27 @@ downward via constructors. No singletons. No environment objects for services.
 ```
 EtaApp
  ├─ ContactRepository(modelContext:)
+ ├─ ActivityPhotoRepository(modelContext:)
+ ├─ ReminderPhotoState()
  ├─ ContactFormatter()
  ├─ CalendarDataProvider()
  ├─ RelationshipService(providers: [CalendarDataProvider], repository: ContactRepository)
- ├─ RulesSuggestionStrategy()
- ├─ SuggestionService(calendar: CalendarDataProvider, relationship: RelationshipService, strategy: RulesSuggestionStrategy)
+ ├─ SuggestionService(calendar: CalendarDataProvider, relationshipService:, contextEngine:, activityStrategy:)
  ├─ iMessageInviteProvider()
- ├─ InviteService(provider: iMessageInviteProvider)
- ├─ SuggestionViewModel(suggestionService: SuggestionService, inviteService: InviteService, formatter: ContactFormatter)
- └─ ConnectionsViewModel(repository: ContactRepository, formatter: ContactFormatter, relationshipService: RelationshipService)
+ ├─ InviteService(provider: iMessageInviteProvider, hangoutRepository:, calendarDataProvider:)
+ ├─ LocalNotificationService()
+ ├─ InvitationManager(notificationService: LocalNotificationService, modelContext:)
+ ├─ NotificationDelegate(invitationManager:, reminderPhotoState:)   ← held strongly; weak ref from UNUserNotificationCenter
+ ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:)
+ ├─ ConnectionsViewModel(repository:, formatter:, relationshipService:)
+ ├─ UpcomingEventsViewModel(hangoutRepository:, formatter:)
+ └─ MainTabView(connectionsViewModel:, suggestionViewModel:, upcomingEventsViewModel:, analyticsService:,
+                photoRepository:, reminderPhotoState:)
 ```
 
 `CalendarDataProvider` is injected into both `RelationshipService` (as an `ImplicitDataProvider` for historical event fetching) and `SuggestionService` (concretely, for free slot detection). A single instance is shared between both.
+
+`ReminderPhotoState` is shared between `NotificationDelegate` (writes) and `MainTabView` (reads/presents sheet).
 
 ViewModels are created in `EtaApp` and passed into views as constructor arguments
 or via `.environment()` if needed across the tab hierarchy.
@@ -250,6 +278,22 @@ enum Activity: String, CaseIterable {
 }
 ```
 
+### `ActivityPhoto` (`@Model` — persisted)
+
+Photos are **activity-scoped**, not friend-scoped. A photo taken during a "Go for a walk" event is associated with that activity type and appears on any future walk suggestion, regardless of which friend is involved.
+
+```swift
+@Model final class ActivityPhoto {
+    var id: UUID
+    var activityRawValue: String   // String (not Activity) to avoid SwiftData enum persistence issues
+    var hangoutID: UUID?           // Optional — set when captured from an event card; nil for suggestion captures
+    var imageData: Data            // JPEG, thumbnailed to 800px max before storage
+    var capturedAt: Date
+}
+```
+
+`activityRawValue` is a `String` rather than `Activity` because SwiftData cannot persist custom enums directly. Use `Activity(rawValue: photo.activityRawValue)` to recover the typed value.
+
 ---
 
 ## Naming conventions
@@ -280,9 +324,45 @@ Both permission requests must be preceded by a brief in-context explanation
 
 ## Navigation
 
-- Root: `MainTabView` — two tabs, "For You" (SuggestionView) and "Friends" (ConnectionsView)
+- Root: `MainTabView` — three tabs: **Friends** (ConnectionsView), **Events** (UpcomingEventsDashboard), **Suggestions** (SuggestionView)
 - No custom router or coordinator — use SwiftUI `NavigationStack` inside each tab
-- Sheets: `AddConnectionSheet` presented from ConnectionsView
+- Sheets: `AddConnectionSheet` from ConnectionsView; `ReminderPhotoSheet` from event cards, suggestion card, and global sheet in `MainTabView`
+
+---
+
+## Photo capture feature
+
+Users can capture a photo during or after a hangout. Photos are activity-scoped and displayed as a rotating thumbnail on future suggestion cards for the same activity type.
+
+### Capture entry points
+
+1. **Event card camera icon** — visible only while the event is ongoing (`now >= startDate && now <= endDate`). Presents `ReminderPhotoSheet` with the hangout's resolved activity and ID.
+2. **Suggestion card camera button** — toolbar button always visible when a suggestion exists. Presents `ReminderPhotoSheet` via `SuggestionView`.
+3. **Notification tap** — "How was it?" local notification fires at `hangout.endDate`. Tap routes through `NotificationDelegate` → `ReminderPhotoState.trigger(activity:hangoutID:)` → global sheet in `MainTabView`.
+4. **Debug trigger** — triple-tap bottom-left corner anywhere in `MainTabView` (DEBUG only). Picks the activity with the most photos; falls back to a random activity if none have photos.
+
+### ReminderPhotoSheet behavior
+
+- If photos exist for the activity: shows one at random, with ~20% chance of skipping the prompt entirely ("Enjoy the moment!"). User can still tap "Take one anyway".
+- If no photos exist: shows camera button directly.
+- On capture: image is thumbnailed to 800px max, stored as JPEG (80% quality) via `ActivityPhotoRepository`.
+
+### Notification schedule
+
+`InvitationManager.acceptSuggestion` calls `notificationService.scheduleHangoutReminders` after creating an invitation:
+- **Heads-up** (`hangout-headsup-<UUID>`): fires 30 min before `startDate` if in the future
+- **Photo capture** (`hangout-photo-<UUID>`): fires at `endDate` if in the future; `userInfo` contains `notificationType: "photoCapture"`, `activityRawValue`, and `hangoutID`
+
+`NotificationDelegate.handleResponse` checks `notificationType` first. If `"photoCapture"`, it sets `ReminderPhotoState` on `@MainActor`; otherwise it falls through to invitation-response handling.
+
+### Debug triggers (DEBUG only)
+
+| Trigger | Gesture | Location | What it opens |
+|---|---|---|---|
+| `TripleTapBottomRightTrigger` | Triple tap | Bottom-right | Analytics export overlay |
+| `ReminderDebugModifier` | Triple tap | Bottom-left | `ReminderPhotoSheet` for activity with most photos |
+
+Both are applied in `MainTabView` via `.analyticsDebug(service:)` and `.reminderDebug(photoRepository:photoState:)`.
 
 ---
 
