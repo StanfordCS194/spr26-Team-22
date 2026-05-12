@@ -4,6 +4,7 @@ struct HomeView: View {
     let viewModel: HomeViewModel
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
     @State private var showingGoalCreation = false
     @State private var selectedGoal: Goal?
     @State private var showingGoalDetail = false
@@ -157,10 +158,15 @@ struct HomeView: View {
 
     private func handleInsightAction(_ insight: PersonalRelationshipInsight) {
         switch insight.primaryAction {
-        case .planActivity, .sendCheckIn:
+        case .planActivity, .addGoal:
             showingGoalCreation = true
-        case .addGoal:
-            showingGoalCreation = true
+        case .sendCheckIn:
+            guard let friendID = insight.friendID,
+                  let contact = viewModel.contacts.first(where: { $0.id == friendID }),
+                  let phone = contact.phoneNumber,
+                  let encoded = "Hey! How have you been?".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                  let url = URL(string: "sms:\(phone)&body=\(encoded)") else { return }
+            openURL(url)
         case .snooze:
             viewModel.snoozeInsight()
         case .reflect:

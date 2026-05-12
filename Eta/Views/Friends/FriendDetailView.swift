@@ -360,7 +360,7 @@ struct FriendDetailView: View {
         VStack(spacing: 12) {
             if let phone = contact.phoneNumber, !phone.isEmpty {
                 Button {
-                    let body = "Hey! Want to hang out soon?"
+                    let body = "Hey! How have you been?"
                     if let encoded = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                        let url = URL(string: "sms:\(phone)&body=\(encoded)") {
                         openURL(url)

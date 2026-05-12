@@ -4,6 +4,7 @@ struct SuggestionCard: View {
     let displayName: String
     let timeLabel: String
     let suggestion: Suggestion
+    let onCustomize: () -> Void
     let onDismiss: () -> Void
     let onSchedule: () -> Void
     let analyticsService: AnalyticsService
@@ -35,6 +36,13 @@ struct SuggestionCard: View {
                     onSchedule()
                 }
                     .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+
+                Button("See details & edit") {
+                    analyticsService.logButtonTapped(screen: "SuggestionCard", button: "SeeDetailsEdit")
+                    onCustomize()
+                }
+                    .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
 
                 Button("Maybe Later") {
