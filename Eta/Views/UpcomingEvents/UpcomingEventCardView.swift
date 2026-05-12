@@ -2,6 +2,9 @@ import SwiftUI
 
 struct UpcomingEventCardView: View {
     let item: HangoutDisplayItem
+    let photoRepository: ActivityPhotoRepository
+
+    @State private var showingPhotoSheet = false
 
     var body: some View {
         HStack(alignment: .top) {
@@ -16,14 +19,44 @@ struct UpcomingEventCardView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            StatusBadgeView(status: item.hangout.status)
+            VStack(alignment: .trailing, spacing: 8) {
+                StatusBadgeView(status: item.hangout.status)
+                if isOngoing {
+                    Button { showingPhotoSheet = true } label: {
+                        Image(systemName: "camera")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: $showingPhotoSheet) {
+            if let activity = item.hangout.resolvedActivity {
+                ReminderPhotoSheet(
+                    activity: activity,
+                    hangoutID: item.hangout.id,
+                    existingPhotos: photoRepository.photos(for: activity).map { $0.imageData },
+                    onSave: { data in
+                        let photo = ActivityPhoto(activity: activity, hangoutID: item.hangout.id, imageData: data)
+                        try? photoRepository.add(photo)
+                        showingPhotoSheet = false
+                    },
+                    onDismiss: { showingPhotoSheet = false }
+                )
+            }
+        }
     }
 
     private var activityLabel: String {
         item.hangout.resolvedActivity?.rawValue ?? item.hangout.activity
+    }
+
+    private var isOngoing: Bool {
+        let now = Date.now
+        return now >= item.hangout.startDate && now <= item.hangout.endDate
     }
 }
 

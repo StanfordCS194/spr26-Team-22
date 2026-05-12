@@ -2,6 +2,7 @@ import SwiftUI
 
 struct UpcomingEventsDashboard: View {
     let viewModel: UpcomingEventsViewModel
+    let photoRepository: ActivityPhotoRepository
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -17,7 +18,7 @@ struct UpcomingEventsDashboard: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.upcomingItems) { item in
-                                UpcomingEventCardView(item: item)
+                                UpcomingEventCardView(item: item, photoRepository: photoRepository)
                                     .padding(.horizontal)
                             }
                         }
@@ -30,7 +31,7 @@ struct UpcomingEventsDashboard: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
-                        EventHistoryView(items: viewModel.allItems)
+                        EventHistoryView(items: viewModel.allItems, photoRepository: photoRepository)
                     } label: {
                         Text("See All")
                             .font(.subheadline)

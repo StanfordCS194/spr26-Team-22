@@ -22,23 +22,42 @@ final class SuggestionViewModel {
     private let inviteService: InviteService
     private let invitationManager: InvitationManager
     private let formatter: ContactFormatter
+    private let photoRepository: ActivityPhotoRepository
 
     init(
         suggestionService: SuggestionService,
         inviteService: InviteService,
         invitationManager: InvitationManager,
-        formatter: ContactFormatter
+        formatter: ContactFormatter,
+        photoRepository: ActivityPhotoRepository
     ) {
         self.suggestionService = suggestionService
         self.inviteService = inviteService
         self.invitationManager = invitationManager
         self.formatter = formatter
+        self.photoRepository = photoRepository
     }
 
     // MARK: - Display
 
     func displayName(for suggestion: Suggestion) -> String {
         formatter.displayName(for: suggestion.contact)
+    }
+
+    func latestPhotoData(for suggestion: Suggestion) -> Data? {
+        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return nil }
+        return photoRepository.photos(for: activity).first?.imageData
+    }
+
+    func photos(for suggestion: Suggestion) -> [Data] {
+        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return [] }
+        return photoRepository.photos(for: activity).map { $0.imageData }
+    }
+
+    func savePhoto(_ data: Data, for suggestion: Suggestion) {
+        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return }
+        let photo = ActivityPhoto(activity: activity, imageData: data)
+        try? photoRepository.add(photo)
     }
 
     /// Returns a natural-language description of when the proposed free slot falls,
@@ -92,6 +111,7 @@ final class SuggestionViewModel {
         let scheduledTime = suggestion.proposedTime.start
 
         let hangoutID = inviteService.book(suggestion: suggestion)
+        let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
             scheduleState = .accepted
@@ -99,6 +119,7 @@ final class SuggestionViewModel {
                 activityName: activityName,
                 friendName: name,
                 scheduledTime: scheduledTime,
+                endDate: endDate,
                 hangoutID: hangoutID
             )
             scheduleState = .invitationSent(friendName: name)

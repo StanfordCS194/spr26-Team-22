@@ -9,7 +9,9 @@ struct MainTabView: View {
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
     let analyticsService: AnalyticsService
-    
+    let photoRepository: ActivityPhotoRepository
+    let reminderPhotoState: ReminderPhotoState
+
     @State private var selectedTab: TabChoice = .events
 
     var body: some View {
@@ -21,7 +23,10 @@ struct MainTabView: View {
                 )
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
-                UpcomingEventsDashboard(viewModel: upcomingEventsViewModel)
+                UpcomingEventsDashboard(
+                    viewModel: upcomingEventsViewModel,
+                    photoRepository: photoRepository
+                )
             }
             Tab("Suggestions", systemImage: "sparkles", value: .activites) {
                 SuggestionView(
@@ -31,5 +36,28 @@ struct MainTabView: View {
             }
         }
         .analyticsDebug(service: analyticsService)
+        .reminderDebug(photoRepository: photoRepository, photoState: reminderPhotoState)
+        .sheet(isPresented: Binding(
+            get: { reminderPhotoState.pendingActivity != nil },
+            set: { if !$0 { reminderPhotoState.clear() } }
+        )) {
+            if let activity = reminderPhotoState.pendingActivity {
+                ReminderPhotoSheet(
+                    activity: activity,
+                    hangoutID: reminderPhotoState.pendingHangoutID,
+                    existingPhotos: photoRepository.photos(for: activity).map { $0.imageData },
+                    onSave: { data in
+                        let photo = ActivityPhoto(
+                            activity: activity,
+                            hangoutID: reminderPhotoState.pendingHangoutID,
+                            imageData: data
+                        )
+                        try? photoRepository.add(photo)
+                        reminderPhotoState.clear()
+                    },
+                    onDismiss: { reminderPhotoState.clear() }
+                )
+            }
+        }
     }
 }

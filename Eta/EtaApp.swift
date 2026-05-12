@@ -18,14 +18,20 @@ struct EtaApp: App {
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
+    private let photoRepository: ActivityPhotoRepository
+    private let reminderPhotoState: ReminderPhotoState
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, ActivityPhoto.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
         let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
+        let photoRepository = ActivityPhotoRepository(modelContext: container.mainContext)
+        self.photoRepository = photoRepository
+        let reminderPhotoState = ReminderPhotoState()
+        self.reminderPhotoState = reminderPhotoState
 
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
@@ -68,7 +74,10 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: container.mainContext
         )
-        let notificationDelegate = NotificationDelegate(invitationManager: invitationManager)
+        let notificationDelegate = NotificationDelegate(
+            invitationManager: invitationManager,
+            reminderPhotoState: reminderPhotoState
+        )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
@@ -81,7 +90,8 @@ struct EtaApp: App {
             suggestionService: suggestionService,
             inviteService: inviteService,
             invitationManager: invitationManager,
-            formatter: formatter
+            formatter: formatter,
+            photoRepository: photoRepository
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
@@ -100,7 +110,9 @@ struct EtaApp: App {
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    photoRepository: photoRepository,
+                    reminderPhotoState: reminderPhotoState
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)
