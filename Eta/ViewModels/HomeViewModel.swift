@@ -14,6 +14,7 @@ struct RecentWinItem: Identifiable {
     let contextLine: String
 }
 
+@MainActor
 @Observable
 final class HomeViewModel {
     private(set) var greeting: String = ""
@@ -72,6 +73,12 @@ final class HomeViewModel {
             contactProfileService.inferPatternIfNeeded(for: contact, from: allHangouts)
         }
 
+        // First pass: populate spotlights immediately from SwiftData without waiting for calendar.
+        friendSpotlights = computeSpotlights(healthScores: [])
+        recentWins = computeRecentWins()
+        greeting = computeGreeting()
+        weekSummary = computeWeekSummary()
+
         let healthScores = await relationshipService.computeHealth()
 
         async let insightTask = insightGenerationService.generateDailyInsight(
@@ -80,10 +87,8 @@ final class HomeViewModel {
         )
 
         currentInsight = await insightTask
+        // Second pass: refresh with calendar-enhanced health data.
         friendSpotlights = computeSpotlights(healthScores: healthScores)
-        recentWins = computeRecentWins()
-        greeting = computeGreeting()
-        weekSummary = computeWeekSummary()
     }
 
     // MARK: - Insight actions

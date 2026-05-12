@@ -1,3 +1,4 @@
+@MainActor
 protocol NotificationServiceProtocol {
     /// Request permission to send notifications. No-op if already determined.
     func requestAuthorization() async throws

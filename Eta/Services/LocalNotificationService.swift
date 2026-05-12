@@ -1,5 +1,6 @@
 import UserNotifications
 
+@MainActor
 final class LocalNotificationService: NotificationServiceProtocol {
     private let center = UNUserNotificationCenter.current()
     private let preferencesService: PreferencesService
