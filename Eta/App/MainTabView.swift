@@ -50,7 +50,6 @@ struct MainTabView: View {
                 )
             }
         }
-        .analyticsDebug(service: analyticsService)
         .sheet(isPresented: Binding(
             get: { invitationManager.pendingFeedbackHangoutID != nil },
             set: { if !$0 { invitationManager.dismissFeedback() } }
