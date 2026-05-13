@@ -19,3 +19,13 @@
 // DO NOT PUSH API KEYS TO REMOTE
 // DO NOT PUSH API KEYS TO REMOTE
 LLM_API_KEY =
+
+// Supabase project URL and anon key — get from supabase.com → Project Settings → API
+// DO NOT PUSH TO REMOTE
+SUPABASE_URL = https://rcsttehfkfghynyzmjca.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjc3R0ZWhma2ZnaHlueXptamNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODAxODUsImV4cCI6MjA5NDI1NjE4NX0.LEKcnc98AM3zlTTmzX-Z_EUbqJT5-m1Xjsz6HsbaH7U
+
+// Comma-separated normalized identifiers for demo devices (digits-only phone or email).
+// Invites to these contacts use the real Supabase flow; all others use simulated acceptance.
+// DO NOT PUSH TO REMOTE
+DEMO_CONTACTS = 16506090790,15713209319,15039511553,17082709838,laurenhamilton822@gmail.com,simulator@test.com

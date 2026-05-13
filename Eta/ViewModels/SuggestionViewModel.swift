@@ -148,12 +148,14 @@ final class SuggestionViewModel {
         let activityName = suggestion.activityDescription
         let scheduledTime = suggestion.proposedTime.start
 
+        let contact = suggestion.contact
         let hangoutID = inviteService.book(suggestion: suggestion)
         let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
             scheduleState = .accepted
             _ = try? await invitationManager.acceptSuggestion(
+                contact: contact,
                 activityName: activityName,
                 friendName: name,
                 scheduledTime: scheduledTime,

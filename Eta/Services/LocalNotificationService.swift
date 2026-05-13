@@ -107,8 +107,41 @@ final class LocalNotificationService: NotificationServiceProtocol {
         ])
     }
 
+    func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws {
+        guard preferencesService.preferences.enableNotifications else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(remote.friendName) invited you!"
+        content.body = "\(remote.activity) — \(formattedDateTime(remote.startTime))"
+        content.sound = .default
+        content.categoryIdentifier = "INVITE_RESPONSE"
+        content.userInfo = [
+            "notificationType": "receivedInvite",
+            "remoteInvitationID": remote.id,
+            "activity": remote.activity,
+            "startTime": remote.startTime.timeIntervalSince1970,
+            "endTime": remote.endTime.timeIntervalSince1970,
+            "fromIdentifier": remote.fromIdentifier
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "received-invite-\(remote.id)",
+            content: content,
+            trigger: trigger
+        )
+        try await center.add(request)
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private func formattedDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
