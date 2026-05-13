@@ -2,9 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>DEMO_CONTACTS</key>
+	<string>$(DEMO_CONTACTS)</string>
 	<key>LLM_API_KEY</key>
 	<string>$(LLM_API_KEY)</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Eta uses your camera to capture memories from your hangouts.</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
 </dict>
 </plist>
