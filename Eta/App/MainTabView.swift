@@ -67,7 +67,7 @@ struct MainTabView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, 72) // clears the tab bar (≈49pt) + breathing room
         }
-//        .analyticsDebug(service: analyticsService)
+        .analyticsDebug(service: analyticsService)
         .onChange(of: selectedTab) { _, newTab in
             guard newTab == .availability else { return }
             Task {

@@ -16,7 +16,7 @@ struct TripleTapBottomRightTrigger: AnalyticsDebugTrigger {
         Color.clear
             .frame(width: 80, height: 80)
             .contentShape(Rectangle())
-            .onTapGesture(count: 3) {
+            .onTapGesture(count: 5) {
                 showDebugMenu.wrappedValue = true
             }
             .padding(.bottom, 49)

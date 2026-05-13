@@ -19,7 +19,7 @@ struct AnalyticsDebugModifier<Trigger: AnalyticsDebugTrigger>: ViewModifier {
     @State private var showingDebugMenu = false
 
     func body(content: Content) -> some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottomLeading) {
             content
 
             #if DEBUG
