@@ -64,5 +64,6 @@ final class InvitationManager {
         }
 
         try modelContext.save()
+        NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
     }
 }

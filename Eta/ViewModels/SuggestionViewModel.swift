@@ -116,12 +116,12 @@ final class SuggestionViewModel {
             contact: s.contact,
             activityDescription: activity,
             reason: s.reason,
-            proposedTime: newInterval,
+            proposedTimes: [newInterval],
             generatedAt: s.generatedAt
         )
     }
 
-    /// Persists the hangout, creates a calendar event, then sends the invitation
+    /// Persists the hangout, then sends the invitation
     /// via push notification. Drives the UI through accepted → invitationSent states.
     func schedule() {
         guard let suggestion else { return }

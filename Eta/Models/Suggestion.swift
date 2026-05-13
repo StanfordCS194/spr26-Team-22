@@ -9,7 +9,13 @@ struct Suggestion {
     var activityDescription: String
     /// Human-readable rationale shown to the user, e.g. "You haven't hung out in 3 weeks".
     var reason: String
-    /// The specific free calendar slot that triggered this suggestion.
-    var proposedTime: DateInterval
+    /// User-entered availability options that triggered this suggestion.
+    var proposedTimes: [DateInterval] //Allow for later invitee choice of time
     var generatedAt: Date
+
+    /// The default time used by the current scheduling flow.
+    /// The invite message can still present multiple proposedTimes for later choice.
+    var proposedTime: DateInterval {
+        proposedTimes[0]
+    }
 }

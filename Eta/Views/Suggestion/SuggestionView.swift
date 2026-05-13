@@ -61,7 +61,7 @@ struct SuggestionView: View {
                         } else {
                             ContentUnavailableView(
                                 "Nothing to suggest right now",
-                                systemImage: "calendar.badge.clock",
+                                systemImage: "clock.badge.checkmark",
                                 description: Text("We'll suggest a hangout when you have free time and a friend to catch up with.")
                             )
                         }
@@ -116,7 +116,7 @@ private struct AcceptedView: View {
             Text("Scheduling your hangout...")
                 .font(.title)
                 .fontWeight(.semibold)
-            Text("Setting up your calendar event and invitation.")
+            Text("Setting up your hangout and invitation.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

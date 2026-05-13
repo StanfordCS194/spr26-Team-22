@@ -1,7 +1,7 @@
 import SwiftUI
 
 fileprivate enum TabChoice: Hashable {
-    case friends, events, suggestions
+    case availability, friends, suggestions, events
 }
 
 struct MainTabView: View {
@@ -9,6 +9,7 @@ struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
@@ -29,10 +30,9 @@ struct MainTabView: View {
                     analyticsService: analyticsService
                 )
             }
-            Tab("Events", systemImage: "cup.and.saucer", value: .events) {
-                UpcomingEventsDashboard(
-                    viewModel: upcomingEventsViewModel,
-                    photoRepository: photoRepository
+            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
+                AvailabilityView(
+                    viewModel: availabilityViewModel
                 )
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
@@ -41,8 +41,20 @@ struct MainTabView: View {
                     analyticsService: analyticsService
                 )
             }
+            Tab("Events", systemImage: "cup.and.saucer", value: .events) {
+                UpcomingEventsDashboard(
+                    viewModel: upcomingEventsViewModel,
+                    photoRepository: photoRepository
+                )
+            }
         }
         .analyticsDebug(service: analyticsService)
+        .onChange(of: selectedTab) { _, newTab in
+            guard newTab == .availability else { return }
+            Task {
+                await availabilityViewModel.loadAvailability()
+            }
+        }
         .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)
         .sheet(isPresented: Binding(
             get: { nudgeReminderState.isPresented },
@@ -63,7 +75,7 @@ struct MainTabView: View {
                     },
                     onSuggestions: {
                         nudgeReminderState.clear()
-                        selectedTab = .events
+                        selectedTab = .suggestions
                     },
                     onDismiss: { nudgeReminderState.clear() }
                 )
