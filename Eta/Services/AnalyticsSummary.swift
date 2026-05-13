@@ -27,7 +27,6 @@ struct AnalyticsSummary {
     }
     
     struct PermissionStats {
-        let calendar: PermissionDetail
         let contacts: PermissionDetail
         
         struct PermissionDetail {
@@ -113,15 +112,6 @@ struct AnalyticsSummary {
     }
     
     private static func generatePermissionStats(_ events: [AnalyticsEvent]) -> PermissionStats {
-        let calendarRequested = events.filter { $0.eventType == "PermissionRequested" && $0.value == "Calendar" }.count
-        let calendarGranted = events.filter { $0.eventType == "PermissionGranted" && $0.value == "Calendar" }.count
-        let calendarDenied = events.filter { $0.eventType == "PermissionDenied" && $0.value == "Calendar" }.count
-        
-        let calendarGrantTimes = events
-            .filter { $0.eventType == "PermissionGranted" && $0.value == "Calendar" }
-            .compactMap { $0.metadata?["timeElapsed"] as? Double }
-        let avgCalendarTime = calendarGrantTimes.isEmpty ? 0 : calendarGrantTimes.reduce(0, +) / Double(calendarGrantTimes.count)
-        
         let contactsRequested = events.filter { $0.eventType == "PermissionRequested" && $0.value == "Contacts" }.count
         let contactsGranted = events.filter { $0.eventType == "PermissionGranted" && $0.value == "Contacts" }.count
         let contactsDenied = events.filter { $0.eventType == "PermissionDenied" && $0.value == "Contacts" }.count
@@ -140,14 +130,6 @@ struct AnalyticsSummary {
         }
         
         return PermissionStats(
-            calendar: PermissionStats.PermissionDetail(
-                requested: calendarRequested,
-                granted: calendarGranted,
-                denied: calendarDenied,
-                grantRate: calendarRequested > 0 ? Double(calendarGranted) / Double(calendarRequested) * 100 : 0,
-                avgTimeToGrant: avgCalendarTime,
-                selectionType: nil
-            ),
             contacts: PermissionStats.PermissionDetail(
                 requested: contactsRequested,
                 granted: contactsGranted,
@@ -348,13 +330,6 @@ struct AnalyticsSummary {
                 ]
             ],
             "permissions": [
-                "calendar": [
-                    "requested": permissions.calendar.requested,
-                    "granted": permissions.calendar.granted,
-                    "denied": permissions.calendar.denied,
-                    "grantRate": permissions.calendar.grantRate,
-                    "avgTimeToGrant": permissions.calendar.avgTimeToGrant
-                ],
                 "contacts": [
                     "requested": permissions.contacts.requested,
                     "granted": permissions.contacts.granted,

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Generates a hangout suggestion by combining two signals:
-/// 1. Opportunity — a free slot in the user's near-term calendar (via CalendarDataProvider)
+/// 1. Opportunity — user-entered availability in the near-term window.
 /// 2. Need       — a contact whose relationship health score is above the recency threshold
 ///
 /// Both signals must be present. If either is absent, generateSuggestion() returns nil
@@ -11,11 +11,10 @@ import Foundation
 /// is stable rules logic that does not need to be swapped independently.
 /// Activity and reason selection is delegated to the injected ActivityStrategy.
 ///
-/// SuggestionService depends on CalendarDataProvider concretely (not via a protocol)
-/// for free slot detection, since that capability is distinct from ImplicitDataProvider's
-/// historical event fetching and no second implementation is anticipated. See CLAUDE.md.
+/// SuggestionService depends on AvailabilityDataProvider concretely because user-entered
+/// availability is a separate capability from historical relationship signals.
 final class SuggestionService {
-    private let calendar: CalendarDataProvider
+    private let availabilityProvider: AvailabilityDataProvider
     private let relationshipService: RelationshipService
     private let contextEngine: any ContextEngine
     private let activityStrategy: any ActivityStrategy
@@ -25,25 +24,30 @@ final class SuggestionService {
     private let minimumScoreThreshold: Double = 7
 
     init(
-        calendar: CalendarDataProvider,
+        availabilityProvider: AvailabilityDataProvider,
         relationshipService: RelationshipService,
         contextEngine: any ContextEngine,
         activityStrategy: any ActivityStrategy
     ) {
-        self.calendar = calendar
+        self.availabilityProvider = availabilityProvider
         self.relationshipService = relationshipService
         self.contextEngine = contextEngine
         self.activityStrategy = activityStrategy
     }
 
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
-    /// nil otherwise. Uses all user preferences for calendar window, activity filtering,
+    /// nil otherwise. Uses saved availability, activity filtering,
     /// and relationship health thresholds.
     func generateSuggestion() async -> Suggestion? {
-        // Signal 1: opportunity. Check first — synchronous and cheap.
-        guard let freeSlot = calendar.findFreeSlot() else {
+        // Signal 1: opportunity. Check first so an empty availability inbox stays quiet.
+        let freeSlots: [DateInterval]
+        do {
+            freeSlots = try await availabilityProvider.findAvailableSlots()
+        } catch {
+            print(error.localizedDescription)
             return nil
         }
+        guard !freeSlots.isEmpty else { return nil }
 
         // Signal 2: need. Rank contacts by health score.
         let healthScores = await relationshipService.computeHealth()
@@ -73,7 +77,7 @@ final class SuggestionService {
             contact: topHealth.contact,
             activityDescription: proposal.activityDescription,
             reason: proposal.reason,
-            proposedTime: freeSlot,
+            proposedTimes: freeSlots,
             generatedAt: .now
         )
     }

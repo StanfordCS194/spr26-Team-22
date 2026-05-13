@@ -1,13 +1,15 @@
 import SwiftUI
 
 fileprivate enum TabChoice: Hashable {
-    case friends, events, activites
+    case availability, friends, activites, events
+
 }
 
 struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
@@ -21,9 +23,20 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
+                            AvailabilityView(
+                                viewModel: availabilityViewModel
+                            )
+            }
             Tab("Friends", systemImage: "person.2", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
+                    analyticsService: analyticsService
+                )
+            }
+            Tab("Suggestions", systemImage: "sparkles", value: .activites) {
+                SuggestionView(
+                    viewModel: suggestionViewModel,
                     analyticsService: analyticsService
                 )
             }
@@ -33,14 +46,14 @@ struct MainTabView: View {
                     photoRepository: photoRepository
                 )
             }
-            Tab("Suggestions", systemImage: "sparkles", value: .activites) {
-                SuggestionView(
-                    viewModel: suggestionViewModel,
-                    analyticsService: analyticsService
-                )
-            }
         }
         .analyticsDebug(service: analyticsService)
+        .onChange(of: selectedTab) { _, newTab in
+            guard newTab == .availability else { return }
+            Task {
+                await availabilityViewModel.loadAvailability()
+            }
+        }
         .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)
         .sheet(isPresented: Binding(
             get: { nudgeReminderState.isPresented },
