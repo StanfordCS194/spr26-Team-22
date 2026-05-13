@@ -1,13 +1,15 @@
 import SwiftUI
 
 fileprivate enum TabChoice: Hashable {
-    case friends, events, activites
+    case availability, friends, activites, events
+
 }
 
 struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
@@ -21,9 +23,20 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
+                            AvailabilityView(
+                                viewModel: availabilityViewModel
+                            )
+            }
             Tab("Friends", systemImage: "person.2", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
+                    analyticsService: analyticsService
+                )
+            }
+            Tab("Suggestions", systemImage: "sparkles", value: .activites) {
+                SuggestionView(
+                    viewModel: suggestionViewModel,
                     analyticsService: analyticsService
                 )
             }
@@ -33,15 +46,15 @@ struct MainTabView: View {
                     photoRepository: photoRepository
                 )
             }
-            Tab("Suggestions", systemImage: "sparkles", value: .activites) {
-                SuggestionView(
-                    viewModel: suggestionViewModel,
-                    analyticsService: analyticsService
-                )
-            }
         }
         .analyticsDebug(service: analyticsService)
         .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)
+        .onChange(of: selectedTab) { _, newTab in
+            guard newTab == .availability else { return }
+            Task {
+                await availabilityViewModel.loadAvailability()
+            }
+        }
         .sheet(isPresented: Binding(
             get: { nudgeReminderState.isPresented },
             set: { if !$0 { nudgeReminderState.clear() } }
@@ -81,7 +94,6 @@ struct MainTabView: View {
             set: { if !$0 { reminderPhotoState.clear() } }
         )) {
             if let activity = reminderPhotoState.pendingActivity {
-                // Priority: contact-scoped → hangout-scoped → activity-scoped.
                 let photoData: Data? = reminderPhotoState.pendingContactID
                     .flatMap { photoRepository.photos(forContactID: $0).first?.imageData }
                     ?? reminderPhotoState.pendingHangoutID

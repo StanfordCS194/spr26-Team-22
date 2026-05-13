@@ -3,30 +3,25 @@ import Foundation
 final class InviteService {
     private let provider: any InviteProvider
     private let hangoutRepository: ScheduledHangoutRepository
-    private let calendarDataProvider: CalendarDataProvider
 
     init(
         provider: any InviteProvider,
-        hangoutRepository: ScheduledHangoutRepository,
-        calendarDataProvider: CalendarDataProvider
+        hangoutRepository: ScheduledHangoutRepository
     ) {
         self.provider = provider
         self.hangoutRepository = hangoutRepository
-        self.calendarDataProvider = calendarDataProvider
     }
 
-    /// Persists the scheduled hangout and creates a calendar event on the user's calendar.
+    /// Persists the scheduled hangout using the first proposed availability option.
     /// Returns the hangout's UUID so the caller can link the resulting Invitation to it.
     @discardableResult
     func book(suggestion: Suggestion) -> UUID {
         let hangout = ScheduledHangout(
             contact: suggestion.contact,
             activity: suggestion.activityDescription,
-            proposedTime: suggestion.proposedTime
+            selectedTime: suggestion.proposedTime
         )
         try? hangoutRepository.add(hangout)
-        calendarDataProvider.createEvent(for: suggestion)
-        NotificationCenter.default.post(name: .hangoutScheduled, object: nil)
         return hangout.id
     }
 
