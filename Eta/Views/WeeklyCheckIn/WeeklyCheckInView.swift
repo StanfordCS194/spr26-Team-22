@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Full-screen sheet summarising the user's friendship activity for the current calendar week.
+///
+/// Health scores are always recomputed on appearance — no stale-cache guard — so counts
+/// reflect the calendar state at the moment the sheet opens.
+///
+/// "Seen this week" and "overdue" both use the calendar-week boundary (Sunday/Monday midnight
+/// per locale), not a rolling 7-day window, so they reset together on the same day each week.
+/// Contacts with a confirmed upcoming hangout are excluded from the overdue list.
 struct WeeklyCheckInView: View {
     let connectionsViewModel: ConnectionsViewModel
     let onDismiss: () -> Void
