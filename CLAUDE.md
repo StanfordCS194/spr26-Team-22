@@ -95,7 +95,7 @@ Eta/
 │   ├── DefaultContextEngine.swift        # Fans out to all ContextSources in parallel
 │   ├── EventHistoryContextSource.swift   # ContextSource — recent hangout history
 │   ├── PreferencesContextSource.swift    # ContextSource — user preferences
-│   └── GitHubModelsLLMRunner.swift       # LLMRunner — GitHub Models API; falls back to random Activity if no key
+│   └── GitHubModelsLLMRunner.swift       # LLMRunner — GitHub Models API; falls back to random Activity on no key OR any API error (rate limit, network). Never throws to callers.
 │
 ├── Strategies/
 │   ├── LLMActivityStrategy.swift         # ActivityStrategy — calls LLMRunner; key path
@@ -435,9 +435,17 @@ Two orthogonal flags produce four modes:
 | **Enum mode** (no API key) | Activity: photo-biased cascade · Body: template | Activity: random enum via runner · Body: template |
 | | Photo: friend+activity → any friend → activity | Photo: friend+activity → any friend → activity |
 
-- **LLM mode** (`llmMode = true`): `GitHubModelsLLMRunner` generates a free-form activity phrase and a warm body sentence. Photo selection uses any friend photo because the LLM activity is free-form and activity-matching would be meaningless.
-- **Enum mode** (`llmMode = false`): runner returns a random `Activity.rawValue` (its no-key fallback). In Debug only, the activity is instead chosen via a photo-biased cascade: friend+activity photo → any friend photo's activity → any repo photo's activity → random enum. This maximises the chance of showing a photo in the debug notification.
+- **LLM mode** (`llmMode = true`): `GitHubModelsLLMRunner` generates a free-form activity phrase and a warm body sentence. Photo selection uses any friend photo because the LLM activity is free-form and activity-matching would be meaningless. If the API call fails (rate limit, network error), the runner falls back to a random `Activity.rawValue` internally — the strategy never sees an error and still produces a suggestion.
+- **Enum mode** (`llmMode = false`): runner returns a random `Activity.rawValue` (its no-key path). In Debug only, the activity is instead chosen via a photo-biased cascade: friend+activity photo → any friend photo's activity → any repo photo's activity → random enum. This maximises the chance of showing a photo in the debug notification.
 - Body text: LLM mode generates a contextual sentence via runner; enum mode uses a hardcoded template keyed on `Activity`.
+
+### Runner failure model
+
+`GitHubModelsLLMRunner` owns all its failure modes and never throws to callers:
+- No API key → returns `Activity.allCases.randomElement()?.description`
+- API error (any HTTP non-200, network failure, decode error) → logs and returns the same random Activity fallback
+
+This keeps `LLMActivityStrategy` and `NudgeService` free of error-handling boilerplate. Do not add `try/catch` around `runner.generate()` in strategies or services.
 
 ### Notification routing
 
