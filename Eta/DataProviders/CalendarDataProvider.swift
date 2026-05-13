@@ -2,6 +2,7 @@ import Foundation
 import EventKit
 
 /// Supplies hangout events from Apple Calendar via EKEventStore.
+@MainActor
 final class CalendarDataProvider: ImplicitDataProvider {
     private let eventStore = EKEventStore()
     private let preferencesService: PreferencesService

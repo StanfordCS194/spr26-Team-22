@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 @Observable
 final class InvitationManager {
     private let notificationService: any NotificationServiceProtocol
@@ -40,6 +41,7 @@ final class InvitationManager {
         activityName: String,
         friendName: String,
         scheduledTime: Date,
+        endDate: Date,
         hangoutID: UUID
     ) async throws -> Invitation {
         // Request permission inline on first use — no dedicated onboarding screen.
@@ -55,6 +57,13 @@ final class InvitationManager {
         try modelContext.save()
 
         try await notificationService.sendInvitation(for: invitation)
+        await notificationService.scheduleHangoutReminders(
+            hangoutID: hangoutID,
+            activityName: activityName,
+            friendName: friendName,
+            startDate: scheduledTime,
+            endDate: endDate
+        )
 
         return invitation
     }
@@ -89,5 +98,6 @@ final class InvitationManager {
         }
 
         try modelContext.save()
+        NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
     }
 }
