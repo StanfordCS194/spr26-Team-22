@@ -58,12 +58,12 @@ struct MainTabView: View {
                     nudgeScheduler: nudgeScheduler,
                     onScheduleNow: { suggestion in
                         nudgeReminderState.clear()
-                        selectedTab = .activites
+                        selectedTab = .suggestions
                         suggestionViewModel.scheduleFromNudge(suggestion)
                     },
                     onSuggestions: {
                         nudgeReminderState.clear()
-                        selectedTab = .activites
+                        selectedTab = .events
                     },
                     onDismiss: { nudgeReminderState.clear() }
                 )
