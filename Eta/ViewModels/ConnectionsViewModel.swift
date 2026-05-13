@@ -78,7 +78,6 @@ final class ConnectionsViewModel {
     // MARK: - Relationship health
 
     /// Fetches health scores for all tracked contacts via RelationshipService.
-    /// Triggers Calendar permission request on first call.
     func loadHealthScores() async {
         let scores = await relationshipService.computeHealth()
         healthScores = Dictionary(uniqueKeysWithValues: scores.map { ($0.contact.id, $0) })

@@ -17,6 +17,7 @@ struct EtaApp: App {
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
+    private let availabilityViewModel: AvailabilityViewModel
     private let analyticsService: AnalyticsService
     @State private var onboardingViewModel: OnboardingViewModel
 
@@ -31,10 +32,15 @@ struct EtaApp: App {
         self.analyticsService = analyticsService
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
-        let calendarDataProvider = CalendarDataProvider(preferencesService: preferencesService)
+        let availabilityRepository = UserDefaultsAvailabilityRepository()
+        let activityDurationSettings = ActivityDurationSettings()
+        let availabilityDataProvider = AvailabilityDataProvider(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
 
         let relationshipService = RelationshipService(
-            providers: [calendarDataProvider],
             repository: repository,
             hangoutRepository: hangoutRepository,
             preferencesService: preferencesService
@@ -51,7 +57,7 @@ struct EtaApp: App {
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
 
         let suggestionService = SuggestionService(
-            calendar: calendarDataProvider,
+            availabilityProvider: availabilityDataProvider,
             relationshipService: relationshipService,
             contextEngine: contextEngine,
             activityStrategy: activityStrategy
@@ -59,8 +65,7 @@ struct EtaApp: App {
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(
             provider: inviteProvider,
-            hangoutRepository: hangoutRepository,
-            calendarDataProvider: calendarDataProvider
+            hangoutRepository: hangoutRepository
         )
 
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
@@ -87,6 +92,11 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
+        self.availabilityViewModel = AvailabilityViewModel(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
         self._onboardingViewModel = State(initialValue: OnboardingViewModel(preferencesService: preferencesService))
 
         // Track app lifecycle events
@@ -100,6 +110,7 @@ struct EtaApp: App {
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
+                    availabilityViewModel: availabilityViewModel,
                     analyticsService: analyticsService
                 )
             } else {
