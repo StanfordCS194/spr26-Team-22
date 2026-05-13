@@ -250,6 +250,9 @@ struct EtaApp: App {
             Task { await nudgeService.scheduleNudge() }
             Task { await weeklyCheckInService.scheduleIfNeeded() }
             Task { await invitationManager.pollForUpdates() }
+            if let id = phoneSetupService.myIdentifier {
+                Task { await supabaseService.registerDevice(identifier: id) }
+            }
         }
 
         registerInviteResponseCategory()

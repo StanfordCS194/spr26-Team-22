@@ -28,4 +28,4 @@ SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 // Comma-separated normalized identifiers for demo devices (digits-only phone or email).
 // Invites to these contacts use the real Supabase flow; all others use simulated acceptance.
 // DO NOT PUSH TO REMOTE
-DEMO_CONTACTS = 16506090790,15713209319,15039511553,17082709838,laurenhamilton822@gmail.com,simulator@test.com
+DEMO_CONTACTS = 16506090790,15713209319,15039511553,17082709838,laurenhamilton822@gmail.com,simulator@test.com, simulator@test.com
