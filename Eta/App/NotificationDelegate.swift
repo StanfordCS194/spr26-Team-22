@@ -25,6 +25,14 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func handleResponse(from userInfo: [AnyHashable: Any]) {
+        if let feedbackIDString = userInfo["feedbackHangoutID"] as? String,
+           let hangoutID = UUID(uuidString: feedbackIDString) {
+            Task { @MainActor in
+                invitationManager.pendingFeedbackHangoutID = hangoutID
+            }
+            return
+        }
+
         guard let invitationID = userInfo["invitationID"] as? String else { return }
         // Simulated for Demo Day 1: always treat as accepted.
         try? invitationManager.handleInvitationResponse(invitationID: invitationID, accepted: true)

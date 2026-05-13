@@ -16,12 +16,13 @@ struct EtaApp: App {
     private let suggestionViewModel: SuggestionViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
+    private let invitationManager: InvitationManager
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, HangoutFeedback.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
@@ -68,6 +69,7 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: container.mainContext
         )
+        self.invitationManager = invitationManager
         let notificationDelegate = NotificationDelegate(invitationManager: invitationManager)
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
@@ -100,7 +102,8 @@ struct EtaApp: App {
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    invitationManager: invitationManager
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)

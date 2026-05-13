@@ -9,7 +9,8 @@ struct MainTabView: View {
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
     let analyticsService: AnalyticsService
-    
+    let invitationManager: InvitationManager
+
     @State private var selectedTab: TabChoice = .events
 
     var body: some View {
@@ -31,5 +32,16 @@ struct MainTabView: View {
             }
         }
         .analyticsDebug(service: analyticsService)
+        .sheet(isPresented: Binding(
+            get: { invitationManager.pendingFeedbackHangoutID != nil },
+            set: { if !$0 { invitationManager.dismissFeedback() } }
+        )) {
+            if let hangoutID = invitationManager.pendingFeedbackHangoutID {
+                FeedbackPopupView(
+                    hangoutID: hangoutID,
+                    invitationManager: invitationManager
+                )
+            }
+        }
     }
 }

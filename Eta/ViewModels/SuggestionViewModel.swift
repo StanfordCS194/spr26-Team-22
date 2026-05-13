@@ -75,6 +75,25 @@ final class SuggestionViewModel {
         isLoading = true
         defer { isLoading = false }
         suggestion = await suggestionService.generateSuggestion()
+
+        #if DEBUG
+        if suggestion == nil {
+            let demoContact = TrackedContact(
+                cnContactIdentifier: "demo",
+                name: "Alex Demo",
+                givenName: "Alex",
+                familyName: "Demo"
+            )
+            let start = Calendar.current.date(byAdding: .hour, value: 2, to: .now) ?? .now
+            suggestion = Suggestion(
+                contact: demoContact,
+                activityDescription: "Grab coffee",
+                reason: "You haven't hung out in a while.",
+                proposedTime: DateInterval(start: start, duration: 3600),
+                generatedAt: .now
+            )
+        }
+        #endif
     }
 
     /// Clears the current suggestion. The inbox will show its empty state until
