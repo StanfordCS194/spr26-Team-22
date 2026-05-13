@@ -22,6 +22,7 @@ final class InviteService {
             selectedTime: suggestion.proposedTime
         )
         try? hangoutRepository.add(hangout)
+        NotificationCenter.default.post(name: .hangoutScheduled, object: nil)
         return hangout.id
     }
 
