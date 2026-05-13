@@ -53,17 +53,18 @@ struct EtaApp: App {
         )
         relationshipService.setAnalyticsService(analyticsService)
 
+        let profileRepository = ContactProfileRepository(modelContext: ctx)
+        let contactProfileService = ContactProfileService(profileRepository: profileRepository)
+
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
-            PreferencesContextSource(preferencesService: preferencesService)
+            PreferencesContextSource(preferencesService: preferencesService),
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
         ])
 
         // Activity strategy — chooses an activity
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
-
-        let profileRepository = ContactProfileRepository(modelContext: ctx)
-        let contactProfileService = ContactProfileService(profileRepository: profileRepository)
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
