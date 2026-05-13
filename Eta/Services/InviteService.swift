@@ -26,6 +26,7 @@ final class InviteService {
         )
         try? hangoutRepository.add(hangout)
         calendarDataProvider.createEvent(for: suggestion)
+        NotificationCenter.default.post(name: .hangoutScheduled, object: nil)
         return hangout.id
     }
 

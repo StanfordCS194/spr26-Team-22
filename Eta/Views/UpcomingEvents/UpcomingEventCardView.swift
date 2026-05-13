@@ -21,7 +21,7 @@ struct UpcomingEventCardView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 8) {
                 StatusBadgeView(status: item.hangout.status)
-                if isOngoing {
+                if showsCameraButton {
                     Button { showingPhotoSheet = true } label: {
                         Image(systemName: "camera")
                             .font(.subheadline)
@@ -34,19 +34,18 @@ struct UpcomingEventCardView: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .sheet(isPresented: $showingPhotoSheet) {
-            if let activity = item.hangout.resolvedActivity {
-                ReminderPhotoSheet(
-                    activity: activity,
-                    hangoutID: item.hangout.id,
-                    existingPhotos: photoRepository.photos(for: activity).map { $0.imageData },
-                    onSave: { data in
-                        let photo = ActivityPhoto(activity: activity, hangoutID: item.hangout.id, imageData: data)
-                        try? photoRepository.add(photo)
-                        showingPhotoSheet = false
-                    },
-                    onDismiss: { showingPhotoSheet = false }
-                )
-            }
+            let activity = item.hangout.resolvedActivity ?? .walk
+            let hangoutID = item.hangout.id
+            ReminderPhotoSheet(
+                activity: activity,
+                hangoutID: hangoutID,
+                existingPhotos: photoRepository.photos(for: hangoutID).map { $0.imageData },
+                onSave: { data in
+                    try? photoRepository.save(imageData: data, activity: activity, hangoutID: hangoutID)
+                    showingPhotoSheet = false
+                },
+                onDismiss: { showingPhotoSheet = false }
+            )
         }
     }
 
@@ -54,9 +53,16 @@ struct UpcomingEventCardView: View {
         item.hangout.resolvedActivity?.rawValue ?? item.hangout.activity
     }
 
-    private var isOngoing: Bool {
-        let now = Date.now
-        return now >= item.hangout.startDate && now <= item.hangout.endDate
+    private var showsCameraButton: Bool {
+        guard item.hangout.status == .confirmed else { return false }
+        let cutoff = item.hangout.startDate.addingTimeInterval(24 * 60 * 60)
+        return Date.now <= cutoff
+    }
+
+    private var hangoutHasPhoto: Bool {
+        Activity.allCases.contains { activity in
+            photoRepository.photos(for: activity).contains { $0.hangoutID == item.hangout.id }
+        }
     }
 }
 

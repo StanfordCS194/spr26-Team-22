@@ -20,6 +20,11 @@ struct EtaApp: App {
     private let analyticsService: AnalyticsService
     private let photoRepository: ActivityPhotoRepository
     private let reminderPhotoState: ReminderPhotoState
+    private let nudgeService: NudgeService
+    private let nudgeScheduler: NudgeScheduler
+    private let weeklyCheckInService: WeeklyCheckInService
+    private let weeklyCheckInState: WeeklyCheckInState
+    private let nudgeReminderState: NudgeReminderState
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
@@ -46,6 +51,17 @@ struct EtaApp: App {
             preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
+        let nudgeService = NudgeService(
+            relationshipService: relationshipService,
+            photoRepository: photoRepository,
+            runner: GitHubModelsLLMRunner()
+        )
+        self.nudgeService = nudgeService
+        self.weeklyCheckInService = WeeklyCheckInService()
+        let weeklyCheckInState = WeeklyCheckInState()
+        self.weeklyCheckInState = weeklyCheckInState
+        let nudgeReminderState = NudgeReminderState()
+        self.nudgeReminderState = nudgeReminderState
 
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
@@ -74,9 +90,12 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: container.mainContext
         )
+        self.nudgeScheduler = NudgeScheduler(calendarDataProvider: calendarDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,
-            reminderPhotoState: reminderPhotoState
+            reminderPhotoState: reminderPhotoState,
+            weeklyCheckInState: weeklyCheckInState,
+            nudgeReminderState: nudgeReminderState
         )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
@@ -112,7 +131,12 @@ struct EtaApp: App {
                     upcomingEventsViewModel: upcomingEventsViewModel,
                     analyticsService: analyticsService,
                     photoRepository: photoRepository,
-                    reminderPhotoState: reminderPhotoState
+                    reminderPhotoState: reminderPhotoState,
+                    nudgeService: nudgeService,
+                    nudgeScheduler: nudgeScheduler,
+                    weeklyCheckInService: weeklyCheckInService,
+                    weeklyCheckInState: weeklyCheckInState,
+                    nudgeReminderState: nudgeReminderState
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)
@@ -136,6 +160,8 @@ struct EtaApp: App {
             queue: .main
         ) { _ in
             analyticsService.logAppForegrounded()
+            Task { await nudgeService.scheduleNudge() }
+            Task { await weeklyCheckInService.scheduleIfNeeded() }
         }
     }
 }

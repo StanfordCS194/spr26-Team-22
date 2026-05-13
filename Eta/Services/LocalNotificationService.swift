@@ -60,8 +60,8 @@ final class LocalNotificationService: NotificationServiceProtocol {
 
         if endDate > .now {
             let content = UNMutableNotificationContent()
-            content.title = "How was it?"
-            content.body = "Capture a moment from your \(activityName.lowercased()) with \(friendName)."
+            content.title = activityName
+            content.body = "You just spent time with \(friendName). Tap to relive it."
             content.sound = .default
             content.userInfo = [
                 "notificationType": "photoCapture",

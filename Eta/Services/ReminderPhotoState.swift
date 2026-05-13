@@ -7,14 +7,17 @@ import Foundation
 final class ReminderPhotoState {
     var pendingActivity: Activity? = nil
     var pendingHangoutID: UUID? = nil
+    var pendingContactID: UUID? = nil
 
-    func trigger(activity: Activity, hangoutID: UUID? = nil) {
+    func trigger(activity: Activity, hangoutID: UUID? = nil, contactID: UUID? = nil) {
         pendingActivity = activity
         pendingHangoutID = hangoutID
+        pendingContactID = contactID
     }
 
     func clear() {
         pendingActivity = nil
         pendingHangoutID = nil
+        pendingContactID = nil
     }
 }

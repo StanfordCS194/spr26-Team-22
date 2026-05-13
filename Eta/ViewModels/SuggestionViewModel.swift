@@ -45,8 +45,13 @@ final class SuggestionViewModel {
     }
 
     func latestPhotoData(for suggestion: Suggestion) -> Data? {
-        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return nil }
-        return photoRepository.photos(for: activity).first?.imageData
+        let contactID = suggestion.contact.id
+        let rawValue = suggestion.activityDescription
+        let activity = Activity(rawValue: rawValue)
+        return photoRepository.photos(forContactID: contactID)
+            .first { $0.activityRawValue == rawValue }?.imageData
+            ?? photoRepository.photos(forContactID: contactID).first?.imageData
+            ?? activity.flatMap { photoRepository.photos(for: $0).first?.imageData }
     }
 
     func photos(for suggestion: Suggestion) -> [Data] {
@@ -130,5 +135,12 @@ final class SuggestionViewModel {
     /// Returns the suggestion view to idle so the user can pull-to-refresh for a new suggestion.
     func done() {
         scheduleState = .idle
+    }
+
+    /// Schedules a hangout built from outside this ViewModel (e.g. nudge sheet).
+    /// Drives the same accepted → invitationSent flow as a normal schedule() call.
+    func scheduleFromNudge(_ suggestion: Suggestion) {
+        self.suggestion = suggestion
+        schedule()
     }
 }

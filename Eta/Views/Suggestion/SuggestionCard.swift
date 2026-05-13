@@ -7,23 +7,10 @@ struct SuggestionCard: View {
     let latestPhotoData: Data?
     let onDismiss: () -> Void
     let onSchedule: () -> Void
-    let onCameraCapture: () -> Void
     let analyticsService: AnalyticsService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let data = latestPhotoData, let uiImage = UIImage(data: data) {
-                HStack {
-                    Spacer()
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.bottom, 16)
-            }
-
             VStack(alignment: .leading, spacing: 8) {
                 Text("You have time \(timeLabel) —")
                     .font(.title2)
@@ -33,6 +20,16 @@ struct SuggestionCard: View {
                     .font(.title)
                     .fontWeight(.semibold)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let data = latestPhotoData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.top, 20)
             }
 
             Spacer()
@@ -61,13 +58,6 @@ struct SuggestionCard: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { onCameraCapture() } label: {
-                    Image(systemName: "camera")
-                }
-            }
-        }
     }
 
     private var activityPhrase: String {

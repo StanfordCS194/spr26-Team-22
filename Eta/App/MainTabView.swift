@@ -11,6 +11,11 @@ struct MainTabView: View {
     let analyticsService: AnalyticsService
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
+    let nudgeService: NudgeService
+    let nudgeScheduler: NudgeScheduler
+    let weeklyCheckInService: WeeklyCheckInService
+    let weeklyCheckInState: WeeklyCheckInState
+    let nudgeReminderState: NudgeReminderState
 
     @State private var selectedTab: TabChoice = .events
 
@@ -36,25 +41,55 @@ struct MainTabView: View {
             }
         }
         .analyticsDebug(service: analyticsService)
-        .reminderDebug(photoRepository: photoRepository, photoState: reminderPhotoState)
+        .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)
+        .sheet(isPresented: Binding(
+            get: { nudgeReminderState.isPresented },
+            set: { if !$0 { nudgeReminderState.clear() } }
+        )) {
+            if let activityRawValue = nudgeReminderState.activityRawValue {
+                let contact = connectionsViewModel.contacts.first { $0.id == nudgeReminderState.contactID }
+                NudgeReminderSheet(
+                    contact: contact,
+                    friendName: nudgeReminderState.friendName,
+                    activityRawValue: activityRawValue,
+                    photoRepository: photoRepository,
+                    nudgeScheduler: nudgeScheduler,
+                    onScheduleNow: { suggestion in
+                        nudgeReminderState.clear()
+                        selectedTab = .activites
+                        suggestionViewModel.scheduleFromNudge(suggestion)
+                    },
+                    onSuggestions: {
+                        nudgeReminderState.clear()
+                        selectedTab = .activites
+                    },
+                    onDismiss: { nudgeReminderState.clear() }
+                )
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { weeklyCheckInState.isPresented },
+            set: { if !$0 { weeklyCheckInState.clear() } }
+        )) {
+            WeeklyCheckInView(
+                connectionsViewModel: connectionsViewModel,
+                onDismiss: { weeklyCheckInState.clear() }
+            )
+        }
         .sheet(isPresented: Binding(
             get: { reminderPhotoState.pendingActivity != nil },
             set: { if !$0 { reminderPhotoState.clear() } }
         )) {
             if let activity = reminderPhotoState.pendingActivity {
-                ReminderPhotoSheet(
+                // Priority: contact-scoped → hangout-scoped → activity-scoped.
+                let photoData: Data? = reminderPhotoState.pendingContactID
+                    .flatMap { photoRepository.photos(forContactID: $0).first?.imageData }
+                    ?? reminderPhotoState.pendingHangoutID
+                        .flatMap { photoRepository.photos(for: $0).first?.imageData }
+                    ?? photoRepository.photos(for: activity).first?.imageData
+                ActivityNudgeView(
                     activity: activity,
-                    hangoutID: reminderPhotoState.pendingHangoutID,
-                    existingPhotos: photoRepository.photos(for: activity).map { $0.imageData },
-                    onSave: { data in
-                        let photo = ActivityPhoto(
-                            activity: activity,
-                            hangoutID: reminderPhotoState.pendingHangoutID,
-                            imageData: data
-                        )
-                        try? photoRepository.add(photo)
-                        reminderPhotoState.clear()
-                    },
+                    photoData: photoData,
                     onDismiss: { reminderPhotoState.clear() }
                 )
             }

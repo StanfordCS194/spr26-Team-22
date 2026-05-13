@@ -6,8 +6,6 @@ struct SuggestionView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
-    @State private var showingPhotoSheet = false
-    @State private var activeSuggestionForPhoto: Suggestion?
 
     var body: some View {
         NavigationStack {
@@ -50,10 +48,6 @@ struct SuggestionView: View {
                                     scheduleStartTime = Date()
                                     viewModel.schedule()
                                 },
-                                onCameraCapture: {
-                                    activeSuggestionForPhoto = suggestion
-                                    showingPhotoSheet = true
-                                },
                                 analyticsService: analyticsService
                             )
                             .onAppear {
@@ -91,20 +85,6 @@ struct SuggestionView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await viewModel.refresh() }
-            }
-        }
-        .sheet(isPresented: $showingPhotoSheet) {
-            if let suggestion = activeSuggestionForPhoto {
-                ReminderPhotoSheet(
-                    activity: Activity(rawValue: suggestion.activityDescription) ?? .walk,
-                    hangoutID: nil,
-                    existingPhotos: viewModel.photos(for: suggestion),
-                    onSave: { data in
-                        viewModel.savePhoto(data, for: suggestion)
-                        showingPhotoSheet = false
-                    },
-                    onDismiss: { showingPhotoSheet = false }
-                )
             }
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
