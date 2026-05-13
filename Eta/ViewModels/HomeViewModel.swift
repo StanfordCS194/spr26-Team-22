@@ -147,6 +147,13 @@ final class HomeViewModel {
             .sorted { $0.startDate > $1.startDate }
     }
 
+    func upcomingHangouts(for contact: TrackedContact) -> [ScheduledHangout] {
+        let all = allHangouts.isEmpty ? ((try? hangoutRepository.fetchAll()) ?? []) : allHangouts
+        return all
+            .filter { $0.contact?.id == contact.id && $0.startDate > .now && $0.inviteeResponse != .declined }
+            .sorted { $0.startDate < $1.startDate }
+    }
+
     func allGoals() -> [Goal] {
         (try? goalRepository.fetchAll()) ?? []
     }

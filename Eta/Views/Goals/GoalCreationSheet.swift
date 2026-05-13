@@ -352,23 +352,15 @@ struct GoalCreationSheet: View {
     private func buildGoal(title: String, friendIDs: [UUID], cadence: GoalCadence, target: Int) -> Goal {
         let cal = Calendar.current
         let now = Date()
-        let windowStart: Date
+        let windowStart = now
         let windowEnd: Date
 
         switch cadence {
         case .weekly:
-            windowStart = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) ?? now
             windowEnd = cal.date(byAdding: .weekOfYear, value: 1, to: windowStart) ?? now
         case .monthly:
-            windowStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
             windowEnd = cal.date(byAdding: .month, value: 1, to: windowStart) ?? now
         case .quarterly:
-            let month = cal.component(.month, from: now)
-            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
-            var comps = cal.dateComponents([.year], from: now)
-            comps.month = quarterStartMonth
-            comps.day = 1
-            windowStart = cal.date(from: comps) ?? now
             windowEnd = cal.date(byAdding: .month, value: 3, to: windowStart) ?? now
         }
 

@@ -25,6 +25,10 @@ struct FriendDetailView: View {
         homeViewModel.pastHangouts(for: contact)
     }
 
+    private var upcomingHangouts: [ScheduledHangout] {
+        homeViewModel.upcomingHangouts(for: contact)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -71,6 +75,10 @@ struct FriendDetailView: View {
 
                 if let days = health.daysSinceLastHangout {
                     Text("Last hung out \(days) day\(days == 1 ? "" : "s") ago")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else if health.upcomingHangout != nil {
+                    Text("Hangout coming up soon")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
@@ -314,11 +322,38 @@ struct FriendDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
+            if !upcomingHangouts.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Upcoming")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ForEach(upcomingHangouts) { hangout in
+                        HStack {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.caption)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 18)
+                            Text(hangout.resolvedActivity?.rawValue ?? "Hangout")
+                                .font(.subheadline)
+                            Spacer()
+                            Text(hangout.startDate, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             if recentHangouts.isEmpty {
                 Text("No hangouts recorded in the last 60 days.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
+                if !upcomingHangouts.isEmpty {
+                    Text("Past")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(recentHangouts.prefix(5)) { hangout in
                     HStack {
                         Image(systemName: "calendar")
@@ -361,7 +396,8 @@ struct FriendDetailView: View {
         VStack(spacing: 12) {
             if let phone = contact.phoneNumber, !phone.isEmpty {
                 Button {
-                    let body = "Hey! How have you been?"
+                    let name = contact.givenName.isEmpty ? contact.name : contact.givenName
+                    let body = "Hey \(name)! How have you been?"
                     if let encoded = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                        let url = URL(string: "sms:\(phone)&body=\(encoded)") {
                         openURL(url)
