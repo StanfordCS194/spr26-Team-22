@@ -44,7 +44,17 @@ final class LLMActivityStrategy: ActivityStrategy {
         Suggest one new activity for them to do together not previously seen.
         """
 
-        let raw = try await runner.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        let raw: String
+        do {
+            raw = try await runner.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        } catch {
+            // Fallback to a random Activity on any runner error (no key, network, rate limit, etc.).
+            // Future: propagate the error and let SuggestionService decide whether to degrade
+            // to RulesActivityStrategy or surface the failure to the ViewModel.
+            print("[LLMActivityStrategy] runner error — falling back to random activity: \(error.localizedDescription)")
+            let description = Activity.allCases.randomElement()?.description ?? Activity.coffee.description
+            return ActivityProposal(activityDescription: description, reason: reason(for: health))
+        }
         let activityDescription = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !activityDescription.isEmpty else { return nil }
 

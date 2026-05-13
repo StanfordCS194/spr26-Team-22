@@ -25,6 +25,7 @@ struct EtaApp: App {
     private let weeklyCheckInService: WeeklyCheckInService
     private let weeklyCheckInState: WeeklyCheckInState
     private let nudgeReminderState: NudgeReminderState
+    private let chatViewModel: ChatViewModel
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
@@ -100,11 +101,13 @@ struct EtaApp: App {
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
-        self.connectionsViewModel = ConnectionsViewModel(
+        let connectionsViewModel = ConnectionsViewModel(
             repository: repository,
             formatter: formatter,
             relationshipService: relationshipService
         )
+        self.connectionsViewModel = connectionsViewModel
+        self.chatViewModel = ChatViewModel(connectionsViewModel: connectionsViewModel)
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
             inviteService: inviteService,
@@ -136,7 +139,8 @@ struct EtaApp: App {
                     nudgeScheduler: nudgeScheduler,
                     weeklyCheckInService: weeklyCheckInService,
                     weeklyCheckInState: weeklyCheckInState,
-                    nudgeReminderState: nudgeReminderState
+                    nudgeReminderState: nudgeReminderState,
+                    chatViewModel: chatViewModel
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)

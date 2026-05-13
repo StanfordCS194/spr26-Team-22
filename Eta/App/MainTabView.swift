@@ -16,6 +16,7 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
 
@@ -39,6 +40,12 @@ struct MainTabView: View {
                     analyticsService: analyticsService
                 )
             }
+        }
+        // Floating chat button — pinned above the tab bar in the bottom-trailing corner.
+        .overlay(alignment: .bottomTrailing) {
+            FloatingChatButton(viewModel: chatViewModel)
+                .padding(.trailing, 20)
+                .padding(.bottom, 72) // clears the tab bar (≈49pt) + breathing room
         }
         .analyticsDebug(service: analyticsService)
         .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)

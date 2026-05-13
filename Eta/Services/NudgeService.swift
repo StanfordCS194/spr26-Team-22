@@ -175,8 +175,7 @@ final class NudgeService {
     }
 
     /// Asks the runner to suggest an activity phrase using the same prompt as LLMActivityStrategy.
-    /// With an API key: returns a free-form LLM phrase.
-    /// Without an API key: runner falls back to a random Activity rawValue — one code path for both.
+    /// On any runner error (no API key, network failure, etc.) falls back to a random Activity rawValue.
     /// Pass nil health for the no-friend case (generic prompt).
     private func suggestActivity(for health: RelationshipHealth?) async -> String {
         let system = """
