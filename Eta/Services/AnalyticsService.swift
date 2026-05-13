@@ -2,65 +2,61 @@
 //  AnalyticsService.swift
 //  Eta
 //
-//  Created on 4/23/26.
-//
 
 import Foundation
 import SwiftData
 import UIKit
 
-/// Central service for logging analytics events during user testing.
-/// Generates a unique session ID on each app launch and tracks all user interactions.
+/// Logs analytics events that feed the 5 study KPIs.
+///
+/// Each event is per-user (per device). When collecting data from N testers, export
+/// one CSV per device and aggregate across files — every metric below is derivable
+/// per-device and trivially averaged across users.
+///
+/// KPI mapping:
+///   KPI 1 – weekly plan creation rate  → AppLaunched + PlanCreated (grouped by ISO week)
+///   KPI 2 – median time to first plan  → PlanCreated.secondsFromLaunch
+///   KPI 3 – plan → hangout rate        → PlanCreated + HangoutCompleted
+///   KPI 4 – suggestion acceptance rate → SuggestionAccepted / (SuggestionAccepted + SuggestionDismissed)
+///   KPI 5 – contact hangout rate       → PlanCreated.contactID (unique, last 14 days) / ConnectionAdded.totalConnections
 @Observable
 final class AnalyticsService {
     private(set) var currentSessionID: String
+    private(set) var sessionStartTime: Date
     private let modelContext: ModelContext
-    private var screenStartTimes: [String: Date] = [:]
-    
+
     var sessionNotes: [String: String] = [:] {
         didSet { UserDefaults.standard.set(sessionNotes, forKey: "eta.sessionNotes") }
     }
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
-        self.currentSessionID = "Session_\(Self.generateSessionIdentifier())"
+        let now = Date()
+        self.sessionStartTime = now
+        self.currentSessionID = "Session_\(Self.formatDate(now))"
         self.sessionNotes = (UserDefaults.standard.dictionary(forKey: "eta.sessionNotes") as? [String: String]) ?? [:]
-        
-        // Log app launch
-        logEvent(
-            type: "AppLaunched",
-            category: .lifecycle
-        )
+
+        logEvent(type: "AppLaunched", category: .lifecycle)
     }
-    
-    // MARK: - Session Management
-    
+
+    // MARK: - Session
+
     func startNewSession() {
-        currentSessionID = "Session_\(Self.generateSessionIdentifier())"
-        screenStartTimes.removeAll()
-        
-        logEvent(
-            type: "NewSessionStarted",
-            category: .lifecycle
-        )
-        
-        print("📊 New session started: \(currentSessionID)")
+        let now = Date()
+        sessionStartTime = now
+        currentSessionID = "Session_\(Self.formatDate(now))"
+        logEvent(type: "AppLaunched", category: .lifecycle)
     }
-    
-    private static func generateSessionIdentifier() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        return formatter.string(from: Date())
+
+    private static func formatDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        return f.string(from: date)
     }
-    
-    // MARK: - Event Logging
-    
-    func logEvent(
-        type: String,
-        category: AnalyticsEvent.Category,
-        value: String? = nil,
-        metadata: [String: Any]? = nil
-    ) {
+
+    // MARK: - Core logging
+
+    func logEvent(type: String, category: AnalyticsEvent.Category, value: String? = nil, metadata: [String: Any]? = nil) {
         let event = AnalyticsEvent(
             sessionID: currentSessionID,
             eventType: type,
@@ -68,90 +64,43 @@ final class AnalyticsService {
             value: value,
             metadata: metadata
         )
-        
         modelContext.insert(event)
         try? modelContext.save()
-        
-        // Also write to continuous backup file
         appendToBackupFile(event)
     }
-    
-    // MARK: - Permission Tracking
-    
-    func logPermissionRequested(type: String) {
-        logEvent(
-            type: "PermissionRequested",
-            category: .permission,
-            value: type
-        )
+
+    // MARK: - Lifecycle (KPI 1, 2)
+
+    func logAppBackgrounded() {
+        logEvent(type: "AppBackgrounded", category: .lifecycle)
     }
-    
-    func logPermissionGranted(type: String, timeElapsed: TimeInterval, additionalInfo: [String: Any]? = nil) {
-        var metadata = additionalInfo ?? [:]
-        metadata["timeElapsed"] = timeElapsed
-        
-        logEvent(
-            type: "PermissionGranted",
-            category: .permission,
-            value: type,
-            metadata: metadata
-        )
+
+    func logAppForegrounded() {
+        logEvent(type: "AppForegrounded", category: .lifecycle)
     }
-    
-    func logPermissionDenied(type: String, timeElapsed: TimeInterval) {
-        logEvent(
-            type: "PermissionDenied",
-            category: .permission,
-            value: type,
-            metadata: ["timeElapsed": timeElapsed]
-        )
+
+    // MARK: - Navigation
+
+    func logTabSwitched(to tab: String) {
+        logEvent(type: "TabSwitched", category: .navigation, value: tab)
     }
-    
-    // MARK: - Screen Tracking
-    
-    func logScreenViewed(screen: String) {
-        screenStartTimes[screen] = Date()
-        
-        logEvent(
-            type: "ScreenViewed",
-            category: .navigation,
-            value: screen
-        )
+
+    /// Log key non-semantic button taps — decisions not already captured by a semantic event.
+    func logButtonTapped(screen: String, button: String) {
+        logEvent(type: "ButtonTapped", category: .navigation, value: "\(screen).\(button)")
     }
-    
-    func logScreenExited(screen: String) {
-        let duration: TimeInterval
-        if let startTime = screenStartTimes[screen] {
-            duration = Date().timeIntervalSince(startTime)
-            screenStartTimes.removeValue(forKey: screen)
-        } else {
-            duration = 0
-        }
-        
-        logEvent(
-            type: "ScreenExited",
-            category: .navigation,
-            value: screen,
-            metadata: ["duration": duration]
-        )
-    }
-    
-    // MARK: - Connection Tracking
-    
-    func logConnectionAdded(contactName: String?, totalContacts: Int, totalAvailable: Int, isInitialAdd: Bool = false) {
+
+    // MARK: - Connections (KPI 5 denominator)
+
+    func logConnectionAdded(contactName: String?, totalContacts: Int) {
         logEvent(
             type: "ConnectionAdded",
             category: .connection,
             value: contactName,
-            metadata: [
-                "totalConnections": totalContacts,
-                "totalAvailable": totalAvailable,
-                "percentage": totalAvailable > 0 ? Double(totalContacts) / Double(totalAvailable) * 100 : 0,
-                "isInitialAdd": isInitialAdd
-            ]
+            metadata: ["totalConnections": totalContacts]
         )
     }
-    
+
     func logConnectionRemoved(contactName: String?, totalContacts: Int) {
         logEvent(
             type: "ConnectionRemoved",
@@ -161,55 +110,26 @@ final class AnalyticsService {
         )
     }
 
-    func logConnectionEdited(contactName: String?, field: String, oldValue: String?, newValue: String?) {
+    // MARK: - Suggestions (KPI 4)
+
+    func logSuggestionGenerated(contactName: String, activity: String, daysSinceLastHangout: Int?) {
         logEvent(
-            type: "ConnectionEdited",
-            category: .connection,
-            value: contactName,
-            metadata: [
-                "field": field,
-                "oldValue": oldValue ?? "",
-                "newValue": newValue ?? ""
-            ]
-        )
-    }
-    
-    func logShowSelectedClicked() {
-        logEvent(
-            type: "ShowSelectedClicked",
-            category: .connection
-        )
-    }
-    
-    // MARK: - Suggestion Tracking
-    
-    func logSuggestionsGenerated(count: Int, contactNames: [String]) {
-        logEvent(
-            type: "SuggestionsGenerated",
-            category: .suggestion,
-            metadata: [
-                "count": count,
-                "contacts": contactNames
-            ]
-        )
-    }
-    
-    func logSuggestionViewed(contactName: String, daysSinceLastHangout: Int?) {
-        logEvent(
-            type: "SuggestionViewed",
+            type: "SuggestionGenerated",
             category: .suggestion,
             value: contactName,
             metadata: [
+                "activity": activity,
                 "daysSinceLastHangout": daysSinceLastHangout ?? -1
             ]
         )
     }
-    
-    func logSuggestionTapped(contactName: String) {
+
+    func logSuggestionAccepted(contactName: String, activity: String) {
         logEvent(
-            type: "SuggestionTapped",
+            type: "SuggestionAccepted",
             category: .suggestion,
-            value: contactName
+            value: contactName,
+            metadata: ["activity": activity]
         )
     }
 
@@ -220,107 +140,54 @@ final class AnalyticsService {
             value: contactName
         )
     }
-    
-    // MARK: - Invitation Tracking
-    
-    func logInvitationInitiated(contactName: String, activity: String?, timeOfDay: String?, isFreeSlotSuggested: Bool) {
-        logEvent(
-            type: "InvitationInitiated",
-            category: .invitation,
-            value: contactName,
-            metadata: [
-                "activity": activity ?? "",
-                "timeOfDay": timeOfDay ?? "",
-                "freeSlotSuggested": isFreeSlotSuggested
-            ]
-        )
-    }
-    
-    func logFreeSlotAccepted(accepted: Bool, suggestedTime: String?, chosenTime: String?) {
-        logEvent(
-            type: "FreeSlotResponse",
-            category: .invitation,
-            metadata: [
-                "accepted": accepted,
-                "suggestedTime": suggestedTime ?? "",
-                "chosenTime": chosenTime ?? ""
-            ]
-        )
-    }
-    
-    func logInvitationCompleted(contactName: String, method: String, timeElapsed: TimeInterval) {
-        logEvent(
-            type: "InvitationCompleted",
-            category: .invitation,
-            value: contactName,
-            metadata: [
-                "method": method,
-                "timeElapsed": timeElapsed
-            ]
-        )
-    }
-    
-    func logInvitationAbandoned(contactName: String, timeElapsed: TimeInterval, reason: String?) {
-        logEvent(
-            type: "InvitationAbandoned",
-            category: .invitation,
-            value: contactName,
-            metadata: [
-                "timeElapsed": timeElapsed,
-                "reason": reason ?? "unknown"
-            ]
-        )
-    }
-    
-    func logInvitationResponse(contactName: String, response: String) {
-        logEvent(
-            type: "InvitationResponse",
-            category: .invitation,
-            value: contactName,
-            metadata: ["response": response]
-        )
-    }
-    
-    // MARK: - Feedback Tracking
-    
-    func logFeedback(type: String, value: Any, context: [String: Any]? = nil) {
-        var metadata = context ?? [:]
-        metadata["feedbackValue"] = value
-        
-        logEvent(
-            type: "FeedbackReceived",
-            category: .feedback,
-            value: type,
-            metadata: metadata
-        )
-    }
-    
-    // MARK: - Navigation Flow Tracking
-    
-    func logButtonTapped(screen: String, button: String) {
-        logEvent(
-            type: "ButtonTapped",
-            category: .navigation,
-            value: "\(screen).\(button)"
-        )
-    }
-    
-    func logAppBackgrounded() {
-        logEvent(
-            type: "AppBackgrounded",
-            category: .lifecycle
-        )
-    }
-    
-    func logAppForegrounded() {
-        logEvent(
-            type: "AppForegrounded",
-            category: .lifecycle
-        )
-    }
-    
-    // MARK: - Data Export
 
+    // MARK: - Plans (KPI 1, 2, 3, 5)
+
+    /// Fired when a hangout is booked and the invitation is sent.
+    ///
+    /// - `secondsFromLaunch`: time elapsed since app launched this session (for KPI 2).
+    func logPlanCreated(contactID: UUID, contactName: String, activity: String, secondsFromLaunch: TimeInterval) {
+        logEvent(
+            type: "PlanCreated",
+            category: .plan,
+            value: contactName,
+            metadata: [
+                "contactID": contactID.uuidString,
+                "activity": activity,
+                "secondsFromLaunch": secondsFromLaunch
+            ]
+        )
+    }
+
+    /// Fired when the simulated (or real) invitation response comes back confirmed.
+    func logHangoutConfirmed(contactID: UUID?, contactName: String, hangoutID: UUID) {
+        logEvent(
+            type: "HangoutConfirmed",
+            category: .plan,
+            value: contactName,
+            metadata: [
+                "contactID": contactID?.uuidString ?? "",
+                "hangoutID": hangoutID.uuidString
+            ]
+        )
+    }
+
+    /// Fired when the user submits post-hangout feedback — the clearest signal a hangout actually happened.
+    func logHangoutCompleted(contactID: UUID?, contactName: String, hangoutID: UUID, friendRating: Int, activityRating: Int) {
+        logEvent(
+            type: "HangoutCompleted",
+            category: .plan,
+            value: contactName,
+            metadata: [
+                "contactID": contactID?.uuidString ?? "",
+                "hangoutID": hangoutID.uuidString,
+                "friendRating": friendRating,
+                "activityRating": activityRating
+            ]
+        )
+    }
+
+    // MARK: - Export
 
     func getAllSessions() -> [SessionInfo] {
         let events = fetchAllEvents()
@@ -328,12 +195,7 @@ final class AnalyticsService {
         return grouped.compactMap { sessionID, sessionEvents in
             let sorted = sessionEvents.sorted { $0.timestamp < $1.timestamp }
             guard let first = sorted.first, let last = sorted.last else { return nil }
-            return SessionInfo(
-                sessionID: sessionID,
-                startTime: first.timestamp,
-                endTime: last.timestamp,
-                eventCount: sessionEvents.count
-            )
+            return SessionInfo(sessionID: sessionID, startTime: first.timestamp, endTime: last.timestamp, eventCount: sessionEvents.count)
         }.sorted { $0.startTime > $1.startTime }
     }
 
@@ -344,20 +206,20 @@ final class AnalyticsService {
         let events = sessionIDs.map { ids in allEvents.filter { ids.contains($0.sessionID) } } ?? allEvents
         let sessions = Dictionary(grouping: events, by: { $0.sessionID })
 
-        let timestamp = Self.generateSessionIdentifier()
+        let timestamp = Self.formatDate(Date())
         let tempDir = FileManager.default.temporaryDirectory
         var files: [URL] = []
 
+        // Raw CSV
         var csv = "SessionID,Timestamp,EventType,Category,Value,Metadata\n"
         for event in events {
             let ts = ISO8601DateFormatter().string(from: event.timestamp)
-            let value = csvQuote(event.value ?? "")
-            let metadata = csvQuote(event.metadataJSON ?? "{}")
-            csv += "\(event.sessionID),\(ts),\(event.eventType),\(event.category),\(value),\(metadata)\n"
+            csv += "\(event.sessionID),\(ts),\(event.eventType),\(event.category),\(csvQuote(event.value ?? "")),\(csvQuote(event.metadataJSON ?? "{}"))\n"
         }
         let csvURL = tempDir.appendingPathComponent("eta_analytics_\(timestamp).csv")
         if let data = csv.data(using: .utf8) { try? data.write(to: csvURL); files.append(csvURL) }
 
+        // Structured JSON
         var export: [String: Any] = [
             "exportDate": ISO8601DateFormatter().string(from: Date()),
             "totalSessions": sessions.count,
@@ -366,7 +228,7 @@ final class AnalyticsService {
         var sessionArray: [[String: Any]] = []
         for (sessionID, sessionEvents) in sessions.sorted(by: { $0.key < $1.key }) {
             let sorted = sessionEvents.sorted { $0.timestamp < $1.timestamp }
-            let sessionData: [String: Any] = [
+            sessionArray.append([
                 "sessionID": sessionID,
                 "startTime": ISO8601DateFormatter().string(from: sorted.first?.timestamp ?? Date()),
                 "endTime": ISO8601DateFormatter().string(from: sorted.last?.timestamp ?? Date()),
@@ -379,66 +241,56 @@ final class AnalyticsService {
                      "value": event.value ?? "",
                      "metadata": event.metadata ?? [:]] as [String: Any]
                 }
-            ]
-            sessionArray.append(sessionData)
+            ])
         }
         export["sessions"] = sessionArray
         let jsonURL = tempDir.appendingPathComponent("eta_analytics_\(timestamp).json")
         if let data = try? JSONSerialization.data(withJSONObject: export, options: .prettyPrinted),
-           let str = String(data: data, encoding: .utf8),
-           let strData = str.data(using: .utf8) {
+           let strData = String(data: data, encoding: .utf8)?.data(using: .utf8) {
             try? strData.write(to: jsonURL); files.append(jsonURL)
         }
 
+        // KPI summary
         let summary = AnalyticsSummary.generate(from: events, sessions: sessions)
-        let summaryURL = tempDir.appendingPathComponent("eta_summary_\(timestamp).json")
+        let summaryURL = tempDir.appendingPathComponent("eta_kpis_\(timestamp).json")
         if let data = try? JSONSerialization.data(withJSONObject: summary.toDictionary(), options: .prettyPrinted),
-           let str = String(data: data, encoding: .utf8),
-           let strData = str.data(using: .utf8) {
+           let strData = String(data: data, encoding: .utf8)?.data(using: .utf8) {
             try? strData.write(to: summaryURL); files.append(summaryURL)
         }
 
         return files
     }
-    
-    // MARK: - Continuous Backup
-    
+
+    // MARK: - Continuous backup
+
     private var backupFileURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("analytics_backup.csv")
     }
-    
-    private func appendToBackupFile(_ event: AnalyticsEvent) {
-        let timestamp = ISO8601DateFormatter().string(from: event.timestamp)
-        let value = csvQuote(event.value ?? "")
-        let metadata = csvQuote(event.metadataJSON ?? "{}")
 
-        let csvLine = "\(event.sessionID),\(timestamp),\(event.eventType),\(event.category),\(value),\(metadata)\n"
-        
-        if let data = csvLine.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: backupFileURL.path) {
-                if let fileHandle = try? FileHandle(forWritingTo: backupFileURL) {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(data)
-                    fileHandle.closeFile()
-                }
-            } else {
-                let header = "SessionID,Timestamp,EventType,Category,Value,Metadata\n"
-                try? (header + csvLine).write(to: backupFileURL, atomically: true, encoding: .utf8)
+    private func appendToBackupFile(_ event: AnalyticsEvent) {
+        let ts = ISO8601DateFormatter().string(from: event.timestamp)
+        let line = "\(event.sessionID),\(ts),\(event.eventType),\(event.category),\(csvQuote(event.value ?? "")),\(csvQuote(event.metadataJSON ?? "{}"))\n"
+        guard let data = line.data(using: .utf8) else { return }
+
+        if FileManager.default.fileExists(atPath: backupFileURL.path) {
+            if let fh = try? FileHandle(forWritingTo: backupFileURL) {
+                fh.seekToEndOfFile(); fh.write(data); fh.closeFile()
             }
+        } else {
+            let header = "SessionID,Timestamp,EventType,Category,Value,Metadata\n"
+            try? (header + line).write(to: backupFileURL, atomically: true, encoding: .utf8)
         }
     }
-    
-    // MARK: - Private Helpers
-    
+
+    // MARK: - Helpers
+
     private func csvQuote(_ value: String) -> String {
         "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
     private func fetchAllEvents() -> [AnalyticsEvent] {
-        let descriptor = FetchDescriptor<AnalyticsEvent>(
-            sortBy: [SortDescriptor(\.timestamp)]
-        )
+        let descriptor = FetchDescriptor<AnalyticsEvent>(sortBy: [SortDescriptor(\.timestamp)])
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 }

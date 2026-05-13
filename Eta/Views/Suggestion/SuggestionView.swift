@@ -5,8 +5,10 @@ struct SuggestionView: View {
     let analyticsService: AnalyticsService
 
     @Environment(\.scenePhase) private var scenePhase
-    @State private var scheduleStartTime: Date?
     @State private var showingCustomize = false
+    // Captured when the user taps "Yes, let's do it!" so we can log PlanCreated
+    // after the booking completes (when viewModel.suggestion is already nil).
+    @State private var pendingPlan: (contactID: UUID, name: String, activity: String)?
 
     var body: some View {
         NavigationStack {
@@ -29,32 +31,29 @@ struct SuggestionView: View {
                                 onCustomize: { showingCustomize = true },
                                 latestPhotoData: viewModel.latestPhotoData(for: suggestion),
                                 onDismiss: {
-                                    analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
+                                    analyticsService.logSuggestionDismissed(
+                                        contactName: viewModel.displayName(for: suggestion)
+                                    )
                                     viewModel.dismiss()
                                 },
                                 onSchedule: {
-                                    let name = viewModel.displayName(for: suggestion)
-                                    let hour = Calendar.current.component(.hour, from: suggestion.proposedTime.start)
-                                    let timeOfDay: String
-                                    switch hour {
-                                    case 5..<12: timeOfDay = "morning"
-                                    case 12..<18: timeOfDay = "afternoon"
-                                    default:      timeOfDay = "evening"
-                                    }
-                                    analyticsService.logInvitationInitiated(
-                                        contactName: name,
-                                        activity: suggestion.activityDescription,
-                                        timeOfDay: timeOfDay,
-                                        isFreeSlotSuggested: true
+                                    pendingPlan = (
+                                        contactID: suggestion.contact.id,
+                                        name: viewModel.displayName(for: suggestion),
+                                        activity: suggestion.activityDescription
                                     )
-                                    scheduleStartTime = Date()
+                                    analyticsService.logSuggestionAccepted(
+                                        contactName: viewModel.displayName(for: suggestion),
+                                        activity: suggestion.activityDescription
+                                    )
                                     viewModel.schedule()
                                 },
                                 analyticsService: analyticsService
                             )
                             .onAppear {
-                                analyticsService.logSuggestionViewed(
+                                analyticsService.logSuggestionGenerated(
                                     contactName: viewModel.displayName(for: suggestion),
+                                    activity: suggestion.activityDescription,
                                     daysSinceLastHangout: nil
                                 )
                             }
@@ -76,20 +75,24 @@ struct SuggestionView: View {
         }
         .task {
             await viewModel.refresh()
-
-            if let suggestion = viewModel.suggestion {
-                analyticsService.logSuggestionsGenerated(
-                    count: 1,
-                    contactNames: [viewModel.displayName(for: suggestion)]
-                )
-            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await viewModel.refresh() }
             }
         }
-        .trackScreen("SuggestionView", analytics: analyticsService)
+        // KPI 1 + 2: log PlanCreated when booking completes
+        .onChange(of: viewModel.isInvitationSent) { _, sent in
+            if sent, let plan = pendingPlan {
+                analyticsService.logPlanCreated(
+                    contactID: plan.contactID,
+                    contactName: plan.name,
+                    activity: plan.activity,
+                    secondsFromLaunch: Date().timeIntervalSince(analyticsService.sessionStartTime)
+                )
+                pendingPlan = nil
+            }
+        }
         .sheet(isPresented: $showingCustomize) {
             if let suggestion = viewModel.suggestion {
                 SuggestionDetailSheet(

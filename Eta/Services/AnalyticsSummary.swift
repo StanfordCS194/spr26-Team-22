@@ -2,387 +2,223 @@
 //  AnalyticsSummary.swift
 //  Eta
 //
-//  Created on 4/23/26.
-//
 
 import Foundation
 
-/// Pre-computed summary statistics for all analytics data.
-/// This is exported as summary_stats.json for easy insights without coding.
+/// Computes the 5 study KPIs from raw analytics events.
+///
+/// All metrics are per-device (one user per device). To aggregate across N testers,
+/// collect one export per device and average the KPI values across files.
 struct AnalyticsSummary {
-    let totalSessions: Int
-    let totalUsers: Int
-    let dateRange: DateRange
-    let permissions: PermissionStats
-    let onboarding: OnboardingStats
-    let connections: ConnectionStats
-    let suggestions: SuggestionStats
-    let invitations: InvitationStats
-    let screenTime: [String: ScreenTimeStats]
-    let navigationFlows: NavigationFlowStats
-    
-    struct DateRange {
-        let start: Date
-        let end: Date
+
+    // MARK: - KPI structs
+
+    /// KPI 1: % of active weeks where the user created at least one plan.
+    /// "Active week" = any ISO week containing an AppLaunched event.
+    struct WeeklyPlanRate {
+        let rate: Double            // 0–1
+        let activeWeeks: Int
+        let weeksWithPlan: Int
     }
-    
-    struct PermissionStats {
-        let contacts: PermissionDetail
-        
-        struct PermissionDetail {
-            let requested: Int
-            let granted: Int
-            let denied: Int
-            let grantRate: Double
-            let avgTimeToGrant: Double
-            let selectionType: [String: Int]? // For contacts: "all" vs "selected"
-        }
+
+    /// KPI 2: Median elapsed seconds from app open to first plan created in the same session.
+    struct TimeToFirstPlan {
+        let medianSeconds: Double
+        let sampleSize: Int         // sessions that had a plan created
+        let allSeconds: [Double]    // raw values for further analysis
     }
-    
-    struct OnboardingStats {
-        let avgDuration: Double
-        let completionRate: Double
+
+    /// KPI 3: % of created plans that resulted in a completed hangout.
+    /// "Completed" = user submitted post-hangout feedback (HangoutCompleted).
+    /// "Confirmed" (simulated acceptance) is tracked separately for reference.
+    struct PlanToHangoutRate {
+        let completionRate: Double  // HangoutCompleted / PlanCreated
+        let confirmationRate: Double // HangoutConfirmed / PlanCreated
+        let plansCreated: Int
+        let hangoutsConfirmed: Int
+        let hangoutsCompleted: Int
     }
-    
-    struct ConnectionStats {
-        let totalAdded: Int
-        let totalRemoved: Int
-        let avgPerUser: Double
-        let avgContactsAvailable: Double
-        let avgPercentageAdded: Double
-        let edited: Int
-        let editRate: Double
-        let showSelectedClicks: Int
-    }
-    
-    struct SuggestionStats {
-        let totalGenerated: Int
-        let avgPerSession: Double
-        let viewed: Int
-        let tapped: Int
+
+    /// KPI 4: % of shown suggestions that the user accepted.
+    struct SuggestionAcceptanceRate {
+        let rate: Double            // 0–1
+        let accepted: Int
         let dismissed: Int
-        let tapRate: Double
-        let dismissRate: Double
+        let generated: Int
     }
-    
-    struct InvitationStats {
-        let initiated: Int
-        let completed: Int
-        let abandoned: Int
-        let completionRate: Double
-        let avgTimeToSend: Double
-        let responseBreakdown: [String: Int]
-        let byTimeOfDay: [String: Int]
-        let byActivity: [String: Int]
-        let freeSlotSuggested: Int
-        let freeSlotAccepted: Int
+
+    /// KPI 5: % of tracked contacts the user hung out with in the past 14 days.
+    struct ContactHangoutRate {
+        let rate: Double            // 0–1
+        let uniqueContactsHungOutWith: Int
+        let totalContacts: Int
+        let windowDays: Int         // always 14
     }
-    
-    struct ScreenTimeStats {
-        let totalTime: Double
-        let avgTime: Double
-        let views: Int
-    }
-    
-    struct NavigationFlowStats {
-        let mostCommonPath: [String]
-        let avgStepsToInvite: Double
-    }
-    
+
+    let kpi1WeeklyPlanRate: WeeklyPlanRate
+    let kpi2TimeToFirstPlan: TimeToFirstPlan
+    let kpi3PlanToHangoutRate: PlanToHangoutRate
+    let kpi4SuggestionAcceptance: SuggestionAcceptanceRate
+    let kpi5ContactHangoutRate: ContactHangoutRate
+
     // MARK: - Generation
-    
+
     static func generate(from events: [AnalyticsEvent], sessions: [String: [AnalyticsEvent]]) -> AnalyticsSummary {
-        let dateRange = DateRange(
-            start: events.first?.timestamp ?? Date(),
-            end: events.last?.timestamp ?? Date()
-        )
-        
-        return AnalyticsSummary(
-            totalSessions: sessions.count,
-            totalUsers: sessions.count,
-            dateRange: dateRange,
-            permissions: generatePermissionStats(events),
-            onboarding: generateOnboardingStats(events, sessions: sessions),
-            connections: generateConnectionStats(events),
-            suggestions: generateSuggestionStats(events),
-            invitations: generateInvitationStats(events),
-            screenTime: generateScreenTimeStats(events),
-            navigationFlows: generateNavigationFlowStats(events)
+        AnalyticsSummary(
+            kpi1WeeklyPlanRate: computeWeeklyPlanRate(events),
+            kpi2TimeToFirstPlan: computeTimeToFirstPlan(events),
+            kpi3PlanToHangoutRate: computePlanToHangoutRate(events),
+            kpi4SuggestionAcceptance: computeSuggestionAcceptance(events),
+            kpi5ContactHangoutRate: computeContactHangoutRate(events)
         )
     }
-    
-    private static func generatePermissionStats(_ events: [AnalyticsEvent]) -> PermissionStats {
-        let contactsRequested = events.filter { $0.eventType == "PermissionRequested" && $0.value == "Contacts" }.count
-        let contactsGranted = events.filter { $0.eventType == "PermissionGranted" && $0.value == "Contacts" }.count
-        let contactsDenied = events.filter { $0.eventType == "PermissionDenied" && $0.value == "Contacts" }.count
-        
-        let contactsGrantTimes = events
-            .filter { $0.eventType == "PermissionGranted" && $0.value == "Contacts" }
-            .compactMap { $0.metadata?["timeElapsed"] as? Double }
-        let avgContactsTime = contactsGrantTimes.isEmpty ? 0 : contactsGrantTimes.reduce(0, +) / Double(contactsGrantTimes.count)
-        
-        // Parse selection type for contacts
-        var selectionTypes: [String: Int] = ["all": 0, "selected": 0]
-        for event in events where event.eventType == "PermissionGranted" && event.value == "Contacts" {
-            if let type = event.metadata?["type"] as? String {
-                selectionTypes[type, default: 0] += 1
-            }
-        }
-        
-        return PermissionStats(
-            contacts: PermissionStats.PermissionDetail(
-                requested: contactsRequested,
-                granted: contactsGranted,
-                denied: contactsDenied,
-                grantRate: contactsRequested > 0 ? Double(contactsGranted) / Double(contactsRequested) * 100 : 0,
-                avgTimeToGrant: avgContactsTime,
-                selectionType: selectionTypes
-            )
+
+    // MARK: - KPI 1
+
+    private static func computeWeeklyPlanRate(_ events: [AnalyticsEvent]) -> WeeklyPlanRate {
+        let launchWeeks = Set(events.filter { $0.eventType == "AppLaunched" }.map { isoWeek($0.timestamp) })
+        let planWeeks   = Set(events.filter { $0.eventType == "PlanCreated"  }.map { isoWeek($0.timestamp) })
+
+        let weeksWithPlan = launchWeeks.intersection(planWeeks).count
+        let rate = launchWeeks.isEmpty ? 0 : Double(weeksWithPlan) / Double(launchWeeks.count)
+
+        return WeeklyPlanRate(rate: rate, activeWeeks: launchWeeks.count, weeksWithPlan: weeksWithPlan)
+    }
+
+    // MARK: - KPI 2
+
+    private static func computeTimeToFirstPlan(_ events: [AnalyticsEvent]) -> TimeToFirstPlan {
+        let times = events
+            .filter { $0.eventType == "PlanCreated" }
+            .compactMap { $0.metadata?["secondsFromLaunch"] as? Double }
+            .filter { $0 > 0 }
+
+        return TimeToFirstPlan(
+            medianSeconds: median(times),
+            sampleSize: times.count,
+            allSeconds: times
         )
     }
-    
-    private static func generateOnboardingStats(_ events: [AnalyticsEvent], sessions: [String: [AnalyticsEvent]]) -> OnboardingStats {
-        var durations: [Double] = []
-        var completedCount = 0
 
-        for (_, sessionEvents) in sessions {
-            let sorted = sessionEvents.sorted { $0.timestamp < $1.timestamp }
-            guard let firstAdd = sorted.first(where: {
-                $0.eventType == "ConnectionAdded" && $0.metadata?["isInitialAdd"] as? Bool == true
-            }) else { continue }
+    // MARK: - KPI 3
 
-            completedCount += 1
-            if let launch = sorted.first(where: { $0.eventType == "AppLaunched" }) {
-                durations.append(firstAdd.timestamp.timeIntervalSince(launch.timestamp))
-            }
-        }
+    private static func computePlanToHangoutRate(_ events: [AnalyticsEvent]) -> PlanToHangoutRate {
+        let plansCreated = events.filter { $0.eventType == "PlanCreated" }.count
+        let confirmed    = events.filter { $0.eventType == "HangoutConfirmed" }.count
+        let completed    = events.filter { $0.eventType == "HangoutCompleted" }.count
 
-        return OnboardingStats(
-            avgDuration: durations.isEmpty ? 0 : durations.reduce(0, +) / Double(durations.count),
-            completionRate: sessions.isEmpty ? 0 : Double(completedCount) / Double(sessions.count) * 100
+        return PlanToHangoutRate(
+            completionRate:    plansCreated > 0 ? Double(completed)  / Double(plansCreated) : 0,
+            confirmationRate:  plansCreated > 0 ? Double(confirmed)  / Double(plansCreated) : 0,
+            plansCreated:      plansCreated,
+            hangoutsConfirmed: confirmed,
+            hangoutsCompleted: completed
         )
     }
-    
-    private static func generateConnectionStats(_ events: [AnalyticsEvent]) -> ConnectionStats {
-        let addedEvents = events.filter { $0.eventType == "ConnectionAdded" }
-        let totalAdded = addedEvents.count
 
-        // Use the last ConnectionAdded event per session to get the final percentage reached
-        let bySession = Dictionary(grouping: addedEvents, by: { $0.sessionID })
-        let finalPerSessionPercentages = bySession.compactMap { _, sessionAdds -> Double? in
-            sessionAdds.sorted { $0.timestamp < $1.timestamp }.last?.metadata?["percentage"] as? Double
-        }
-        let avgPercentage = finalPerSessionPercentages.isEmpty ? 0 : finalPerSessionPercentages.reduce(0, +) / Double(finalPerSessionPercentages.count)
+    // MARK: - KPI 4
 
-        let availableCounts = addedEvents.compactMap { $0.metadata?["totalAvailable"] as? Int }
-        let avgAvailable = availableCounts.isEmpty ? 0 : Double(availableCounts.reduce(0, +)) / Double(availableCounts.count)
-        
-        let editedCount = events.filter { $0.eventType == "ConnectionEdited" }.count
-        let showSelectedClicks = events.filter { $0.eventType == "ShowSelectedClicked" }.count
-        
-        // Count unique sessions that added connections
-        let sessionsWithConnections = Set(addedEvents.map { $0.sessionID }).count
-        let avgPerUser = sessionsWithConnections > 0 ? Double(totalAdded) / Double(sessionsWithConnections) : 0
-        
-        let totalRemoved = events.filter { $0.eventType == "ConnectionRemoved" }.count
+    private static func computeSuggestionAcceptance(_ events: [AnalyticsEvent]) -> SuggestionAcceptanceRate {
+        let accepted   = events.filter { $0.eventType == "SuggestionAccepted"  }.count
+        let dismissed  = events.filter { $0.eventType == "SuggestionDismissed" }.count
+        let generated  = events.filter { $0.eventType == "SuggestionGenerated" }.count
+        let interacted = accepted + dismissed
 
-        return ConnectionStats(
-            totalAdded: totalAdded,
-            totalRemoved: totalRemoved,
-            avgPerUser: avgPerUser,
-            avgContactsAvailable: avgAvailable,
-            avgPercentageAdded: avgPercentage,
-            edited: editedCount,
-            editRate: totalAdded > 0 ? Double(editedCount) / Double(totalAdded) * 100 : 0,
-            showSelectedClicks: showSelectedClicks
-        )
-    }
-    
-    private static func generateSuggestionStats(_ events: [AnalyticsEvent]) -> SuggestionStats {
-        let generatedEvents = events.filter { $0.eventType == "SuggestionsGenerated" }
-        let totalGenerated = generatedEvents.compactMap { $0.metadata?["count"] as? Int }.reduce(0, +)
-        
-        let viewed = events.filter { $0.eventType == "SuggestionViewed" }.count
-        let tapped = events.filter { $0.eventType == "SuggestionTapped" }.count
-        let dismissed = events.filter { $0.eventType == "SuggestionDismissed" }.count
-
-        let sessionsWithSuggestions = Set(generatedEvents.map { $0.sessionID }).count
-        let avgPerSession = sessionsWithSuggestions > 0 ? Double(totalGenerated) / Double(sessionsWithSuggestions) : 0
-        let interactions = tapped + dismissed
-
-        return SuggestionStats(
-            totalGenerated: totalGenerated,
-            avgPerSession: avgPerSession,
-            viewed: viewed,
-            tapped: tapped,
+        return SuggestionAcceptanceRate(
+            rate:      interacted > 0 ? Double(accepted) / Double(interacted) : 0,
+            accepted:  accepted,
             dismissed: dismissed,
-            tapRate: interactions > 0 ? Double(tapped) / Double(interactions) * 100 : 0,
-            dismissRate: interactions > 0 ? Double(dismissed) / Double(interactions) * 100 : 0
+            generated: generated
         )
     }
-    
-    private static func generateInvitationStats(_ events: [AnalyticsEvent]) -> InvitationStats {
-        let initiated = events.filter { $0.eventType == "InvitationInitiated" }
-        let completed = events.filter { $0.eventType == "InvitationCompleted" }
-        let abandoned = events.filter { $0.eventType == "InvitationAbandoned" }
-        
-        let completionTimes = completed.compactMap { $0.metadata?["timeElapsed"] as? Double }
-        let avgTime = completionTimes.isEmpty ? 0 : completionTimes.reduce(0, +) / Double(completionTimes.count)
-        
-        let responses = events.filter { $0.eventType == "InvitationResponse" }
-        var responseBreakdown: [String: Int] = ["yes": 0, "maybe": 0, "no": 0]
-        for event in responses {
-            if let response = event.metadata?["response"] as? String {
-                responseBreakdown[response, default: 0] += 1
-            }
-        }
-        
-        var timeOfDay: [String: Int] = ["morning": 0, "afternoon": 0, "evening": 0]
-        var activities: [String: Int] = [:]
-        var freeSlotSuggested = 0
-        
-        for event in initiated {
-            if let tod = event.metadata?["timeOfDay"] as? String {
-                timeOfDay[tod, default: 0] += 1
-            }
-            if let activity = event.metadata?["activity"] as? String, !activity.isEmpty {
-                activities[activity, default: 0] += 1
-            }
-            if let suggested = event.metadata?["freeSlotSuggested"] as? Bool, suggested {
-                freeSlotSuggested += 1
-            }
-        }
-        
-        let freeSlotAccepted = events.filter { $0.eventType == "FreeSlotResponse" && $0.metadata?["accepted"] as? Bool == true }.count
-        
-        return InvitationStats(
-            initiated: initiated.count,
-            completed: completed.count,
-            abandoned: abandoned.count,
-            completionRate: initiated.count > 0 ? Double(completed.count) / Double(initiated.count) * 100 : 0,
-            avgTimeToSend: avgTime,
-            responseBreakdown: responseBreakdown,
-            byTimeOfDay: timeOfDay,
-            byActivity: activities,
-            freeSlotSuggested: freeSlotSuggested,
-            freeSlotAccepted: freeSlotAccepted
+
+    // MARK: - KPI 5
+
+    private static func computeContactHangoutRate(_ events: [AnalyticsEvent]) -> ContactHangoutRate {
+        let windowDays = 14
+        let cutoff = (events.last?.timestamp ?? Date()).addingTimeInterval(-Double(windowDays) * 24 * 3600)
+
+        let recentContactIDs = Set(
+            events
+                .filter { $0.eventType == "PlanCreated" && $0.timestamp >= cutoff }
+                .compactMap { $0.metadata?["contactID"] as? String }
+                .filter { !$0.isEmpty }
+        )
+
+        // Total contacts = most recent totalConnections value logged
+        let totalContacts = events
+            .filter { $0.eventType == "ConnectionAdded" }
+            .sorted { $0.timestamp < $1.timestamp }
+            .last
+            .flatMap { $0.metadata?["totalConnections"] as? Int } ?? 0
+
+        let rate = totalContacts > 0 ? Double(recentContactIDs.count) / Double(totalContacts) : 0
+
+        return ContactHangoutRate(
+            rate: rate,
+            uniqueContactsHungOutWith: recentContactIDs.count,
+            totalContacts: totalContacts,
+            windowDays: windowDays
         )
     }
-    
-    private static func generateScreenTimeStats(_ events: [AnalyticsEvent]) -> [String: ScreenTimeStats] {
-        let exitEvents = events.filter { $0.eventType == "ScreenExited" }
-        let grouped = Dictionary(grouping: exitEvents, by: { $0.value ?? "Unknown" })
-        
-        var stats: [String: ScreenTimeStats] = [:]
-        
-        for (screen, screenEvents) in grouped {
-            let durations = screenEvents.compactMap { $0.metadata?["duration"] as? Double }
-            let totalTime = durations.reduce(0, +)
-            let avgTime = durations.isEmpty ? 0 : totalTime / Double(durations.count)
-            
-            stats[screen] = ScreenTimeStats(
-                totalTime: totalTime,
-                avgTime: avgTime,
-                views: screenEvents.count
-            )
-        }
-        
-        return stats
-    }
-    
-    private static func generateNavigationFlowStats(_ events: [AnalyticsEvent]) -> NavigationFlowStats {
-        // Find the most common path to invitation
-        // For simplicity, just track average number of screen views before invitation
-        let sessions = Dictionary(grouping: events, by: { $0.sessionID })
-        
-        var pathsToInvite: [[String]] = []
-        
-        for (_, sessionEvents) in sessions {
-            if let inviteIndex = sessionEvents.firstIndex(where: { $0.eventType == "InvitationInitiated" }) {
-                let path = sessionEvents[..<inviteIndex]
-                    .filter { $0.eventType == "ScreenViewed" }
-                    .compactMap { $0.value }
-                pathsToInvite.append(path)
-            }
-        }
-        
-        let avgSteps = pathsToInvite.isEmpty ? 0 : Double(pathsToInvite.map { $0.count }.reduce(0, +)) / Double(pathsToInvite.count)
-        
-        // Find most common path (simplified - just the first path if any)
-        let mostCommon = pathsToInvite.first ?? []
-        
-        return NavigationFlowStats(
-            mostCommonPath: mostCommon,
-            avgStepsToInvite: avgSteps
-        )
-    }
-    
+
     // MARK: - Serialization
-    
+
     func toDictionary() -> [String: Any] {
-        return [
-            "summary": [
-                "totalSessions": totalSessions,
-                "totalUsers": totalUsers,
-                "dateRange": [
-                    "start": ISO8601DateFormatter().string(from: dateRange.start),
-                    "end": ISO8601DateFormatter().string(from: dateRange.end)
-                ]
+        [
+            "note": "All rates are 0–1. Multiply by 100 for percentages. Metrics are per-device; average across users to aggregate.",
+            "kpi1_weeklyPlanCreationRate": [
+                "description": "% of active weeks where user created at least 1 plan (target ≥ 0.40)",
+                "value": kpi1WeeklyPlanRate.rate,
+                "activeWeeks": kpi1WeeklyPlanRate.activeWeeks,
+                "weeksWithPlan": kpi1WeeklyPlanRate.weeksWithPlan
             ],
-            "permissions": [
-                "contacts": [
-                    "requested": permissions.contacts.requested,
-                    "granted": permissions.contacts.granted,
-                    "denied": permissions.contacts.denied,
-                    "grantRate": permissions.contacts.grantRate,
-                    "avgTimeToGrant": permissions.contacts.avgTimeToGrant,
-                    "selectionType": permissions.contacts.selectionType ?? [:]
-                ]
+            "kpi2_medianTimeToFirstPlanSeconds": [
+                "description": "Median seconds from app open to plan created (target < 300s / 5 min)",
+                "value": kpi2TimeToFirstPlan.medianSeconds,
+                "sampleSize": kpi2TimeToFirstPlan.sampleSize,
+                "allValuesSecs": kpi2TimeToFirstPlan.allSeconds
             ],
-            "onboarding": [
-                "avgDuration": onboarding.avgDuration,
-                "completionRate": onboarding.completionRate
+            "kpi3_planToHangoutRate": [
+                "description": "% of plans that resulted in a completed hangout (target ≥ 0.50)",
+                "completionRate": kpi3PlanToHangoutRate.completionRate,
+                "confirmationRate": kpi3PlanToHangoutRate.confirmationRate,
+                "plansCreated": kpi3PlanToHangoutRate.plansCreated,
+                "hangoutsConfirmed": kpi3PlanToHangoutRate.hangoutsConfirmed,
+                "hangoutsCompleted": kpi3PlanToHangoutRate.hangoutsCompleted
             ],
-            "connections": [
-                "totalAdded": connections.totalAdded,
-                "totalRemoved": connections.totalRemoved,
-                "avgPerUser": connections.avgPerUser,
-                "avgContactsAvailable": connections.avgContactsAvailable,
-                "avgPercentageAdded": connections.avgPercentageAdded,
-                "edited": connections.edited,
-                "editRate": connections.editRate,
-                "showSelectedClicks": connections.showSelectedClicks
+            "kpi4_suggestionAcceptanceRate": [
+                "description": "% of suggestions accepted (target ≥ 0.40)",
+                "value": kpi4SuggestionAcceptance.rate,
+                "accepted": kpi4SuggestionAcceptance.accepted,
+                "dismissed": kpi4SuggestionAcceptance.dismissed,
+                "generated": kpi4SuggestionAcceptance.generated
             ],
-            "suggestions": [
-                "totalGenerated": suggestions.totalGenerated,
-                "avgPerSession": suggestions.avgPerSession,
-                "viewed": suggestions.viewed,
-                "tapped": suggestions.tapped,
-                "dismissed": suggestions.dismissed,
-                "tapRate": suggestions.tapRate,
-                "dismissRate": suggestions.dismissRate
-            ],
-            "invitations": [
-                "initiated": invitations.initiated,
-                "completed": invitations.completed,
-                "abandoned": invitations.abandoned,
-                "completionRate": invitations.completionRate,
-                "avgTimeToSend": invitations.avgTimeToSend,
-                "responseBreakdown": invitations.responseBreakdown,
-                "byTimeOfDay": invitations.byTimeOfDay,
-                "byActivity": invitations.byActivity,
-                "freeSlotSuggested": invitations.freeSlotSuggested,
-                "freeSlotAccepted": invitations.freeSlotAccepted
-            ],
-            "screenTime": screenTime.mapValues { [
-                "totalTime": $0.totalTime,
-                "avgTime": $0.avgTime,
-                "views": $0.views
-            ]},
-            "navigationFlows": [
-                "mostCommonPath": navigationFlows.mostCommonPath,
-                "avgStepsToInvite": navigationFlows.avgStepsToInvite
+            "kpi5_contactHangoutRate": [
+                "description": "% of tracked contacts hung out with in the past 14 days (target ≥ 0.25)",
+                "value": kpi5ContactHangoutRate.rate,
+                "uniqueContactsHungOutWith": kpi5ContactHangoutRate.uniqueContactsHungOutWith,
+                "totalContacts": kpi5ContactHangoutRate.totalContacts,
+                "windowDays": kpi5ContactHangoutRate.windowDays
             ]
         ]
+    }
+
+    // MARK: - Helpers
+
+    private static func isoWeek(_ date: Date) -> String {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = TimeZone.current
+        let c = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return "\(c.yearForWeekOfYear ?? 0)-W\(String(format: "%02d", c.weekOfYear ?? 0))"
+    }
+
+    private static func median(_ values: [Double]) -> Double {
+        guard !values.isEmpty else { return 0 }
+        let sorted = values.sorted()
+        let mid = sorted.count / 2
+        return sorted.count.isMultiple(of: 2)
+            ? (sorted[mid - 1] + sorted[mid]) / 2
+            : sorted[mid]
     }
 }

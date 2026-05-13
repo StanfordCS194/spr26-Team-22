@@ -92,7 +92,6 @@ struct ConnectionsView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        analyticsService.logButtonTapped(screen: "ConnectionsView", button: "AddConnection")
                         showingAddSheet = true
                     } label: {
                         Image(systemName: "plus")

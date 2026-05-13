@@ -6,6 +6,7 @@ struct NudgeReminderSheet: View {
     let activityRawValue: String
     let photoRepository: ActivityPhotoRepository
     let nudgeScheduler: NudgeScheduler
+    let analyticsService: AnalyticsService
     let onScheduleNow: (Suggestion) -> Void
     let onSuggestions: () -> Void
     let onDismiss: () -> Void
@@ -49,12 +50,16 @@ struct NudgeReminderSheet: View {
 
                 VStack(spacing: 12) {
                     if showNoSlot {
-                        Button("View suggestions", action: onSuggestions)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .buttonStyle(.borderedProminent)
+                        Button("View suggestions") {
+                            analyticsService.logButtonTapped(screen: "NudgeSheet", button: "ViewSuggestions")
+                            onSuggestions()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .buttonStyle(.borderedProminent)
                     } else {
                         Button("Schedule it now") {
+                            analyticsService.logButtonTapped(screen: "NudgeSheet", button: "ScheduleNow")
                             Task { @MainActor in
                                 if let contact,
                                    let suggestion = await nudgeScheduler.buildSuggestion(
@@ -70,14 +75,20 @@ struct NudgeReminderSheet: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(contact == nil)
 
-                        Button("View suggestions", action: onSuggestions)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .foregroundStyle(.primary)
-                            .buttonStyle(.plain)
+                        Button("View suggestions") {
+                            analyticsService.logButtonTapped(screen: "NudgeSheet", button: "ViewSuggestions")
+                            onSuggestions()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(.primary)
+                        .buttonStyle(.plain)
                     }
 
-                    Button("Maybe later", action: onDismiss)
+                    Button("Maybe later") {
+                        analyticsService.logButtonTapped(screen: "NudgeSheet", button: "MaybeLater")
+                        onDismiss()
+                    }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .foregroundStyle(.secondary)

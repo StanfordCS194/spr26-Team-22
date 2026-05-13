@@ -165,6 +165,13 @@ final class SuggestionViewModel {
         }
     }
 
+    /// True while the schedule flow is in the invitationSent state — used by SuggestionView
+    /// to fire a PlanCreated analytics event without needing Equatable on ScheduleState.
+    var isInvitationSent: Bool {
+        if case .invitationSent = scheduleState { return true }
+        return false
+    }
+
     /// Returns the suggestion view to idle so the user can pull-to-refresh for a new suggestion.
     func done() {
         scheduleState = .idle

@@ -6,11 +6,16 @@ import SwiftData
 final class InvitationManager {
     private let notificationService: any NotificationServiceProtocol
     private let modelContext: ModelContext
+    private var analyticsService: AnalyticsService?
     var pendingFeedbackHangoutID: UUID?
 
     init(notificationService: any NotificationServiceProtocol, modelContext: ModelContext) {
         self.notificationService = notificationService
         self.modelContext = modelContext
+    }
+
+    func setAnalyticsService(_ service: AnalyticsService) {
+        self.analyticsService = service
     }
 
     func fetchHangout(id: UUID) -> ScheduledHangout? {
@@ -21,6 +26,7 @@ final class InvitationManager {
     }
 
     func submitFeedback(hangoutID: UUID, friendRating: Int, activityRating: Int) throws {
+        let hangout = fetchHangout(id: hangoutID)
         let feedback = HangoutFeedback(
             hangoutID: hangoutID,
             friendRating: friendRating,
@@ -29,6 +35,14 @@ final class InvitationManager {
         modelContext.insert(feedback)
         try modelContext.save()
         pendingFeedbackHangoutID = nil
+
+        analyticsService?.logHangoutCompleted(
+            contactID: hangout?.contact?.id,
+            contactName: hangout?.contact?.name ?? "",
+            hangoutID: hangoutID,
+            friendRating: friendRating,
+            activityRating: activityRating
+        )
     }
 
     func dismissFeedback() {
@@ -85,6 +99,11 @@ final class InvitationManager {
                 hangout.inviteeResponse = accepted ? .confirmed : .declined
 
                 if accepted {
+                    analyticsService?.logHangoutConfirmed(
+                        contactID: hangout.contact?.id,
+                        contactName: invitation.friendName,
+                        hangoutID: hangout.id
+                    )
                     Task {
                         try? await notificationService.scheduleFeedbackNotification(
                             hangoutID: hangout.id,

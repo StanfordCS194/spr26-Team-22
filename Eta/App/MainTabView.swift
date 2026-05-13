@@ -69,6 +69,7 @@ struct MainTabView: View {
         }
         .analyticsDebug(service: analyticsService)
         .onChange(of: selectedTab) { _, newTab in
+            analyticsService.logTabSwitched(to: String(describing: newTab))
             guard newTab == .availability else { return }
             Task {
                 await availabilityViewModel.loadAvailability()
@@ -87,6 +88,7 @@ struct MainTabView: View {
                     activityRawValue: activityRawValue,
                     photoRepository: photoRepository,
                     nudgeScheduler: nudgeScheduler,
+                    analyticsService: analyticsService,
                     onScheduleNow: { suggestion in
                         nudgeReminderState.clear()
                         selectedTab = .suggestions

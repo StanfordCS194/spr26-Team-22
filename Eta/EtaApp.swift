@@ -118,6 +118,7 @@ struct EtaApp: App {
             modelContext: ctx
         )
         self.invitationManager = invitationManager
+        invitationManager.setAnalyticsService(analyticsService)
         self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,

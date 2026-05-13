@@ -42,8 +42,6 @@ struct SuggestionCard: View {
 
             VStack(spacing: 12) {
                 Button("Yes, let's do it!") {
-                    analyticsService.logSuggestionTapped(contactName: displayName)
-                    analyticsService.logButtonTapped(screen: "SuggestionCard", button: "YesLetsDoIt")
                     onSchedule()
                 }
                     .buttonStyle(.borderedProminent)
@@ -57,7 +55,6 @@ struct SuggestionCard: View {
                     .frame(maxWidth: .infinity)
 
                 Button("Maybe Later") {
-                    analyticsService.logButtonTapped(screen: "SuggestionCard", button: "MaybeLater")
                     onDismiss()
                 }
                     .foregroundStyle(.secondary)
