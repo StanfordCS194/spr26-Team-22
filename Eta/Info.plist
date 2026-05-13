@@ -4,7 +4,5 @@
 <dict>
 	<key>LLM_API_KEY</key>
 	<string>$(LLM_API_KEY)</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Eta uses your camera to capture memories from your hangouts.</string>
 </dict>
 </plist>

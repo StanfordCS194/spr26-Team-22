@@ -11,7 +11,7 @@ import SwiftUI
 /// The trigger mechanism is configurable - just swap out the trigger type.
 ///
 /// Usage:
-///   .analyticsDebug(service: analyticsService, trigger: TripleTapBottomRightTrigger())
+///   .analyticsDebug(service: analyticsService, trigger: TripleTapTopLeftTrigger())
 struct AnalyticsDebugModifier<Trigger: AnalyticsDebugTrigger>: ViewModifier {
     let analyticsService: AnalyticsService
     let trigger: Trigger
@@ -19,7 +19,7 @@ struct AnalyticsDebugModifier<Trigger: AnalyticsDebugTrigger>: ViewModifier {
     @State private var showingDebugMenu = false
 
     func body(content: Content) -> some View {
-        ZStack(alignment: .trailing) {
+        ZStack(alignment: .topLeading) {
             content
 
             #if DEBUG
@@ -36,7 +36,7 @@ struct AnalyticsDebugModifier<Trigger: AnalyticsDebugTrigger>: ViewModifier {
 extension View {
     func analyticsDebug<Trigger: AnalyticsDebugTrigger>(
         service: AnalyticsService,
-        trigger: Trigger = TripleTapBottomRightTrigger()
+        trigger: Trigger = TripleTapTopLeftTrigger()
     ) -> some View {
         modifier(AnalyticsDebugModifier(analyticsService: service, trigger: trigger))
     }

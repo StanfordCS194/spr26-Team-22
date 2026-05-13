@@ -9,16 +9,15 @@ protocol AnalyticsDebugTrigger {
     func makeTriggerView(showDebugMenu: Binding<Bool>) -> TriggerView
 }
 
-// MARK: - Triple-Tap Bottom-Right Corner
+// MARK: - Triple-Tap Top-Left Corner
 
-struct TripleTapBottomRightTrigger: AnalyticsDebugTrigger {
+struct TripleTapTopLeftTrigger: AnalyticsDebugTrigger {
     func makeTriggerView(showDebugMenu: Binding<Bool>) -> some View {
         Color.clear
             .frame(width: 80, height: 80)
             .contentShape(Rectangle())
-            .onTapGesture(count: 5) {
+            .onTapGesture(count: 3) {
                 showDebugMenu.wrappedValue = true
             }
-            .padding(.bottom, 49)
     }
 }
