@@ -25,6 +25,7 @@ final class HomeViewModel {
     private(set) var recentWins: [RecentWinItem] = []
     private(set) var contacts: [TrackedContact] = []
     private(set) var isLoading: Bool = false
+    private(set) var profileVersion: Int = 0
 
     private var allHangouts: [ScheduledHangout] = []
 
@@ -158,26 +159,32 @@ final class HomeViewModel {
 
     func recordLike(_ activity: Activity, for contact: TrackedContact) {
         contactProfileService.recordLike(activity, for: contact)
+        profileVersion += 1
     }
 
     func recordDislike(_ activity: Activity, for contact: TrackedContact) {
         contactProfileService.recordDislike(activity, for: contact)
+        profileVersion += 1
     }
 
     func confirmPattern(for contact: TrackedContact) {
         contactProfileService.confirmInference(for: contact)
+        profileVersion += 1
     }
 
     func dismissPattern(for contact: TrackedContact) {
         contactProfileService.dismissInference(for: contact)
+        profileVersion += 1
     }
 
     func removeSentiment(for activity: Activity, contact: TrackedContact) {
         contactProfileService.removeSentiment(for: activity, contact: contact)
+        profileVersion += 1
     }
 
     func updateNotes(_ notes: String, for contact: TrackedContact) {
         contactProfileService.updateNotes(notes, for: contact)
+        profileVersion += 1
     }
 
     // MARK: - Private computation

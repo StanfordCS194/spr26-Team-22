@@ -13,7 +13,8 @@ struct FriendDetailView: View {
     @State private var notesText = ""
 
     private var profile: ContactProfile {
-        homeViewModel.contactProfile(for: contact)
+        _ = homeViewModel.profileVersion
+        return homeViewModel.contactProfile(for: contact)
     }
 
     private var goals: [Goal] {
