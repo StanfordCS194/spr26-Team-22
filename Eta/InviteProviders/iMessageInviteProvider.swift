@@ -4,22 +4,21 @@ import MessageUI
 final class iMessageInviteProvider: NSObject, InviteProvider, MFMessageComposeViewControllerDelegate {
     
     func sendInvite(for suggestion: Suggestion) {
-        guard let phone = suggestion.contact.phoneNumber else { return }
-        
+        let recipient = suggestion.contact.phoneNumber ?? suggestion.contact.emailAddress
+        guard let recipient else { return }
+
         guard MFMessageComposeViewController.canSendText() else {
-            // Fallback for devices that can't send MMS (e.g. iPad without cellular).
-            // Opens Messages via URL scheme without the .ics attachment.
             var components = URLComponents()
             components.scheme = "sms"
-            components.path = phone
+            components.path = recipient
             components.queryItems = [URLQueryItem(name: "body", value: messageBody(for: suggestion))]
             if let url = components.url { UIApplication.shared.open(url) }
             return
         }
-        
+
         let composer = MFMessageComposeViewController()
         composer.messageComposeDelegate = self
-        composer.recipients = [phone]
+        composer.recipients = [recipient]
         composer.body = messageBody(for: suggestion)
 
         guard let rootVC = UIApplication.shared.connectedScenes
