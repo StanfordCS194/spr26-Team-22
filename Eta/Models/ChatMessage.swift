@@ -23,29 +23,21 @@ enum ChatNavigation {
 /// Structured actions the LLM can invoke once it has gathered enough context.
 enum ChatFunctionCall: Equatable {
     case scheduleHangout(friendName: String, activity: String, proposedTime: String)
-    case reflectOnTrends(period: String)
     case setGoal(friendName: String, goal: String)
-    case provideFeedback(friendName: String, activity: String, sentiment: String)
 
     var displayLabel: String {
         switch self {
         case .scheduleHangout(let name, let activity, let time):
             return "Schedule \(activity) with \(name) · \(time)"
-        case .reflectOnTrends(let period):
-            return "Reflect on \(period)"
         case .setGoal(let name, let goal):
             return "Set goal for \(name): \(goal)"
-        case .provideFeedback(let name, let activity, _):
-            return "Log feedback for \(activity) with \(name)"
         }
     }
 
     var systemImageName: String {
         switch self {
-        case .scheduleHangout:  return "calendar.badge.plus"
-        case .reflectOnTrends:  return "chart.bar"
-        case .setGoal:          return "target"
-        case .provideFeedback:  return "hand.thumbsup"
+        case .scheduleHangout: return "calendar.badge.plus"
+        case .setGoal:         return "target"
         }
     }
 }

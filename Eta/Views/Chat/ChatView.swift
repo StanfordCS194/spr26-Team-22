@@ -32,6 +32,12 @@ struct ChatView: View {
                     }
                 }
             }
+            .onChange(of: viewModel.shouldDismiss) { _, shouldDismiss in
+                if shouldDismiss {
+                    viewModel.reset()
+                    dismiss()
+                }
+            }
         }
     }
 

@@ -144,7 +144,13 @@ struct EtaApp: App {
             formatter: formatter,
             relationshipService: relationshipService
         )
-        self.chatViewModel = ChatViewModel(connectionsViewModel: connectionsViewModel)
+        self.chatViewModel = ChatViewModel(
+            contactRepository: repository,
+            inviteService: inviteService,
+            invitationManager: invitationManager,
+            availabilityDataProvider: availabilityDataProvider,
+            goalRepository: goalRepository
+        )
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
             inviteService: inviteService,

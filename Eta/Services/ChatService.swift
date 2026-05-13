@@ -70,19 +70,10 @@ final class ChatService {
                   let time     = args["proposedTime"] else { return nil }
             return .scheduleHangout(friendName: friend, activity: activity, proposedTime: time)
 
-        case "reflectOnTrends":
-            return .reflectOnTrends(period: args["period"] ?? "recent")
-
         case "setGoal":
             guard let friend = args["friendName"],
                   let goal   = args["goal"] else { return nil }
             return .setGoal(friendName: friend, goal: goal)
-
-        case "provideFeedback":
-            guard let friend    = args["friendName"],
-                  let activity  = args["activity"],
-                  let sentiment = args["sentiment"] else { return nil }
-            return .provideFeedback(friendName: friend, activity: activity, sentiment: sentiment)
 
         default:
             return nil
