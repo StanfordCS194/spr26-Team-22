@@ -23,6 +23,9 @@ struct EtaApp: App {
     private let analyticsService: AnalyticsService
     private let photoRepository: ActivityPhotoRepository
     private let reminderPhotoState: ReminderPhotoState
+    private let supabaseService: SupabaseService
+    private let phoneSetupService: PhoneSetupService
+    @State private var hasPhoneSetup: Bool
     private let nudgeService: NudgeService
     private let nudgeScheduler: NudgeScheduler
     private let weeklyCheckInService: WeeklyCheckInService
@@ -58,6 +61,13 @@ struct EtaApp: App {
 
         let analyticsService = AnalyticsService(modelContext: ctx)
         self.analyticsService = analyticsService
+
+        let supabaseService = SupabaseService()
+        self.supabaseService = supabaseService
+        let phoneSetupService = PhoneSetupService()
+        self.phoneSetupService = phoneSetupService
+        self._hasPhoneSetup = State(initialValue: phoneSetupService.myIdentifier != nil)
+
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
         let availabilityRepository = UserDefaultsAvailabilityRepository()
@@ -115,7 +125,9 @@ struct EtaApp: App {
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
-            modelContext: ctx
+            modelContext: ctx,
+            supabaseService: supabaseService,
+            phoneSetupService: phoneSetupService
         )
         self.invitationManager = invitationManager
         self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
@@ -177,9 +189,9 @@ struct EtaApp: App {
 
         // Returning users: seed is a no-op if data already exists.
         // First-time users: seed fires when they complete onboarding.
-        if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
-            seeder.seedIfNeeded()
-        }
+        // if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+        //     seeder.seedIfNeeded()
+        // }
         
         self.availabilityViewModel = AvailabilityViewModel(
             repository: availabilityRepository,
@@ -189,7 +201,7 @@ struct EtaApp: App {
 
         self._onboardingViewModel = State(initialValue: OnboardingViewModel(
             preferencesService: preferencesService,
-            onComplete: { seeder.seedIfNeeded() }
+            onComplete: { } // onComplete: { seeder.seedIfNeeded() }
         ))
 
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -197,7 +209,14 @@ struct EtaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if onboardingViewModel.hasCompletedOnboarding {
+            if !hasPhoneSetup {
+                PhoneSetupView(phoneSetupService: phoneSetupService) {
+                    hasPhoneSetup = true
+                    if let id = phoneSetupService.myIdentifier {
+                        Task { await supabaseService.registerDevice(identifier: id) }
+                    }
+                }
+            } else if onboardingViewModel.hasCompletedOnboarding {
                 MainTabView(
                     homeViewModel: homeViewModel,
                     connectionsViewModel: connectionsViewModel,
@@ -239,6 +258,28 @@ struct EtaApp: App {
             analyticsService.logAppForegrounded()
             Task { await nudgeService.scheduleNudge() }
             Task { await weeklyCheckInService.scheduleIfNeeded() }
+            Task { await invitationManager.pollForUpdates() }
         }
+
+        registerInviteResponseCategory()
+    }
+
+    private func registerInviteResponseCategory() {
+        let accept = UNNotificationAction(
+            identifier: "ACCEPT_INVITE",
+            title: "Accept",
+            options: [.foreground]
+        )
+        let decline = UNNotificationAction(
+            identifier: "DECLINE_INVITE",
+            title: "Decline",
+            options: []
+        )
+        let category = UNNotificationCategory(
+            identifier: "INVITE_RESPONSE",
+            actions: [accept, decline],
+            intentIdentifiers: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 }
