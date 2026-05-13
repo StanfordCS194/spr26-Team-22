@@ -2,6 +2,9 @@ import SwiftUI
 
 struct UpcomingEventCardView: View {
     let item: HangoutDisplayItem
+    let photoRepository: ActivityPhotoRepository
+
+    @State private var showingPhotoSheet = false
 
     var body: some View {
         HStack(alignment: .top) {
@@ -16,14 +19,50 @@ struct UpcomingEventCardView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            StatusBadgeView(status: item.hangout.status)
+            VStack(alignment: .trailing, spacing: 8) {
+                StatusBadgeView(status: item.hangout.status)
+                if showsCameraButton {
+                    Button { showingPhotoSheet = true } label: {
+                        Image(systemName: "camera")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: $showingPhotoSheet) {
+            let activity = item.hangout.resolvedActivity ?? .walk
+            let hangoutID = item.hangout.id
+            ReminderPhotoSheet(
+                activity: activity,
+                hangoutID: hangoutID,
+                existingPhotos: photoRepository.photos(for: hangoutID).map { $0.imageData },
+                onSave: { data in
+                    try? photoRepository.save(imageData: data, activity: activity, hangoutID: hangoutID)
+                    showingPhotoSheet = false
+                },
+                onDismiss: { showingPhotoSheet = false }
+            )
+        }
     }
 
     private var activityLabel: String {
         item.hangout.resolvedActivity?.rawValue ?? item.hangout.activity
+    }
+
+    private var showsCameraButton: Bool {
+        guard item.hangout.status == .confirmed else { return false }
+        let cutoff = item.hangout.startDate.addingTimeInterval(24 * 60 * 60)
+        return Date.now <= cutoff
+    }
+
+    private var hangoutHasPhoto: Bool {
+        Activity.allCases.contains { activity in
+            photoRepository.photos(for: activity).contains { $0.hangoutID == item.hangout.id }
+        }
     }
 }
 

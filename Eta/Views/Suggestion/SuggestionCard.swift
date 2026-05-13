@@ -4,6 +4,7 @@ struct SuggestionCard: View {
     let displayName: String
     let timeLabel: String
     let suggestion: Suggestion
+    let latestPhotoData: Data?
     let onDismiss: () -> Void
     let onSchedule: () -> Void
     let analyticsService: AnalyticsService
@@ -19,6 +20,16 @@ struct SuggestionCard: View {
                     .font(.title)
                     .fontWeight(.semibold)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let data = latestPhotoData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.top, 20)
             }
 
             Spacer()
