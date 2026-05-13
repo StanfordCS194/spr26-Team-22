@@ -87,12 +87,14 @@ struct EtaApp: App {
 
         let profileRepository = ContactProfileRepository(modelContext: ctx)
         let contactProfileService = ContactProfileService(profileRepository: profileRepository)
+        let feedbackRepository = HangoutFeedbackRepository(modelContext: ctx)
 
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
             PreferencesContextSource(preferencesService: preferencesService),
-            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository),
+            HangoutFeedbackContextSource(feedbackRepository: feedbackRepository, hangoutRepository: hangoutRepository)
         ])
 
         // Activity strategy — chooses an activity
