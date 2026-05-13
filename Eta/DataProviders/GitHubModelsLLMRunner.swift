@@ -53,21 +53,25 @@ final class GitHubModelsLLMRunner: LLMRunner {
         )
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw LLMError.httpError(statusCode)
-        }
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                throw LLMError.httpError(statusCode)
+            }
 
-        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
-        guard let text = decoded.choices.first?.message.content else {
-            throw LLMError.emptyResponse
+            let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
+            guard let text = decoded.choices.first?.message.content else {
+                throw LLMError.emptyResponse
+            }
+
+            print("[GitHubLLMRunner] \(body.model) suggested: \(text)")
+            return text
+        } catch {
+            print("[GitHubLLMRunner] falling back to enum: \(error.localizedDescription)")
+            return Activity.allCases.randomElement()?.description ?? "Grab coffee"
         }
-        
-        print("[GitHubLLMRunner] \(body.model) suggested: \(text)")
-        
-        return text
     }
 }
 
