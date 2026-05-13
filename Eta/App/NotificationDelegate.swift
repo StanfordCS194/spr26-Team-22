@@ -44,6 +44,14 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     private func handleResponse(from userInfo: [AnyHashable: Any]) {
         let type = userInfo["notificationType"] as? String
 
+        if let feedbackIDString = userInfo["feedbackHangoutID"] as? String,
+           let hangoutID = UUID(uuidString: feedbackIDString) {
+            Task { @MainActor in
+                invitationManager.pendingFeedbackHangoutID = hangoutID
+            }
+            return
+        }
+
         if type == "photoCapture" {
             let rawValue = userInfo["activityRawValue"] as? String ?? ""
             let activity = Activity(rawValue: rawValue) ?? .walk

@@ -18,6 +18,7 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let invitationManager: InvitationManager
 
     @State private var selectedTab: TabChoice = .events
 
@@ -54,6 +55,17 @@ struct MainTabView: View {
             guard newTab == .availability else { return }
             Task {
                 await availabilityViewModel.loadAvailability()
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { invitationManager.pendingFeedbackHangoutID != nil },
+            set: { if !$0 { invitationManager.dismissFeedback() } }
+        )) {
+            if let hangoutID = invitationManager.pendingFeedbackHangoutID {
+                FeedbackPopupView(
+                    hangoutID: hangoutID,
+                    invitationManager: invitationManager
+                )
             }
         }
         .sheet(isPresented: Binding(

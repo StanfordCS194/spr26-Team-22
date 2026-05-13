@@ -17,6 +17,7 @@ struct EtaApp: App {
     private let homeViewModel: HomeViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
+    private let invitationManager: InvitationManager
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let availabilityViewModel: AvailabilityViewModel
     private let analyticsService: AnalyticsService
@@ -38,7 +39,8 @@ struct EtaApp: App {
                 ActivityPhoto.self,
                 Goal.self,
                 PersonalRelationshipInsight.self,
-                ContactProfile.self
+                ContactProfile.self,
+                HangoutFeedback.self
         )
         self.container = container
 
@@ -118,6 +120,7 @@ struct EtaApp: App {
             weeklyCheckInState: weeklyCheckInState,
             nudgeReminderState: nudgeReminderState
         )
+        self.invitationManager = invitationManager
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
@@ -194,7 +197,8 @@ struct EtaApp: App {
                     nudgeScheduler: nudgeScheduler,
                     weeklyCheckInService: weeklyCheckInService,
                     weeklyCheckInState: weeklyCheckInState,
-                    nudgeReminderState: nudgeReminderState
+                    nudgeReminderState: nudgeReminderState,
+                    invitationManager: invitationManager
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)

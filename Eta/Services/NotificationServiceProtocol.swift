@@ -16,4 +16,7 @@ protocol NotificationServiceProtocol {
 
     /// Cancel both reminder notifications for a hangout.
     func cancelHangoutReminders(for hangoutID: UUID)
+
+    /// Schedule a notification after a hangout ends to prompt the user for feedback.
+    func scheduleFeedbackNotification(hangoutID: UUID, friendName: String, activityName: String, at date: Date) async throws
 }
