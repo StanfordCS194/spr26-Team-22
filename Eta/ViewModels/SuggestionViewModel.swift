@@ -107,6 +107,20 @@ final class SuggestionViewModel {
         suggestion = nil
     }
 
+    /// Replaces the current suggestion's activity and start time without re-running the engine.
+    /// The original duration is preserved; only the start is shifted to `time`.
+    func customize(activity: String, time: Date) {
+        guard let s = suggestion else { return }
+        let newInterval = DateInterval(start: time, duration: s.proposedTime.duration)
+        suggestion = Suggestion(
+            contact: s.contact,
+            activityDescription: activity,
+            reason: s.reason,
+            proposedTime: newInterval,
+            generatedAt: s.generatedAt
+        )
+    }
+
     /// Persists the hangout, then sends the invitation
     /// via push notification. Drives the UI through accepted → invitationSent states.
     func schedule() {

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 @Observable
 final class InvitationManager {
     private let notificationService: any NotificationServiceProtocol

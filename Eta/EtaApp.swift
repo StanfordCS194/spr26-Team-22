@@ -14,6 +14,7 @@ struct EtaApp: App {
     private let container: ModelContainer
     private let connectionsViewModel: ConnectionsViewModel
     private let suggestionViewModel: SuggestionViewModel
+    private let homeViewModel: HomeViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
@@ -29,17 +30,29 @@ struct EtaApp: App {
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, ActivityPhoto.self)
+        let container = try! ModelContainer(
+            for: TrackedContact.self,
+                ScheduledHangout.self,
+                AnalyticsEvent.self,
+                Invitation.self,
+                ActivityPhoto.self,
+                Goal.self,
+                PersonalRelationshipInsight.self,
+                ContactProfile.self
+        )
         self.container = container
 
-        let repository = ContactRepository(modelContext: container.mainContext)
-        let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
-        let photoRepository = ActivityPhotoRepository(modelContext: container.mainContext)
+        let ctx = container.mainContext
+        let repository = ContactRepository(modelContext: ctx)
+        let hangoutRepository = ScheduledHangoutRepository(modelContext: ctx)
+        let photoRepository = ActivityPhotoRepository(modelContext: ctx)
         self.photoRepository = photoRepository
         let reminderPhotoState = ReminderPhotoState()
         self.reminderPhotoState = reminderPhotoState
+        let goalRepository = GoalRepository(modelContext: ctx)
+        let insightRepository = PersonalRelationshipInsightRepository(modelContext: ctx)
 
-        let analyticsService = AnalyticsService(modelContext: container.mainContext)
+        let analyticsService = AnalyticsService(modelContext: ctx)
         self.analyticsService = analyticsService
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
@@ -69,15 +82,18 @@ struct EtaApp: App {
         let nudgeReminderState = NudgeReminderState()
         self.nudgeReminderState = nudgeReminderState
 
+        let profileRepository = ContactProfileRepository(modelContext: ctx)
+        let contactProfileService = ContactProfileService(profileRepository: profileRepository)
+
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
-            PreferencesContextSource(preferencesService: preferencesService)
+            PreferencesContextSource(preferencesService: preferencesService),
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
         ])
 
         // Activity strategy — chooses an activity
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
-
         let suggestionService = SuggestionService(
             availabilityProvider: availabilityDataProvider,
             relationshipService: relationshipService,
@@ -93,7 +109,7 @@ struct EtaApp: App {
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
-            modelContext: container.mainContext
+            modelContext: ctx
         )
         self.nudgeScheduler = NudgeScheduler(calendarDataProvider: calendarDataProvider)
         let notificationDelegate = NotificationDelegate(
@@ -104,6 +120,17 @@ struct EtaApp: App {
         )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
+
+        let insightGenerationService = InsightGenerationService(
+            insightRepository: insightRepository,
+            hangoutRepository: hangoutRepository,
+            contactRepository: repository,
+            profileRepository: profileRepository
+        )
+        let goalTrackingService = GoalTrackingService(
+            goalRepository: goalRepository,
+            hangoutRepository: hangoutRepository
+        )
 
         self.connectionsViewModel = ConnectionsViewModel(
             repository: repository,
@@ -126,9 +153,28 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             activityDurationSettings: activityDurationSettings
         )
-        self._onboardingViewModel = State(initialValue: OnboardingViewModel(preferencesService: preferencesService))
+        self.homeViewModel = HomeViewModel(
+            goalRepository: goalRepository,
+            insightGenerationService: insightGenerationService,
+            goalTrackingService: goalTrackingService,
+            contactRepository: repository,
+            hangoutRepository: hangoutRepository,
+            formatter: formatter,
+            relationshipService: relationshipService,
+            contactProfileService: contactProfileService
+        )
 
-        // Track app lifecycle events
+        let seeder = MockDataSeeder(modelContext: ctx)
+
+        if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            seeder.seedIfNeeded()
+        }
+
+        self._onboardingViewModel = State(initialValue: OnboardingViewModel(
+            preferencesService: preferencesService,
+            onComplete: { seeder.seedIfNeeded() }
+        ))
+
         setupLifecycleTracking(analyticsService: analyticsService)
     }
 
@@ -136,6 +182,7 @@ struct EtaApp: App {
         WindowGroup {
             if onboardingViewModel.hasCompletedOnboarding {
                 MainTabView(
+                    homeViewModel: homeViewModel,
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,

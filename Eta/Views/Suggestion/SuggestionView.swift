@@ -6,6 +6,7 @@ struct SuggestionView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
+    @State private var showingCustomize = false
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,7 @@ struct SuggestionView: View {
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
                                 latestPhotoData: viewModel.latestPhotoData(for: suggestion),
+                                onCustomize: { showingCustomize = true },
                                 onDismiss: {
                                     analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
                                     viewModel.dismiss()
@@ -88,6 +90,21 @@ struct SuggestionView: View {
             }
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
+        .sheet(isPresented: $showingCustomize) {
+            if let suggestion = viewModel.suggestion {
+                SuggestionDetailSheet(
+                    displayName: viewModel.displayName(for: suggestion),
+                    reason: suggestion.reason,
+                    initialActivity: suggestion.activityDescription,
+                    initialTime: suggestion.proposedTime.start,
+                    onConfirm: { activity, time in
+                        viewModel.customize(activity: activity, time: time)
+                        showingCustomize = false
+                    },
+                    onDismiss: { showingCustomize = false }
+                )
+            }
+        }
     }
 }
 

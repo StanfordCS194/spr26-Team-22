@@ -2,10 +2,10 @@ import SwiftUI
 
 fileprivate enum TabChoice: Hashable {
     case availability, friends, activites, events
-
 }
 
 struct MainTabView: View {
+    let homeViewModel: HomeViewModel
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
@@ -24,13 +24,14 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
-                            AvailabilityView(
-                                viewModel: availabilityViewModel
-                            )
+                AvailabilityView(
+                    viewModel: availabilityViewModel
+                )
             }
-            Tab("Friends", systemImage: "person.2", value: .friends) {
+            Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
+                    homeViewModel: homeViewModel,
                     analyticsService: analyticsService
                 )
             }
