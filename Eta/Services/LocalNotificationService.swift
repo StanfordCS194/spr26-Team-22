@@ -39,25 +39,6 @@ final class LocalNotificationService: NotificationServiceProtocol {
         center.removePendingNotificationRequests(withIdentifiers: ["invitation-response-\(invitationID)"])
     }
 
-    func scheduleFeedbackNotification(hangoutID: UUID, friendName: String, activityName: String, at date: Date) async throws {
-        guard preferencesService.preferences.enableNotifications else { return }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "How was it?"
-        content.body = "Rate your \(activityName) with \(friendName)!"
-        content.sound = .default
-        content.userInfo = ["feedbackHangoutID": hangoutID.uuidString]
-        
-        let interval = max(date.timeIntervalSinceNow, 1)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "feedback-\(hangoutID.uuidString)",
-            content: content,
-            trigger: trigger
-        )
-        try await center.add(request)
-    }
-
     func scheduleHangoutReminders(hangoutID: UUID, activityName: String, friendName: String, startDate: Date, endDate: Date) async {
         guard preferencesService.preferences.enableNotifications else { return }
 

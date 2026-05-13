@@ -11,7 +11,6 @@ struct MainTabView: View {
     let upcomingEventsViewModel: UpcomingEventsViewModel
     let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
-    let invitationManager: InvitationManager
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
     let nudgeService: NudgeService
@@ -50,17 +49,6 @@ struct MainTabView: View {
             }
         }
         .analyticsDebug(service: analyticsService)
-        .sheet(isPresented: Binding(
-            get: { invitationManager.pendingFeedbackHangoutID != nil },
-            set: { if !$0 { invitationManager.dismissFeedback() } }
-        )) {
-            if let hangoutID = invitationManager.pendingFeedbackHangoutID {
-                FeedbackPopupView(
-                    hangoutID: hangoutID,
-                    invitationManager: invitationManager
-                )
-            }
-        }
         .onChange(of: selectedTab) { _, newTab in
             guard newTab == .availability else { return }
             Task {

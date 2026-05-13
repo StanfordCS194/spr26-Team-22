@@ -17,7 +17,6 @@ struct EtaApp: App {
     private let homeViewModel: HomeViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
-    private let invitationManager: InvitationManager
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let availabilityViewModel: AvailabilityViewModel
     private let analyticsService: AnalyticsService
@@ -39,8 +38,7 @@ struct EtaApp: App {
                 Goal.self,
                 PersonalRelationshipInsight.self,
                 ContactProfile.self,
-                ActivityPhoto.self,
-                HangoutFeedback.self
+                ActivityPhoto.self
         )
         self.container = container
 
@@ -87,14 +85,12 @@ struct EtaApp: App {
 
         let profileRepository = ContactProfileRepository(modelContext: ctx)
         let contactProfileService = ContactProfileService(profileRepository: profileRepository)
-        let feedbackRepository = HangoutFeedbackRepository(modelContext: ctx)
 
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
             PreferencesContextSource(preferencesService: preferencesService),
-            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository),
-            HangoutFeedbackContextSource(feedbackRepository: feedbackRepository, hangoutRepository: hangoutRepository)
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
         ])
 
         // Activity strategy — chooses an activity
@@ -116,7 +112,6 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: ctx
         )
-        self.invitationManager = invitationManager
         self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,
@@ -197,7 +192,6 @@ struct EtaApp: App {
                     upcomingEventsViewModel: upcomingEventsViewModel,
                     availabilityViewModel: availabilityViewModel,
                     analyticsService: analyticsService,
-                    invitationManager: invitationManager,
                     photoRepository: photoRepository,
                     reminderPhotoState: reminderPhotoState,
                     nudgeService: nudgeService,

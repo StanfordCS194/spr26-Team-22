@@ -42,13 +42,6 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func handleResponse(from userInfo: [AnyHashable: Any]) {
-        if let feedbackIDString = userInfo["feedbackHangoutID"] as? String,
-           let hangoutID = UUID(uuidString: feedbackIDString) {
-            Task { @MainActor in
-                invitationManager.pendingFeedbackHangoutID = hangoutID
-            }
-            return
-        }
         let type = userInfo["notificationType"] as? String
 
         if type == "photoCapture" {
