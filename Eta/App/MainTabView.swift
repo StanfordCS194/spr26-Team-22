@@ -19,11 +19,17 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
+                AvailabilityView(
+                    viewModel: availabilityViewModel
+                )
+            }
             Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
@@ -31,21 +37,16 @@ struct MainTabView: View {
                     analyticsService: analyticsService
                 )
             }
-            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
-                AvailabilityView(
-                    viewModel: availabilityViewModel
+            Tab("Events", systemImage: "cup.and.saucer", value: .events) {
+                UpcomingEventsDashboard(
+                    viewModel: upcomingEventsViewModel,
+                    photoRepository: photoRepository
                 )
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
                     analyticsService: analyticsService
-                )
-            }
-            Tab("Events", systemImage: "cup.and.saucer", value: .events) {
-                UpcomingEventsDashboard(
-                    viewModel: upcomingEventsViewModel,
-                    photoRepository: photoRepository
                 )
             }
         }
@@ -61,6 +62,13 @@ struct MainTabView: View {
                 )
             }
         }
+        // Floating chat button — pinned above the tab bar in the bottom-trailing corner.
+        .overlay(alignment: .bottomTrailing) {
+            FloatingChatButton(viewModel: chatViewModel)
+                .padding(.trailing, 20)
+                .padding(.bottom, 72) // clears the tab bar (≈49pt) + breathing room
+        }
+        .analyticsDebug(service: analyticsService)
         .onChange(of: selectedTab) { _, newTab in
             guard newTab == .availability else { return }
             Task {
