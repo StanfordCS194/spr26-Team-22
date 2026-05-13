@@ -1,14 +1,38 @@
 import Foundation
 import SwiftData
 
+@MainActor
 @Observable
 final class InvitationManager {
     private let notificationService: any NotificationServiceProtocol
     private let modelContext: ModelContext
+    var pendingFeedbackHangoutID: UUID?
 
     init(notificationService: any NotificationServiceProtocol, modelContext: ModelContext) {
         self.notificationService = notificationService
         self.modelContext = modelContext
+    }
+
+    func fetchHangout(id: UUID) -> ScheduledHangout? {
+        let descriptor = FetchDescriptor<ScheduledHangout>(
+            predicate: #Predicate { $0.id == id }
+        )
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    func submitFeedback(hangoutID: UUID, friendRating: Int, activityRating: Int) throws {
+        let feedback = HangoutFeedback(
+            hangoutID: hangoutID,
+            friendRating: friendRating,
+            activityRating: activityRating
+        )
+        modelContext.insert(feedback)
+        try modelContext.save()
+        pendingFeedbackHangoutID = nil
+    }
+
+    func dismissFeedback() {
+        pendingFeedbackHangoutID = nil
     }
 
     /// Creates a pending invitation, requests notification permission if needed,
@@ -59,9 +83,21 @@ final class InvitationManager {
             )
             if let hangout = try modelContext.fetch(hangoutDescriptor).first {
                 hangout.inviteeResponse = accepted ? .confirmed : .declined
+
+                if accepted {
+                    Task {
+                        try? await notificationService.scheduleFeedbackNotification(
+                            hangoutID: hangout.id,
+                            friendName: invitation.friendName,
+                            activityName: invitation.activityName,
+                            at: Date().addingTimeInterval(15) // TODO: revert to hangout.endDate after testing
+                        )
+                    }
+                }
             }
         }
 
         try modelContext.save()
+        NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
     }
 }

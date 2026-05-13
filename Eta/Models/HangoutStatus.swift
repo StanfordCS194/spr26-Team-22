@@ -1,6 +1,6 @@
 import Foundation
 
-enum HangoutStatus {
+enum HangoutStatus: Equatable {
     case pending
     case confirmed
     case canceled

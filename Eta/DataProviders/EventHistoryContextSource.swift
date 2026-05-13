@@ -1,6 +1,6 @@
 import Foundation
 
-/// Derives relationship facts from calendar event history via RelationshipService.
+/// Derives relationship facts from Eta's scheduled hangout history via RelationshipService.
 ///
 /// Converts computed RelationshipHealth data into plain-English ContextFacts:
 /// days since last hangout, hangout frequency, and the most recent event title.

@@ -1,14 +1,17 @@
 import SwiftUI
 
 fileprivate enum TabChoice: Hashable {
-    case friends, events, activites
+    case availability, friends, suggestions, events
 }
 
 struct MainTabView: View {
+    let homeViewModel: HomeViewModel
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
+    let invitationManager: InvitationManager
     let photoRepository: ActivityPhotoRepository
     let reminderPhotoState: ReminderPhotoState
     let nudgeService: NudgeService
@@ -22,9 +25,21 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Friends", systemImage: "person.2", value: .friends) {
+            Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
+                    homeViewModel: homeViewModel,
+                    analyticsService: analyticsService
+                )
+            }
+            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
+                AvailabilityView(
+                    viewModel: availabilityViewModel
+                )
+            }
+            Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
+                SuggestionView(
+                    viewModel: suggestionViewModel,
                     analyticsService: analyticsService
                 )
             }
@@ -34,10 +49,16 @@ struct MainTabView: View {
                     photoRepository: photoRepository
                 )
             }
-            Tab("Suggestions", systemImage: "sparkles", value: .activites) {
-                SuggestionView(
-                    viewModel: suggestionViewModel,
-                    analyticsService: analyticsService
+        }
+        .analyticsDebug(service: analyticsService)
+        .sheet(isPresented: Binding(
+            get: { invitationManager.pendingFeedbackHangoutID != nil },
+            set: { if !$0 { invitationManager.dismissFeedback() } }
+        )) {
+            if let hangoutID = invitationManager.pendingFeedbackHangoutID {
+                FeedbackPopupView(
+                    hangoutID: hangoutID,
+                    invitationManager: invitationManager
                 )
             }
         }
@@ -48,6 +69,12 @@ struct MainTabView: View {
                 .padding(.bottom, 72) // clears the tab bar (≈49pt) + breathing room
         }
         .analyticsDebug(service: analyticsService)
+        .onChange(of: selectedTab) { _, newTab in
+            guard newTab == .availability else { return }
+            Task {
+                await availabilityViewModel.loadAvailability()
+            }
+        }
         .reminderDebug(nudgeService: nudgeService, weeklyCheckInService: weeklyCheckInService)
         .sheet(isPresented: Binding(
             get: { nudgeReminderState.isPresented },
@@ -63,12 +90,12 @@ struct MainTabView: View {
                     nudgeScheduler: nudgeScheduler,
                     onScheduleNow: { suggestion in
                         nudgeReminderState.clear()
-                        selectedTab = .activites
+                        selectedTab = .suggestions
                         suggestionViewModel.scheduleFromNudge(suggestion)
                     },
                     onSuggestions: {
                         nudgeReminderState.clear()
-                        selectedTab = .activites
+                        selectedTab = .suggestions
                     },
                     onDismiss: { nudgeReminderState.clear() }
                 )

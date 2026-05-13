@@ -3,6 +3,7 @@ import Foundation
 @Observable
 class OnboardingViewModel {
     private let preferencesService: PreferencesService
+    private let onComplete: () -> Void
 
     var userPreferences: UserPreferences {
         get { preferencesService.preferences }
@@ -11,8 +12,9 @@ class OnboardingViewModel {
 
     var hasCompletedOnboarding: Bool
 
-    init(preferencesService: PreferencesService) {
+    init(preferencesService: PreferencesService, onComplete: @escaping () -> Void = {}) {
         self.preferencesService = preferencesService
+        self.onComplete = onComplete
         self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     }
 
@@ -20,5 +22,6 @@ class OnboardingViewModel {
         preferencesService.updatePreferences(userPreferences)
         hasCompletedOnboarding = true
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        onComplete()
     }
 }

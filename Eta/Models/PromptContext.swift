@@ -7,6 +7,7 @@ enum ContextFactSource {
     case explicitFeedback
     case onboardingPreferences
     case userGoal
+    case contactInsights
 }
 
 /// A single plain-English observation about the user or their relationship with a contact.

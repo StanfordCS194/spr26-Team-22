@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectionsView: View {
     let viewModel: ConnectionsViewModel
+    let homeViewModel: HomeViewModel
     let analyticsService: AnalyticsService
 
     @State private var showingAddSheet = false
@@ -18,18 +19,71 @@ struct ConnectionsView: View {
                     )
                 } else {
                     List {
-                        ForEach(viewModel.contacts) { contact in
-                            ContactRow(contact: contact, viewModel: viewModel)
-                        }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                let contact = viewModel.contacts[index]
-                                analyticsService.logConnectionRemoved(
-                                    contactName: contact.name,
-                                    totalContacts: viewModel.contacts.count - 1
-                                )
-                                viewModel.removeContact(contact)
+                        if !homeViewModel.friendSpotlights.isEmpty {
+                            Section {
+                                ForEach(homeViewModel.friendSpotlights) { item in
+                                    NavigationLink {
+                                        FriendDetailView(
+                                            contact: item.contact,
+                                            health: item.health,
+                                            displayName: homeViewModel.displayName(for: item.contact),
+                                            homeViewModel: homeViewModel
+                                        )
+                                    } label: {
+                                        FriendSpotlightCard(
+                                            item: item,
+                                            displayName: homeViewModel.displayName(for: item.contact)
+                                        )
+                                    }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                }
+                            } header: {
+                                Text("For You")
+                                    .font(.title3.weight(.semibold))
+                                    .textCase(nil)
+                                    .foregroundStyle(.primary)
+                                    .padding(.top, 4)
                             }
+                        }
+
+                        Section {
+                            ForEach(viewModel.contacts) { contact in
+                                NavigationLink {
+                                    FriendDetailView(
+                                        contact: contact,
+                                        health: viewModel.healthScores[contact.id] ?? RelationshipHealth(
+                                            contact: contact,
+                                            lastHangoutDate: nil,
+                                            lastHangoutTitle: nil,
+                                            hangoutCount: 0,
+                                            score: 0,
+                                            upcomingHangout: nil
+                                        ),
+                                        displayName: viewModel.displayName(for: contact),
+                                        homeViewModel: homeViewModel
+                                    )
+                                } label: {
+                                    ContactRow(contact: contact, viewModel: viewModel)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                for index in indexSet {
+                                    let contact = viewModel.contacts[index]
+                                    analyticsService.logConnectionRemoved(
+                                        contactName: contact.name,
+                                        totalContacts: viewModel.contacts.count - 1
+                                    )
+                                    viewModel.removeContact(contact)
+                                }
+                            }
+                        } header: {
+                            Text("All Friends")
+                                .font(.title3.weight(.semibold))
+                                .textCase(nil)
+                                .foregroundStyle(.primary)
+                                .padding(.top, 4)
                         }
                     }
                 }
@@ -54,10 +108,14 @@ struct ConnectionsView: View {
             .task {
                 viewModel.loadContacts()
                 await viewModel.loadHealthScores()
+                await homeViewModel.refresh()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    Task { await viewModel.loadHealthScores() }
+                    Task {
+                        await viewModel.loadHealthScores()
+                        await homeViewModel.refresh()
+                    }
                 }
             }
             .trackScreen("ConnectionsView", analytics: analyticsService)

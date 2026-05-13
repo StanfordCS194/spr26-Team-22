@@ -6,6 +6,7 @@ struct SuggestionView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
+    @State private var showingCustomize = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,7 @@ struct SuggestionView: View {
                                 displayName: viewModel.displayName(for: suggestion),
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
+                                onCustomize: { showingCustomize = true },
                                 latestPhotoData: viewModel.latestPhotoData(for: suggestion),
                                 onDismiss: {
                                     analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
@@ -59,7 +61,7 @@ struct SuggestionView: View {
                         } else {
                             ContentUnavailableView(
                                 "Nothing to suggest right now",
-                                systemImage: "calendar.badge.clock",
+                                systemImage: "clock.badge.checkmark",
                                 description: Text("We'll suggest a hangout when you have free time and a friend to catch up with.")
                             )
                         }
@@ -88,6 +90,21 @@ struct SuggestionView: View {
             }
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
+        .sheet(isPresented: $showingCustomize) {
+            if let suggestion = viewModel.suggestion {
+                SuggestionDetailSheet(
+                    displayName: viewModel.displayName(for: suggestion),
+                    reason: suggestion.reason,
+                    initialActivity: suggestion.activityDescription,
+                    initialTime: suggestion.proposedTime.start,
+                    onConfirm: { activity, time in
+                        viewModel.customize(activity: activity, time: time)
+                        showingCustomize = false
+                    },
+                    onDismiss: { showingCustomize = false }
+                )
+            }
+        }
     }
 }
 
@@ -99,7 +116,7 @@ private struct AcceptedView: View {
             Text("Scheduling your hangout...")
                 .font(.title)
                 .fontWeight(.semibold)
-            Text("Setting up your calendar event and invitation.")
+            Text("Setting up your hangout and invitation.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

@@ -14,9 +14,12 @@ struct EtaApp: App {
     private let container: ModelContainer
     private let connectionsViewModel: ConnectionsViewModel
     private let suggestionViewModel: SuggestionViewModel
+    private let homeViewModel: HomeViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
+    private let invitationManager: InvitationManager
     private let upcomingEventsViewModel: UpcomingEventsViewModel
+    private let availabilityViewModel: AvailabilityViewModel
     private let analyticsService: AnalyticsService
     private let photoRepository: ActivityPhotoRepository
     private let reminderPhotoState: ReminderPhotoState
@@ -29,24 +32,43 @@ struct EtaApp: App {
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, ActivityPhoto.self)
+        let container = try! ModelContainer(
+            for: TrackedContact.self,
+                ScheduledHangout.self,
+                AnalyticsEvent.self,
+                Invitation.self,
+                Goal.self,
+                PersonalRelationshipInsight.self,
+                ContactProfile.self,
+                ActivityPhoto.self,
+                HangoutFeedback.self
+        )
         self.container = container
 
-        let repository = ContactRepository(modelContext: container.mainContext)
-        let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
+        let ctx = container.mainContext
+        let repository = ContactRepository(modelContext: ctx)
+        let hangoutRepository = ScheduledHangoutRepository(modelContext: ctx)
+        let goalRepository = GoalRepository(modelContext: ctx)
+        let insightRepository = PersonalRelationshipInsightRepository(modelContext: ctx)
         let photoRepository = ActivityPhotoRepository(modelContext: container.mainContext)
+        
         self.photoRepository = photoRepository
         let reminderPhotoState = ReminderPhotoState()
         self.reminderPhotoState = reminderPhotoState
 
-        let analyticsService = AnalyticsService(modelContext: container.mainContext)
+        let analyticsService = AnalyticsService(modelContext: ctx)
         self.analyticsService = analyticsService
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
-        let calendarDataProvider = CalendarDataProvider(preferencesService: preferencesService)
+        let availabilityRepository = UserDefaultsAvailabilityRepository()
+        let activityDurationSettings = ActivityDurationSettings()
+        let availabilityDataProvider = AvailabilityDataProvider(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
 
         let relationshipService = RelationshipService(
-            providers: [calendarDataProvider],
             repository: repository,
             hangoutRepository: hangoutRepository,
             preferencesService: preferencesService
@@ -64,17 +86,22 @@ struct EtaApp: App {
         let nudgeReminderState = NudgeReminderState()
         self.nudgeReminderState = nudgeReminderState
 
+        let profileRepository = ContactProfileRepository(modelContext: ctx)
+        let contactProfileService = ContactProfileService(profileRepository: profileRepository)
+        let feedbackRepository = HangoutFeedbackRepository(modelContext: ctx)
+
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
-            PreferencesContextSource(preferencesService: preferencesService)
+            PreferencesContextSource(preferencesService: preferencesService),
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository),
+            HangoutFeedbackContextSource(feedbackRepository: feedbackRepository, hangoutRepository: hangoutRepository)
         ])
 
         // Activity strategy — chooses an activity
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
-
         let suggestionService = SuggestionService(
-            calendar: calendarDataProvider,
+            availabilityProvider: availabilityDataProvider,
             relationshipService: relationshipService,
             contextEngine: contextEngine,
             activityStrategy: activityStrategy
@@ -82,16 +109,16 @@ struct EtaApp: App {
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(
             provider: inviteProvider,
-            hangoutRepository: hangoutRepository,
-            calendarDataProvider: calendarDataProvider
+            hangoutRepository: hangoutRepository
         )
 
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
-            modelContext: container.mainContext
+            modelContext: ctx
         )
-        self.nudgeScheduler = NudgeScheduler(calendarDataProvider: calendarDataProvider)
+        self.invitationManager = invitationManager
+        self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,
             reminderPhotoState: reminderPhotoState,
@@ -101,12 +128,22 @@ struct EtaApp: App {
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
-        let connectionsViewModel = ConnectionsViewModel(
+        let insightGenerationService = InsightGenerationService(
+            insightRepository: insightRepository,
+            hangoutRepository: hangoutRepository,
+            contactRepository: repository,
+            profileRepository: profileRepository
+        )
+        let goalTrackingService = GoalTrackingService(
+            goalRepository: goalRepository,
+            hangoutRepository: hangoutRepository
+        )
+
+        self.connectionsViewModel = ConnectionsViewModel(
             repository: repository,
             formatter: formatter,
             relationshipService: relationshipService
         )
-        self.connectionsViewModel = connectionsViewModel
         self.chatViewModel = ChatViewModel(connectionsViewModel: connectionsViewModel)
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
@@ -119,9 +156,36 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter
         )
-        self._onboardingViewModel = State(initialValue: OnboardingViewModel(preferencesService: preferencesService))
+        self.homeViewModel = HomeViewModel(
+            goalRepository: goalRepository,
+            insightGenerationService: insightGenerationService,
+            goalTrackingService: goalTrackingService,
+            contactRepository: repository,
+            hangoutRepository: hangoutRepository,
+            formatter: formatter,
+            relationshipService: relationshipService,
+            contactProfileService: contactProfileService
+        )
 
-        // Track app lifecycle events
+        let seeder = MockDataSeeder(modelContext: ctx)
+
+        // Returning users: seed is a no-op if data already exists.
+        // First-time users: seed fires when they complete onboarding.
+        if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            seeder.seedIfNeeded()
+        }
+        
+        self.availabilityViewModel = AvailabilityViewModel(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
+
+        self._onboardingViewModel = State(initialValue: OnboardingViewModel(
+            preferencesService: preferencesService,
+            onComplete: { seeder.seedIfNeeded() }
+        ))
+
         setupLifecycleTracking(analyticsService: analyticsService)
     }
 
@@ -129,10 +193,13 @@ struct EtaApp: App {
         WindowGroup {
             if onboardingViewModel.hasCompletedOnboarding {
                 MainTabView(
+                    homeViewModel: homeViewModel,
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
+                    availabilityViewModel: availabilityViewModel,
                     analyticsService: analyticsService,
+                    invitationManager: invitationManager,
                     photoRepository: photoRepository,
                     reminderPhotoState: reminderPhotoState,
                     nudgeService: nudgeService,

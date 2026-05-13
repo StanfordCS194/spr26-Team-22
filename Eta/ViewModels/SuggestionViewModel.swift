@@ -99,6 +99,25 @@ final class SuggestionViewModel {
         isLoading = true
         defer { isLoading = false }
         suggestion = await suggestionService.generateSuggestion()
+
+        #if DEBUG
+        if suggestion == nil {
+            let demoContact = TrackedContact(
+                cnContactIdentifier: "demo",
+                name: "Alex Demo",
+                givenName: "Alex",
+                familyName: "Demo"
+            )
+            let start = Calendar.current.date(byAdding: .hour, value: 2, to: .now) ?? .now
+            suggestion = Suggestion(
+                contact: demoContact,
+                activityDescription: "Grab coffee",
+                reason: "You haven't hung out in a while.",
+                proposedTimes: [DateInterval(start: start, duration: 3600)],
+                generatedAt: .now
+            )
+        }
+        #endif
     }
 
     /// Clears the current suggestion. The inbox will show its empty state until
@@ -107,7 +126,21 @@ final class SuggestionViewModel {
         suggestion = nil
     }
 
-    /// Persists the hangout, creates a calendar event, then sends the invitation
+    /// Replaces the current suggestion's activity and start time without re-running the engine.
+    /// The original duration is preserved; only the start is shifted to `time`.
+    func customize(activity: String, time: Date) {
+        guard let s = suggestion else { return }
+        let newInterval = DateInterval(start: time, duration: s.proposedTime.duration)
+        suggestion = Suggestion(
+            contact: s.contact,
+            activityDescription: activity,
+            reason: s.reason,
+            proposedTimes: [newInterval],
+            generatedAt: s.generatedAt
+        )
+    }
+
+    /// Persists the hangout, then sends the invitation
     /// via push notification. Drives the UI through accepted → invitationSent states.
     func schedule() {
         guard let suggestion else { return }
