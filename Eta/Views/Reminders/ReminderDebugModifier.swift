@@ -18,6 +18,7 @@ struct ReminderDebugModifier: ViewModifier {
                 .onTapGesture(count: 3) {
                     Task { await nudgeService.scheduleNudge(force: true) }
                 }
+                .padding(.bottom, 49)
             #endif
         }
     }
