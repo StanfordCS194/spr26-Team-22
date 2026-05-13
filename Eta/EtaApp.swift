@@ -111,7 +111,7 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: ctx
         )
-        self.nudgeScheduler = NudgeScheduler(calendarDataProvider: calendarDataProvider)
+        self.nudgeScheduler = NudgeScheduler(availabilityProvider: availabilityDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,
             reminderPhotoState: reminderPhotoState,

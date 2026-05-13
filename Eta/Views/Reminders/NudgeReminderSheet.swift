@@ -55,12 +55,14 @@ struct NudgeReminderSheet: View {
                             .buttonStyle(.borderedProminent)
                     } else {
                         Button("Schedule it now") {
-                            if let contact,
-                               let suggestion = nudgeScheduler.buildSuggestion(
-                                   contact: contact, activityRawValue: activityRawValue) {
-                                onScheduleNow(suggestion)
-                            } else {
-                                showNoSlot = true
+                            Task {
+                                if let contact,
+                                   let suggestion = await nudgeScheduler.buildSuggestion(
+                                       contact: contact, activityRawValue: activityRawValue) {
+                                    onScheduleNow(suggestion)
+                                } else {
+                                    showNoSlot = true
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)

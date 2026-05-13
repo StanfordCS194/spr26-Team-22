@@ -116,7 +116,7 @@ final class SuggestionViewModel {
             contact: s.contact,
             activityDescription: activity,
             reason: s.reason,
-            proposedTime: newInterval,
+            proposedTimes: [newInterval],
             generatedAt: s.generatedAt
         )
     }
