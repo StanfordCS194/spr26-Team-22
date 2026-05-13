@@ -60,16 +60,6 @@
 		C9BE732C2F9B16F50064E1E8 /* MessageUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MessageUI.framework; path = System/Library/Frameworks/MessageUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2FF4915C2FA646BE00F5BAB8 /* Exceptions for "ETA-imessage-extension" folder in "ETA-imessage-extension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 2FF491492FA646BD00F5BAB8 /* ETA-imessage-extension */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		215294922F9707B800AD5B58 /* Eta */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -86,12 +76,9 @@
 			path = EtaUITests;
 			sourceTree = "<group>";
 		};
-		2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */ = {
+		2FF491642FA7D97600F5BAB8 /* Eta Invites */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				2FF4915C2FA646BE00F5BAB8 /* Exceptions for "ETA-imessage-extension" folder in "ETA-imessage-extension" target */,
-			);
-			path = "ETA-imessage-extension";
+			path = "Eta Invites";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -136,7 +123,7 @@
 				215294922F9707B800AD5B58 /* Eta */,
 				215294A02F9707BC00AD5B58 /* EtaTests */,
 				215294AA2F9707BC00AD5B58 /* EtaUITests */,
-				2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */,
+				2FF491642FA7D97600F5BAB8 /* Eta Invites */,
 				C9BE732B2F9B16F50064E1E8 /* Frameworks */,
 				215294912F9707B800AD5B58 /* Products */,
 			);
@@ -251,9 +238,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				2FF4914D2FA646BD00F5BAB8 /* ETA-imessage-extension */,
 			);
 			name = "ETA-imessage-extension";
 			packageProductDependencies = (
@@ -674,7 +658,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ETA-imessage-extension/Info.plist";
+				INFOPLIST_FILE = "Eta-imessage-extension/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "ETA-imessage-extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -703,7 +687,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ETA-imessage-extension/Info.plist";
+				INFOPLIST_FILE = "Eta-imessage-extension/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "ETA-imessage-extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
