@@ -19,5 +19,6 @@ struct TripleTapBottomRightTrigger: AnalyticsDebugTrigger {
             .onTapGesture(count: 3) {
                 showDebugMenu.wrappedValue = true
             }
+            .padding(.bottom, 49)
     }
 }
