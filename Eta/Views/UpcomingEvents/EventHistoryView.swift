@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EventHistoryView: View {
     let items: [HangoutDisplayItem]
+    let photoRepository: ActivityPhotoRepository
 
     var body: some View {
         Group {
@@ -15,7 +16,7 @@ struct EventHistoryView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(items) { item in
-                            UpcomingEventCardView(item: item)
+                            UpcomingEventCardView(item: item, photoRepository: photoRepository)
                                 .padding(.horizontal)
                         }
                     }

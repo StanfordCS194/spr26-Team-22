@@ -21,13 +21,13 @@ final class ScheduledHangout {
     init(
         id: UUID = UUID(),
         contact: TrackedContact,
-        activity: Activity,
+        activity: String,
         proposedTime: DateInterval,
         scheduledAt: Date = .now
     ) {
         self.id = id
         self.contact = contact
-        self.activity = activity.rawValue
+        self.activity = activity
         self.startDate = proposedTime.start
         self.endDate = proposedTime.end
         self.scheduledAt = scheduledAt
@@ -38,6 +38,8 @@ final class ScheduledHangout {
         DateInterval(start: startDate, end: endDate)
     }
 
+    /// Attempts to resolve the stored activity string back to a structured Activity case.
+    /// Returns nil for LLM-generated activities that don't match any known case.
     var resolvedActivity: Activity? {
         Activity(rawValue: activity)
     }

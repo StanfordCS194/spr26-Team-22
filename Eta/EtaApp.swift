@@ -18,14 +18,25 @@ struct EtaApp: App {
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
     private let analyticsService: AnalyticsService
+    private let photoRepository: ActivityPhotoRepository
+    private let reminderPhotoState: ReminderPhotoState
+    private let nudgeService: NudgeService
+    private let nudgeScheduler: NudgeScheduler
+    private let weeklyCheckInService: WeeklyCheckInService
+    private let weeklyCheckInState: WeeklyCheckInState
+    private let nudgeReminderState: NudgeReminderState
     @State private var onboardingViewModel: OnboardingViewModel
 
     init() {
-        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self)
+        let container = try! ModelContainer(for: TrackedContact.self, ScheduledHangout.self, AnalyticsEvent.self, Invitation.self, ActivityPhoto.self)
         self.container = container
 
         let repository = ContactRepository(modelContext: container.mainContext)
         let hangoutRepository = ScheduledHangoutRepository(modelContext: container.mainContext)
+        let photoRepository = ActivityPhotoRepository(modelContext: container.mainContext)
+        self.photoRepository = photoRepository
+        let reminderPhotoState = ReminderPhotoState()
+        self.reminderPhotoState = reminderPhotoState
 
         let analyticsService = AnalyticsService(modelContext: container.mainContext)
         self.analyticsService = analyticsService
@@ -40,11 +51,32 @@ struct EtaApp: App {
             preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
-        let rulesStrategy = RulesSuggestionStrategy(preferencesService: preferencesService)
+        let nudgeService = NudgeService(
+            relationshipService: relationshipService,
+            photoRepository: photoRepository,
+            runner: GitHubModelsLLMRunner()
+        )
+        self.nudgeService = nudgeService
+        self.weeklyCheckInService = WeeklyCheckInService()
+        let weeklyCheckInState = WeeklyCheckInState()
+        self.weeklyCheckInState = weeklyCheckInState
+        let nudgeReminderState = NudgeReminderState()
+        self.nudgeReminderState = nudgeReminderState
+
+        // Context engine — fans out to all data sources in parallel on each query.
+        let contextEngine = DefaultContextEngine(sources: [
+            EventHistoryContextSource(relationshipService: relationshipService),
+            PreferencesContextSource(preferencesService: preferencesService)
+        ])
+
+        // Activity strategy — chooses an activity
+        let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
+
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
-            strategy: rulesStrategy
+            contextEngine: contextEngine,
+            activityStrategy: activityStrategy
         )
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(
@@ -58,7 +90,13 @@ struct EtaApp: App {
             notificationService: notificationService,
             modelContext: container.mainContext
         )
-        let notificationDelegate = NotificationDelegate(invitationManager: invitationManager)
+        self.nudgeScheduler = NudgeScheduler(calendarDataProvider: calendarDataProvider)
+        let notificationDelegate = NotificationDelegate(
+            invitationManager: invitationManager,
+            reminderPhotoState: reminderPhotoState,
+            weeklyCheckInState: weeklyCheckInState,
+            nudgeReminderState: nudgeReminderState
+        )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
@@ -71,7 +109,8 @@ struct EtaApp: App {
             suggestionService: suggestionService,
             inviteService: inviteService,
             invitationManager: invitationManager,
-            formatter: formatter
+            formatter: formatter,
+            photoRepository: photoRepository
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
@@ -90,7 +129,14 @@ struct EtaApp: App {
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    photoRepository: photoRepository,
+                    reminderPhotoState: reminderPhotoState,
+                    nudgeService: nudgeService,
+                    nudgeScheduler: nudgeScheduler,
+                    weeklyCheckInService: weeklyCheckInService,
+                    weeklyCheckInState: weeklyCheckInState,
+                    nudgeReminderState: nudgeReminderState
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)
@@ -114,6 +160,8 @@ struct EtaApp: App {
             queue: .main
         ) { _ in
             analyticsService.logAppForegrounded()
+            Task { await nudgeService.scheduleNudge() }
+            Task { await weeklyCheckInService.scheduleIfNeeded() }
         }
     }
 }

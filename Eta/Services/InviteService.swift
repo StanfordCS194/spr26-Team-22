@@ -21,11 +21,12 @@ final class InviteService {
     func book(suggestion: Suggestion) -> UUID {
         let hangout = ScheduledHangout(
             contact: suggestion.contact,
-            activity: suggestion.activity,
+            activity: suggestion.activityDescription,
             proposedTime: suggestion.proposedTime
         )
         try? hangoutRepository.add(hangout)
         calendarDataProvider.createEvent(for: suggestion)
+        NotificationCenter.default.post(name: .hangoutScheduled, object: nil)
         return hangout.id
     }
 
