@@ -91,7 +91,7 @@ struct ChatView: View {
             VStack(spacing: 6) {
                 Text("What can I help with?")
                     .font(.headline)
-                Text("Schedule a hangout, reflect on trends,\nset a goal, or log feedback.")
+                Text("Schedule a hangout, reflect on trends,\nor set a goal.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
