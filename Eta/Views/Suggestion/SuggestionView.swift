@@ -27,6 +27,7 @@ struct SuggestionView: View {
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
                                 onCustomize: { showingCustomize = true },
+                                latestPhotoData: viewModel.latestPhotoData(for: suggestion),
                                 onDismiss: {
                                     analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
                                     viewModel.dismiss()
@@ -75,8 +76,7 @@ struct SuggestionView: View {
         }
         .task {
             await viewModel.refresh()
-            
-            // Track suggestions generated
+
             if let suggestion = viewModel.suggestion {
                 analyticsService.logSuggestionsGenerated(
                     count: 1,

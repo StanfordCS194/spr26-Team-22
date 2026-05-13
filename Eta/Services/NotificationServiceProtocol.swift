@@ -8,4 +8,10 @@ protocol NotificationServiceProtocol {
 
     /// Cancel a pending notification (e.g. if the invitation is cancelled).
     func cancelNotification(for invitationID: String)
+
+    /// Schedule a heads-up (30 min before start) and photo-capture (at end) notification pair.
+    func scheduleHangoutReminders(hangoutID: UUID, activityName: String, friendName: String, startDate: Date, endDate: Date) async
+
+    /// Cancel both reminder notifications for a hangout.
+    func cancelHangoutReminders(for hangoutID: UUID)
 }

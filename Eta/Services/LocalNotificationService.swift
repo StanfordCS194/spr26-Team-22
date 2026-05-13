@@ -39,6 +39,55 @@ final class LocalNotificationService: NotificationServiceProtocol {
         center.removePendingNotificationRequests(withIdentifiers: ["invitation-response-\(invitationID)"])
     }
 
+    func scheduleHangoutReminders(hangoutID: UUID, activityName: String, friendName: String, startDate: Date, endDate: Date) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+
+        let headsUpTime = startDate.addingTimeInterval(-30 * 60)
+        if headsUpTime > .now {
+            let content = UNMutableNotificationContent()
+            content.title = "Heads up!"
+            content.body = "Your \(activityName.lowercased()) with \(friendName) starts in 30 minutes."
+            content.sound = .default
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: headsUpTime),
+                repeats: false
+            )
+            try? await center.add(UNNotificationRequest(
+                identifier: "hangout-headsup-\(hangoutID)",
+                content: content,
+                trigger: trigger
+            ))
+        }
+
+        if endDate > .now {
+            let content = UNMutableNotificationContent()
+            content.title = activityName
+            content.body = "You just spent time with \(friendName). Tap to relive it."
+            content.sound = .default
+            content.userInfo = [
+                "notificationType": "photoCapture",
+                "activityRawValue": activityName,
+                "hangoutID": hangoutID.uuidString
+            ]
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: endDate),
+                repeats: false
+            )
+            try? await center.add(UNNotificationRequest(
+                identifier: "hangout-photo-\(hangoutID)",
+                content: content,
+                trigger: trigger
+            ))
+        }
+    }
+
+    func cancelHangoutReminders(for hangoutID: UUID) {
+        center.removePendingNotificationRequests(withIdentifiers: [
+            "hangout-headsup-\(hangoutID)",
+            "hangout-photo-\(hangoutID)"
+        ])
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
