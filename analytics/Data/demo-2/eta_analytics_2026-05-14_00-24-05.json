@@ -1,0 +1,199 @@
+{
+  "sessions" : [
+    {
+      "startTime" : "2026-05-13T19:39:08Z",
+      "events" : [
+        {
+          "timestamp" : "2026-05-13T19:39:08Z",
+          "value" : "",
+          "category" : "Lifecycle",
+          "eventType" : "AppLaunched",
+          "metadata" : {
+
+          }
+        },
+        {
+          "value" : "",
+          "timestamp" : "2026-05-13T19:39:09Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "eventType" : "AppForegrounded"
+        },
+        {
+          "timestamp" : "2026-05-13T19:39:41Z",
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView",
+          "category" : "Navigation"
+        },
+        {
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 5.7811099290847778
+          },
+          "timestamp" : "2026-05-13T19:39:47Z",
+          "category" : "Navigation",
+          "value" : "ConnectionsView"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-05-13T19:39:56Z"
+        },
+        {
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenExited",
+          "timestamp" : "2026-05-13T19:39:59Z",
+          "metadata" : {
+            "duration" : 3.016855001449585
+          },
+          "category" : "Navigation"
+        },
+        {
+          "value" : "",
+          "category" : "Lifecycle",
+          "eventType" : "AppBackgrounded",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T19:40:04Z"
+        },
+        {
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-13T19:40:07Z",
+          "eventType" : "AppForegrounded",
+          "value" : ""
+        },
+        {
+          "timestamp" : "2026-05-13T19:40:09Z",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+            "contacts" : [
+              "Alex Demo"
+            ],
+            "count" : 1
+          },
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "category" : "Suggestion",
+          "timestamp" : "2026-05-13T19:40:14Z"
+        },
+        {
+          "value" : "SuggestionView",
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-05-13T19:40:14Z"
+        },
+        {
+          "value" : "Alex Demo",
+          "timestamp" : "2026-05-13T19:40:14Z",
+          "eventType" : "SuggestionViewed",
+          "category" : "Suggestion",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        },
+        {
+          "category" : "Navigation",
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 5.8583270311355591
+          },
+          "timestamp" : "2026-05-13T19:40:15Z"
+        },
+        {
+          "category" : "Navigation",
+          "eventType" : "ScreenExited",
+          "timestamp" : "2026-05-13T19:40:19Z",
+          "value" : "SuggestionView",
+          "metadata" : {
+            "duration" : 5.0787960290908813
+          }
+        },
+        {
+          "timestamp" : "2026-05-13T19:40:20Z",
+          "category" : "Navigation",
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          }
+        },
+        {
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenExited",
+          "timestamp" : "2026-05-13T19:40:34Z",
+          "metadata" : {
+            "duration" : 14.387550950050354
+          },
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-05-13T19:40:38Z",
+          "category" : "Navigation",
+          "value" : "ConnectionsView"
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "timestamp" : "2026-05-13T19:40:46Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "value" : ""
+        },
+        {
+          "value" : "",
+          "timestamp" : "2026-05-13T20:37:01Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "eventType" : "AppForegrounded"
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "value" : "",
+          "timestamp" : "2026-05-13T20:37:25Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          }
+        }
+      ],
+      "sessionID" : "Session_2026-05-13_12-39-08",
+      "endTime" : "2026-05-13T20:37:25Z",
+      "duration" : 3496.8464900255203,
+      "notes" : ""
+    }
+  ],
+  "totalSessions" : 1,
+  "totalEvents" : 20,
+  "exportDate" : "2026-05-14T07:24:05Z"
+}
