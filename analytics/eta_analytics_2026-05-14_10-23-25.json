@@ -1,0 +1,408 @@
+{
+  "totalEvents" : 41,
+  "totalSessions" : 2,
+  "exportDate" : "2026-05-14T17:23:25Z",
+  "sessions" : [
+    {
+      "sessionID" : "Session_2026-05-13_12-39-18",
+      "duration" : 2757.4512140750885,
+      "notes" : "",
+      "startTime" : "2026-05-13T19:39:18Z",
+      "events" : [
+        {
+          "timestamp" : "2026-05-13T19:39:18Z",
+          "eventType" : "AppLaunched",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "value" : ""
+        },
+        {
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T19:39:18Z"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-05-13T19:39:59Z",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          },
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+            "duration" : 4.2521970272064209
+          },
+          "category" : "Navigation",
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-05-13T19:40:03Z",
+          "eventType" : "ScreenExited"
+        },
+        {
+          "value" : "SuggestionView",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "timestamp" : "2026-05-13T19:40:05Z"
+        },
+        {
+          "value" : "",
+          "category" : "Suggestion",
+          "metadata" : {
+            "contacts" : [
+              "Alex Demo"
+            ],
+            "count" : 1
+          },
+          "timestamp" : "2026-05-13T19:40:05Z",
+          "eventType" : "SuggestionsGenerated"
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "timestamp" : "2026-05-13T19:40:05Z",
+          "category" : "Suggestion",
+          "value" : "Alex Demo",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        },
+        {
+          "eventType" : "SuggestionTapped",
+          "timestamp" : "2026-05-13T19:40:24Z",
+          "category" : "Suggestion",
+          "metadata" : {
+
+          },
+          "value" : "Alex Demo"
+        },
+        {
+          "value" : "SuggestionCard.YesLetsDoIt",
+          "eventType" : "ButtonTapped",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T19:40:24Z"
+        },
+        {
+          "timestamp" : "2026-05-13T19:40:24Z",
+          "eventType" : "InvitationInitiated",
+          "metadata" : {
+            "timeOfDay" : "afternoon",
+            "activity" : "Grab coffee",
+            "freeSlotSuggested" : true
+          },
+          "value" : "Alex Demo",
+          "category" : "Invitation"
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "metadata" : {
+
+          },
+          "value" : "",
+          "timestamp" : "2026-05-13T19:40:24Z",
+          "category" : "Lifecycle"
+        },
+        {
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-13T19:40:26Z",
+          "value" : "",
+          "eventType" : "AppForegrounded"
+        },
+        {
+          "value" : "SuggestionView",
+          "timestamp" : "2026-05-13T19:40:31Z",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 26.475494027137756
+          },
+          "category" : "Navigation"
+        },
+        {
+          "category" : "Navigation",
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-05-13T19:40:48Z",
+          "metadata" : {
+
+          }
+        },
+        {
+          "metadata" : {
+            "duration" : 12.860015988349915
+          },
+          "timestamp" : "2026-05-13T19:41:01Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "value" : "ConnectionsView"
+        },
+        {
+          "value" : "SuggestionView",
+          "timestamp" : "2026-05-13T19:41:11Z",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation"
+        },
+        {
+          "category" : "Suggestion",
+          "metadata" : {
+            "contacts" : [
+              "Drew Thompson"
+            ],
+            "count" : 1
+          },
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "timestamp" : "2026-05-13T19:41:13Z"
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "category" : "Suggestion",
+          "timestamp" : "2026-05-13T19:41:13Z",
+          "value" : "Drew Thompson",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          }
+        },
+        {
+          "value" : "SuggestionCard.SeeDetailsEdit",
+          "metadata" : {
+
+          },
+          "eventType" : "ButtonTapped",
+          "timestamp" : "2026-05-13T19:41:16Z",
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+            "duration" : 23.729693055152893
+          },
+          "category" : "Navigation",
+          "timestamp" : "2026-05-13T19:41:35Z",
+          "eventType" : "ScreenExited",
+          "value" : "SuggestionView"
+        },
+        {
+          "timestamp" : "2026-05-13T19:41:38Z",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "value" : "ConnectionsView"
+        },
+        {
+          "value" : "ConnectionsView",
+          "metadata" : {
+            "duration" : 2.875607967376709
+          },
+          "timestamp" : "2026-05-13T19:41:40Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenExited"
+        },
+        {
+          "timestamp" : "2026-05-13T19:41:44Z",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-05-13T19:41:50Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 5.8496559858322144
+          }
+        },
+        {
+          "value" : "",
+          "timestamp" : "2026-05-13T19:42:19Z",
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "eventType" : "AppBackgrounded"
+        },
+        {
+          "value" : "",
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-13T19:46:56Z",
+          "eventType" : "AppForegrounded",
+          "metadata" : {
+
+          }
+        },
+        {
+          "timestamp" : "2026-05-13T19:46:58Z",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "category" : "Suggestion",
+          "eventType" : "SuggestionViewed",
+          "value" : "Drew Thompson"
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "timestamp" : "2026-05-13T19:47:10Z",
+          "category" : "Lifecycle",
+          "value" : "",
+          "metadata" : {
+
+          }
+        },
+        {
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T20:18:09Z",
+          "eventType" : "AppForegrounded",
+          "value" : ""
+        },
+        {
+          "eventType" : "AppBackgrounded",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T20:18:09Z",
+          "category" : "Lifecycle",
+          "value" : ""
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-13T20:25:06Z",
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "category" : "Lifecycle"
+        },
+        {
+          "timestamp" : "2026-05-13T20:25:09Z",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "eventType" : "ScreenViewed",
+          "value" : "SuggestionView"
+        },
+        {
+          "category" : "Suggestion",
+          "value" : "Alex Demo",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "eventType" : "SuggestionViewed",
+          "timestamp" : "2026-05-13T20:25:09Z"
+        },
+        {
+          "value" : "",
+          "category" : "Suggestion",
+          "metadata" : {
+            "count" : 1,
+            "contacts" : [
+              "Alex Demo"
+            ]
+          },
+          "timestamp" : "2026-05-13T20:25:09Z",
+          "eventType" : "SuggestionsGenerated"
+        },
+        {
+          "timestamp" : "2026-05-13T20:25:13Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenExited",
+          "metadata" : {
+            "duration" : 4.3774369955062866
+          },
+          "value" : "SuggestionView"
+        },
+        {
+          "timestamp" : "2026-05-13T20:25:16Z",
+          "eventType" : "AppBackgrounded",
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "value" : ""
+        }
+      ],
+      "endTime" : "2026-05-13T20:25:16Z"
+    },
+    {
+      "endTime" : "2026-05-14T17:23:02Z",
+      "notes" : "",
+      "events" : [
+        {
+          "value" : "",
+          "eventType" : "AppLaunched",
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-14T17:22:58Z",
+          "metadata" : {
+
+          }
+        },
+        {
+          "value" : "",
+          "timestamp" : "2026-05-14T17:22:58Z",
+          "metadata" : {
+
+          },
+          "eventType" : "AppForegrounded",
+          "category" : "Lifecycle"
+        },
+        {
+          "value" : "SuggestionView",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-14T17:23:02Z",
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "value" : "",
+          "metadata" : {
+            "count" : 1,
+            "contacts" : [
+              "Alex Demo"
+            ]
+          },
+          "timestamp" : "2026-05-14T17:23:02Z",
+          "eventType" : "SuggestionsGenerated",
+          "category" : "Suggestion"
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "value" : "Alex Demo",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "timestamp" : "2026-05-14T17:23:02Z",
+          "category" : "Suggestion"
+        }
+      ],
+      "duration" : 4.6831279993057251,
+      "startTime" : "2026-05-14T17:22:58Z",
+      "sessionID" : "Session_2026-05-14_10-22-58"
+    }
+  ]
+}

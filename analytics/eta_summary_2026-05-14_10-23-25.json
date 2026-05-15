@@ -1,0 +1,87 @@
+{
+  "screenTime" : {
+    "SuggestionView" : {
+      "totalTime" : 54.582624077796936,
+      "avgTime" : 18.194208025932312,
+      "views" : 3
+    },
+    "ConnectionsView" : {
+      "views" : 4,
+      "totalTime" : 25.837476968765259,
+      "avgTime" : 6.4593692421913147
+    }
+  },
+  "navigationFlows" : {
+    "mostCommonPath" : [
+      "ConnectionsView",
+      "SuggestionView"
+    ],
+    "avgStepsToInvite" : 2
+  },
+  "connections" : {
+    "edited" : 0,
+    "avgPercentageAdded" : 0,
+    "avgPerUser" : 0,
+    "totalRemoved" : 0,
+    "totalAdded" : 0,
+    "avgContactsAvailable" : 0,
+    "editRate" : 0,
+    "showSelectedClicks" : 0
+  },
+  "permissions" : {
+    "contacts" : {
+      "selectionType" : {
+        "selected" : 0,
+        "all" : 0
+      },
+      "granted" : 0,
+      "denied" : 0,
+      "grantRate" : 0,
+      "requested" : 0,
+      "avgTimeToGrant" : 0
+    }
+  },
+  "onboarding" : {
+    "avgDuration" : 0,
+    "completionRate" : 0
+  },
+  "suggestions" : {
+    "dismissRate" : 0,
+    "dismissed" : 0,
+    "totalGenerated" : 4,
+    "tapRate" : 100,
+    "viewed" : 5,
+    "avgPerSession" : 2,
+    "tapped" : 1
+  },
+  "invitations" : {
+    "avgTimeToSend" : 0,
+    "freeSlotSuggested" : 1,
+    "responseBreakdown" : {
+      "maybe" : 0,
+      "yes" : 0,
+      "no" : 0
+    },
+    "byTimeOfDay" : {
+      "evening" : 0,
+      "morning" : 0,
+      "afternoon" : 1
+    },
+    "completionRate" : 0,
+    "byActivity" : {
+      "Grab coffee" : 1
+    },
+    "abandoned" : 0,
+    "freeSlotAccepted" : 0,
+    "initiated" : 1,
+    "completed" : 0
+  },
+  "summary" : {
+    "totalUsers" : 2,
+    "totalSessions" : 2,
+    "dateRange" : {
+      "start" : "2026-05-13T19:39:18Z",
+      "end" : "2026-05-14T17:23:02Z"
+    }
+  }
+}
