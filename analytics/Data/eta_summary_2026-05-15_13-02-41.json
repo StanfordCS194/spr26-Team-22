@@ -1,0 +1,91 @@
+{
+  "invitations" : {
+    "avgTimeToSend" : 0,
+    "responseBreakdown" : {
+      "no" : 0,
+      "maybe" : 0,
+      "yes" : 0
+    },
+    "byActivity" : {
+      "Go for a walk" : 1
+    },
+    "completionRate" : 0,
+    "abandoned" : 0,
+    "freeSlotAccepted" : 0,
+    "byTimeOfDay" : {
+      "afternoon" : 1,
+      "evening" : 0,
+      "morning" : 0
+    },
+    "completed" : 0,
+    "freeSlotSuggested" : 1,
+    "initiated" : 1
+  },
+  "screenTime" : {
+    "ConnectionsView" : {
+      "totalTime" : 18.799543976783752,
+      "avgTime" : 4.6998859941959381,
+      "views" : 4
+    },
+    "SuggestionView" : {
+      "totalTime" : 16.007413983345032,
+      "avgTime" : 16.007413983345032,
+      "views" : 1
+    },
+    "AddConnectionSheet" : {
+      "avgTime" : 9.2962419986724854,
+      "views" : 1,
+      "totalTime" : 9.2962419986724854
+    }
+  },
+  "navigationFlows" : {
+    "avgStepsToInvite" : 1,
+    "mostCommonPath" : [
+      "SuggestionView"
+    ]
+  },
+  "suggestions" : {
+    "avgPerSession" : 1,
+    "viewed" : 2,
+    "dismissed" : 0,
+    "totalGenerated" : 1,
+    "tapped" : 1,
+    "tapRate" : 100,
+    "dismissRate" : 0
+  },
+  "onboarding" : {
+    "completionRate" : 0,
+    "avgDuration" : 0
+  },
+  "permissions" : {
+    "contacts" : {
+      "avgTimeToGrant" : 5.7149319648742676,
+      "denied" : 0,
+      "selectionType" : {
+        "all" : 1,
+        "selected" : 0
+      },
+      "grantRate" : 100,
+      "granted" : 1,
+      "requested" : 1
+    }
+  },
+  "connections" : {
+    "totalRemoved" : 0,
+    "avgPercentageAdded" : 100,
+    "showSelectedClicks" : 0,
+    "edited" : 0,
+    "avgContactsAvailable" : 14,
+    "avgPerUser" : 1,
+    "editRate" : 0,
+    "totalAdded" : 1
+  },
+  "summary" : {
+    "totalUsers" : 1,
+    "totalSessions" : 1,
+    "dateRange" : {
+      "end" : "2026-05-15T20:02:23Z",
+      "start" : "2026-05-15T20:00:14Z"
+    }
+  }
+}
