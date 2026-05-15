@@ -1,0 +1,352 @@
+{
+  "totalEvents" : 36,
+  "totalSessions" : 1,
+  "exportDate" : "2026-05-15T21:11:19Z",
+  "sessions" : [
+    {
+      "notes" : "",
+      "sessionID" : "Session_2026-05-15_16-07-34",
+      "endTime" : "2026-05-15T21:11:00Z",
+      "duration" : 206.01064896583557,
+      "events" : [
+        {
+          "metadata" : {
+
+          },
+          "eventType" : "AppLaunched",
+          "timestamp" : "2026-05-15T21:07:34Z",
+          "category" : "Lifecycle",
+          "value" : ""
+        },
+        {
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "value" : "",
+          "eventType" : "AppForegrounded",
+          "timestamp" : "2026-05-15T21:07:34Z"
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:00Z",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "eventType" : "ButtonTapped",
+          "timestamp" : "2026-05-15T21:08:04Z",
+          "category" : "Navigation",
+          "value" : "ConnectionsView.AddConnection",
+          "metadata" : {
+
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "value" : "AddConnectionSheet",
+          "timestamp" : "2026-05-15T21:08:04Z",
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation"
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:04Z",
+          "eventType" : "PermissionRequested",
+          "category" : "Permission",
+          "metadata" : {
+
+          },
+          "value" : "Contacts"
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-15T21:08:04Z",
+          "eventType" : "AppBackgrounded",
+          "category" : "Lifecycle",
+          "value" : ""
+        },
+        {
+          "eventType" : "AppForegrounded",
+          "timestamp" : "2026-05-15T21:08:13Z",
+          "category" : "Lifecycle",
+          "value" : "",
+          "metadata" : {
+
+          }
+        },
+        {
+          "category" : "Permission",
+          "metadata" : {
+            "type" : "all",
+            "timeElapsed" : 8.9586230516433716
+          },
+          "timestamp" : "2026-05-15T21:08:13Z",
+          "value" : "Contacts",
+          "eventType" : "PermissionGranted"
+        },
+        {
+          "eventType" : "ConnectionAdded",
+          "metadata" : {
+            "totalConnections" : 13,
+            "percentage" : 100,
+            "isInitialAdd" : false,
+            "totalAvailable" : 13
+          },
+          "value" : "Abby",
+          "timestamp" : "2026-05-15T21:08:15Z",
+          "category" : "Connection"
+        },
+        {
+          "eventType" : "ScreenExited",
+          "value" : "AddConnectionSheet",
+          "category" : "Navigation",
+          "timestamp" : "2026-05-15T21:08:16Z",
+          "metadata" : {
+            "duration" : 11.398102998733521
+          }
+        },
+        {
+          "metadata" : {
+            "duration" : 17.811237931251526
+          },
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-05-15T21:08:18Z",
+          "category" : "Navigation",
+          "eventType" : "ScreenExited"
+        },
+        {
+          "category" : "Navigation",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-15T21:08:21Z",
+          "eventType" : "ScreenViewed",
+          "value" : "SuggestionView"
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:22Z",
+          "metadata" : {
+            "count" : 1,
+            "contacts" : [
+              "Drew Thompson"
+            ]
+          },
+          "eventType" : "SuggestionsGenerated",
+          "category" : "Suggestion",
+          "value" : ""
+        },
+        {
+          "value" : "Drew Thompson",
+          "category" : "Suggestion",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "timestamp" : "2026-05-15T21:08:22Z",
+          "eventType" : "SuggestionViewed"
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:23Z",
+          "eventType" : "SuggestionTapped",
+          "category" : "Suggestion",
+          "value" : "Drew Thompson",
+          "metadata" : {
+
+          }
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:23Z",
+          "eventType" : "ButtonTapped",
+          "value" : "SuggestionCard.YesLetsDoIt",
+          "category" : "Navigation",
+          "metadata" : {
+
+          }
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:23Z",
+          "value" : "Drew Thompson",
+          "category" : "Invitation",
+          "metadata" : {
+            "freeSlotSuggested" : true,
+            "timeOfDay" : "afternoon",
+            "activity" : "Visit a farmers market"
+          },
+          "eventType" : "InvitationInitiated"
+        },
+        {
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "value" : "",
+          "timestamp" : "2026-05-15T21:08:24Z",
+          "eventType" : "AppBackgrounded"
+        },
+        {
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-15T21:08:25Z",
+          "eventType" : "AppForegrounded",
+          "value" : "",
+          "category" : "Lifecycle"
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:29Z",
+          "value" : "SuggestionView",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 7.8708920478820801
+          }
+        },
+        {
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-15T21:08:40Z",
+          "eventType" : "AppBackgrounded",
+          "value" : ""
+        },
+        {
+          "timestamp" : "2026-05-15T21:08:41Z",
+          "category" : "Lifecycle",
+          "value" : "",
+          "eventType" : "AppForegrounded",
+          "metadata" : {
+
+          }
+        },
+        {
+          "eventType" : "SuggestionViewed",
+          "value" : "Alex Demo",
+          "category" : "Suggestion",
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "timestamp" : "2026-05-15T21:08:41Z"
+        },
+        {
+          "eventType" : "ScreenViewed",
+          "timestamp" : "2026-05-15T21:09:42Z",
+          "value" : "ConnectionsView",
+          "metadata" : {
+
+          },
+          "category" : "Navigation"
+        },
+        {
+          "timestamp" : "2026-05-15T21:09:46Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 4.3599849939346313
+          },
+          "value" : "ConnectionsView"
+        },
+        {
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-05-15T21:09:50Z",
+          "metadata" : {
+
+          },
+          "eventType" : "ScreenViewed",
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+            "duration" : 1.6094579696655273
+          },
+          "value" : "ConnectionsView",
+          "timestamp" : "2026-05-15T21:09:51Z",
+          "eventType" : "ScreenExited",
+          "category" : "Navigation"
+        },
+        {
+          "timestamp" : "2026-05-15T21:10:04Z",
+          "metadata" : {
+
+          },
+          "category" : "Navigation",
+          "value" : "ConnectionsView",
+          "eventType" : "ScreenViewed"
+        },
+        {
+          "value" : "ConnectionsView",
+          "category" : "Navigation",
+          "metadata" : {
+            "duration" : 1.2464609146118164
+          },
+          "timestamp" : "2026-05-15T21:10:05Z",
+          "eventType" : "ScreenExited"
+        },
+        {
+          "value" : "SuggestionView",
+          "eventType" : "ScreenViewed",
+          "metadata" : {
+
+          },
+          "timestamp" : "2026-05-15T21:10:07Z",
+          "category" : "Navigation"
+        },
+        {
+          "metadata" : {
+            "daysSinceLastHangout" : -1
+          },
+          "value" : "Alex Demo",
+          "timestamp" : "2026-05-15T21:10:07Z",
+          "eventType" : "SuggestionViewed",
+          "category" : "Suggestion"
+        },
+        {
+          "metadata" : {
+            "count" : 1,
+            "contacts" : [
+              "Alex Demo"
+            ]
+          },
+          "eventType" : "SuggestionsGenerated",
+          "value" : "",
+          "timestamp" : "2026-05-15T21:10:07Z",
+          "category" : "Suggestion"
+        },
+        {
+          "value" : "SuggestionView",
+          "category" : "Navigation",
+          "timestamp" : "2026-05-15T21:10:09Z",
+          "metadata" : {
+            "duration" : 1.9164990186691284
+          },
+          "eventType" : "ScreenExited"
+        },
+        {
+          "value" : "",
+          "timestamp" : "2026-05-15T21:10:23Z",
+          "category" : "Lifecycle",
+          "metadata" : {
+
+          },
+          "eventType" : "AppBackgrounded"
+        },
+        {
+          "eventType" : "AppForegrounded",
+          "metadata" : {
+
+          },
+          "category" : "Lifecycle",
+          "timestamp" : "2026-05-15T21:11:00Z",
+          "value" : ""
+        }
+      ],
+      "startTime" : "2026-05-15T21:07:34Z"
+    }
+  ]
+}

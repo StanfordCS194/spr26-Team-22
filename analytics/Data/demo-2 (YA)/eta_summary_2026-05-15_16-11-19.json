@@ -1,0 +1,93 @@
+{
+  "onboarding" : {
+    "avgDuration" : 0,
+    "completionRate" : 0
+  },
+  "connections" : {
+    "avgPerUser" : 1,
+    "totalRemoved" : 0,
+    "editRate" : 0,
+    "showSelectedClicks" : 0,
+    "avgPercentageAdded" : 100,
+    "edited" : 0,
+    "avgContactsAvailable" : 13,
+    "totalAdded" : 1
+  },
+  "permissions" : {
+    "contacts" : {
+      "requested" : 1,
+      "avgTimeToGrant" : 8.9586230516433716,
+      "grantRate" : 100,
+      "granted" : 1,
+      "denied" : 0,
+      "selectionType" : {
+        "selected" : 0,
+        "all" : 1
+      }
+    }
+  },
+  "summary" : {
+    "totalSessions" : 1,
+    "totalUsers" : 1,
+    "dateRange" : {
+      "end" : "2026-05-15T21:11:00Z",
+      "start" : "2026-05-15T21:07:34Z"
+    }
+  },
+  "invitations" : {
+    "avgTimeToSend" : 0,
+    "freeSlotAccepted" : 0,
+    "byTimeOfDay" : {
+      "morning" : 0,
+      "evening" : 0,
+      "afternoon" : 1
+    },
+    "initiated" : 1,
+    "completed" : 0,
+    "completionRate" : 0,
+    "abandoned" : 0,
+    "responseBreakdown" : {
+      "no" : 0,
+      "maybe" : 0,
+      "yes" : 0
+    },
+    "byActivity" : {
+      "Visit a farmers market" : 1
+    },
+    "freeSlotSuggested" : 1
+  },
+  "suggestions" : {
+    "tapped" : 1,
+    "dismissed" : 0,
+    "totalGenerated" : 2,
+    "avgPerSession" : 2,
+    "dismissRate" : 0,
+    "tapRate" : 100,
+    "viewed" : 3
+  },
+  "screenTime" : {
+    "SuggestionView" : {
+      "totalTime" : 9.7873910665512085,
+      "views" : 2,
+      "avgTime" : 4.8936955332756042
+    },
+    "ConnectionsView" : {
+      "avgTime" : 6.2567854523658752,
+      "views" : 4,
+      "totalTime" : 25.027141809463501
+    },
+    "AddConnectionSheet" : {
+      "views" : 1,
+      "totalTime" : 11.398102998733521,
+      "avgTime" : 11.398102998733521
+    }
+  },
+  "navigationFlows" : {
+    "avgStepsToInvite" : 3,
+    "mostCommonPath" : [
+      "ConnectionsView",
+      "AddConnectionSheet",
+      "SuggestionView"
+    ]
+  }
+}
