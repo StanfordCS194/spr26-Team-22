@@ -9,12 +9,7 @@ final class InvitationManager {
     private let supabaseService: SupabaseService
     private let phoneSetupService: PhoneSetupService
     var pendingFeedbackHangoutID: UUID?
-
-    /// Normalized identifiers for all 5 demo team members, read from DEMO_CONTACTS in xcconfig.
-    private var demoIdentifiers: Set<String> {
-        let raw = Bundle.main.object(forInfoDictionaryKey: "DEMO_CONTACTS") as? String ?? ""
-        return Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
-    }
+    var receivedInviteState: ReceivedInviteState?
 
     /// Invitation IDs for which we have already scheduled a received-invite notification.
     private var notifiedRemoteIDs: Set<String> {
@@ -77,14 +72,14 @@ final class InvitationManager {
         modelContext.insert(invitation)
         try modelContext.save()
 
-        print("[Invite] isDemoContact=\(isDemoContact(contact)) isConfigured=\(supabaseService.isConfigured) contact=\(contactIdentifier(for: contact))")
-        if isDemoContact(contact) && supabaseService.isConfigured {
-            let toIdentifier = contactIdentifier(for: contact)
+        if supabaseService.isConfigured,
+           let receiverDeviceID = await supabaseService.lookupDeviceID(for: contactIdentifier(for: contact)),
+           !receiverDeviceID.isEmpty {
             let remote = RemoteInvitation(
                 id: invitation.id,
                 fromDevice: supabaseService.deviceID,
                 fromIdentifier: phoneSetupService.myIdentifier ?? "",
-                toIdentifier: toIdentifier,
+                toIdentifier: receiverDeviceID,
                 friendName: friendName,
                 activity: activityName,
                 startTime: scheduledTime,
@@ -92,6 +87,10 @@ final class InvitationManager {
                 status: "pending"
             )
             try await supabaseService.postInvitation(remote)
+            await notificationService.scheduleInviteSentNotification(
+                friendName: friendName,
+                activityName: activityName
+            )
         } else {
             try await notificationService.sendInvitation(for: invitation)
         }
@@ -181,38 +180,39 @@ final class InvitationManager {
         guard supabaseService.isConfigured else { return }
         guard let updates = try? await supabaseService.fetchSentUpdates() else { return }
         for remote in updates {
+            let descriptor = FetchDescriptor<Invitation>(predicate: #Predicate { $0.id == remote.id })
+            guard let inv = try? modelContext.fetch(descriptor).first,
+                  inv.status == .pending else { continue }
             try? handleInvitationResponse(invitationID: remote.id, accepted: remote.status == "confirmed")
+            await supabaseService.deleteInvitation(id: remote.id)
         }
     }
 
     private func pollReceivedInvitations() async {
-        guard supabaseService.isConfigured,
-              let myIdentifier = phoneSetupService.myIdentifier else {
-            print("[Poll] skipped — configured=\(supabaseService.isConfigured) myIdentifier=\(phoneSetupService.myIdentifier ?? "nil")")
+        guard supabaseService.isConfigured else {
+            print("[Poll] skipped — not configured")
             return
         }
-        print("[Poll] fetching for identifier=\(myIdentifier)")
-        guard let pending = try? await supabaseService.fetchPendingReceived(forIdentifier: myIdentifier) else {
+        guard let pending = try? await supabaseService.fetchPendingReceived() else {
             print("[Poll] fetch failed")
             return
         }
         print("[Poll] found \(pending.count) pending invite(s)")
 
         var notified = notifiedRemoteIDs
-        for remote in pending where !notified.contains(remote.id) {
+        for remote in pending {
+            print("[Poll] invite id=\(remote.id) alreadyNotified=\(notified.contains(remote.id))")
+            if remote.endTime < Date() {
+                await supabaseService.deleteInvitation(id: remote.id)
+                continue
+            }
+            guard !notified.contains(remote.id) else { continue }
+            print("[Poll] scheduling notification for invite=\(remote.id)")
             try? await notificationService.scheduleReceivedInvitationNotification(remote: remote)
+            receivedInviteState?.trigger(invite: remote)
             notified.insert(remote.id)
         }
         notifiedRemoteIDs = notified
-    }
-
-    private func isDemoContact(_ contact: TrackedContact) -> Bool {
-        let demos = demoIdentifiers
-        if let phone = contact.phoneNumber,
-           demos.contains(PhoneSetupService.normalized(phone)) { return true }
-        if let email = contact.emailAddress?.lowercased(),
-           demos.contains(email) { return true }
-        return false
     }
 
     private func contactIdentifier(for contact: TrackedContact) -> String {

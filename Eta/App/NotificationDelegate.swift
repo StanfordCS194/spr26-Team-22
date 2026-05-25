@@ -5,17 +5,20 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     private let reminderPhotoState: ReminderPhotoState
     private let weeklyCheckInState: WeeklyCheckInState
     private let nudgeReminderState: NudgeReminderState
+    private let receivedInviteState: ReceivedInviteState
 
     init(
         invitationManager: InvitationManager,
         reminderPhotoState: ReminderPhotoState,
         weeklyCheckInState: WeeklyCheckInState,
-        nudgeReminderState: NudgeReminderState
+        nudgeReminderState: NudgeReminderState,
+        receivedInviteState: ReceivedInviteState
     ) {
         self.invitationManager = invitationManager
         self.reminderPhotoState = reminderPhotoState
         self.weeklyCheckInState = weeklyCheckInState
         self.nudgeReminderState = nudgeReminderState
+        self.receivedInviteState = receivedInviteState
     }
 
     // Called when a notification arrives while the app is in the foreground.
@@ -40,22 +43,40 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     ) async {
         let userInfo = response.notification.request.content.userInfo
 
-        // Received invite — user tapped Accept or Decline action button.
+        // Received invite — user tapped banner or action button.
         if let remoteID = userInfo["remoteInvitationID"] as? String {
-            let accepted = response.actionIdentifier == "ACCEPT_INVITE"
             let activity = userInfo["activity"] as? String ?? ""
             let startTime = Date(timeIntervalSince1970: userInfo["startTime"] as? TimeInterval ?? 0)
             let endTime   = Date(timeIntervalSince1970: userInfo["endTime"]   as? TimeInterval ?? 0)
             let fromIdentifier = userInfo["fromIdentifier"] as? String ?? ""
-            Task { @MainActor in
-                await invitationManager.respondToRemoteInvitation(
+            let friendName = userInfo["friendName"] as? String ?? ""
+
+            if response.actionIdentifier == "ACCEPT_INVITE" || response.actionIdentifier == "DECLINE_INVITE" {
+                let accepted = response.actionIdentifier == "ACCEPT_INVITE"
+                Task { @MainActor in
+                    await invitationManager.respondToRemoteInvitation(
+                        id: remoteID,
+                        accepted: accepted,
+                        activity: activity,
+                        startTime: startTime,
+                        endTime: endTime,
+                        fromIdentifier: fromIdentifier
+                    )
+                }
+            } else {
+                // Banner tap — show the in-app sheet so user can decide.
+                let invite = RemoteInvitation(
                     id: remoteID,
-                    accepted: accepted,
+                    fromDevice: "",
+                    fromIdentifier: fromIdentifier,
+                    toIdentifier: "",
+                    friendName: friendName,
                     activity: activity,
                     startTime: startTime,
                     endTime: endTime,
-                    fromIdentifier: fromIdentifier
+                    status: "pending"
                 )
+                Task { @MainActor in receivedInviteState.trigger(invite: invite) }
             }
             return
         }

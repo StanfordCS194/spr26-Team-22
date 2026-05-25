@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
 
@@ -76,7 +77,13 @@ struct OnboardingView: View {
                                 .cornerRadius(10)
                         }
                     } else {
-                        Button(action: { viewModel.completeOnboarding() }) {
+                        Button(action: {
+                            Task {
+                                try? await UNUserNotificationCenter.current()
+                                    .requestAuthorization(options: [.alert, .sound, .badge])
+                            }
+                            viewModel.completeOnboarding()
+                        }) {
                             Text("Get Started")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)

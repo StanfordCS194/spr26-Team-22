@@ -31,8 +31,11 @@ struct EtaApp: App {
     private let weeklyCheckInService: WeeklyCheckInService
     private let weeklyCheckInState: WeeklyCheckInState
     private let nudgeReminderState: NudgeReminderState
+    private let receivedInviteState: ReceivedInviteState
     private let chatViewModel: ChatViewModel
     @State private var onboardingViewModel: OnboardingViewModel
+    private final class TimerBox { var timer: Timer? }
+    private let pollTimerBox = TimerBox()
 
     init() {
         let container = try! ModelContainer(
@@ -95,6 +98,8 @@ struct EtaApp: App {
         self.weeklyCheckInState = weeklyCheckInState
         let nudgeReminderState = NudgeReminderState()
         self.nudgeReminderState = nudgeReminderState
+        let receivedInviteState = ReceivedInviteState()
+        self.receivedInviteState = receivedInviteState
 
         let profileRepository = ContactProfileRepository(modelContext: ctx)
         let contactProfileService = ContactProfileService(profileRepository: profileRepository)
@@ -130,12 +135,14 @@ struct EtaApp: App {
             phoneSetupService: phoneSetupService
         )
         self.invitationManager = invitationManager
+        invitationManager.receivedInviteState = receivedInviteState
         self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
         let notificationDelegate = NotificationDelegate(
             invitationManager: invitationManager,
             reminderPhotoState: reminderPhotoState,
             weeklyCheckInState: weeklyCheckInState,
-            nudgeReminderState: nudgeReminderState
+            nudgeReminderState: nudgeReminderState,
+            receivedInviteState: receivedInviteState
         )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
@@ -232,6 +239,7 @@ struct EtaApp: App {
                     weeklyCheckInService: weeklyCheckInService,
                     weeklyCheckInState: weeklyCheckInState,
                     nudgeReminderState: nudgeReminderState,
+                    receivedInviteState: receivedInviteState,
                     chatViewModel: chatViewModel
                 )
             } else {
@@ -246,15 +254,17 @@ struct EtaApp: App {
             forName: UIApplication.willResignActiveNotification,
             object: nil,
             queue: .main
-        ) { _ in
+        ) { [self] _ in
             analyticsService.logAppBackgrounded()
+            pollTimerBox.timer?.invalidate()
+            pollTimerBox.timer = nil
         }
 
         NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
-        ) { _ in
+        ) { [self] _ in
             analyticsService.logAppForegrounded()
             Task { await nudgeService.scheduleNudge() }
             Task { await weeklyCheckInService.scheduleIfNeeded() }
@@ -262,25 +272,19 @@ struct EtaApp: App {
             if let id = phoneSetupService.myIdentifier {
                 Task { await supabaseService.registerDevice(identifier: id) }
             }
+            pollTimerBox.timer?.invalidate()
+            pollTimerBox.timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+                Task { await invitationManager.pollForUpdates() }
+            }
         }
 
         registerInviteResponseCategory()
     }
 
     private func registerInviteResponseCategory() {
-        let accept = UNNotificationAction(
-            identifier: "ACCEPT_INVITE",
-            title: "Accept",
-            options: [.foreground]
-        )
-        let decline = UNNotificationAction(
-            identifier: "DECLINE_INVITE",
-            title: "Decline",
-            options: []
-        )
         let category = UNNotificationCategory(
             identifier: "INVITE_RESPONSE",
-            actions: [accept, decline],
+            actions: [],
             intentIdentifiers: []
         )
         UNUserNotificationCenter.current().setNotificationCategories([category])
