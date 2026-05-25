@@ -22,4 +22,7 @@ protocol NotificationServiceProtocol {
 
     /// Schedule a local notification for an incoming remote invitation with Accept/Decline actions.
     func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws
+
+    /// Schedule a confirmation notification for the sender after an invite is posted.
+    func scheduleInviteSentNotification(friendName: String, activityName: String) async
 }

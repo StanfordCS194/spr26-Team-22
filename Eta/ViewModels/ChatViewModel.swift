@@ -107,6 +107,7 @@ final class ChatViewModel {
             )
             let hangoutID = inviteService.book(suggestion: suggestion)
             _ = try? await invitationManager.acceptSuggestion(
+                contact: contact,
                 activityName: activity,
                 friendName: friendName,
                 scheduledTime: interval.start,

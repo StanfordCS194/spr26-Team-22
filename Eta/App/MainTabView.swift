@@ -19,6 +19,7 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let receivedInviteState: ReceivedInviteState
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
@@ -108,6 +109,42 @@ struct MainTabView: View {
                 connectionsViewModel: connectionsViewModel,
                 onDismiss: { weeklyCheckInState.clear() }
             )
+        }
+        .sheet(isPresented: Binding(
+            get: { receivedInviteState.isPresented },
+            set: { if !$0 { receivedInviteState.clear() } }
+        )) {
+            if let invite = receivedInviteState.pendingInvite {
+                ReceivedInviteSheet(
+                    invite: invite,
+                    onAccept: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: true,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                        }
+                    },
+                    onDecline: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: false,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                        }
+                    }
+                )
+            }
         }
         .sheet(isPresented: Binding(
             get: { reminderPhotoState.pendingActivity != nil },

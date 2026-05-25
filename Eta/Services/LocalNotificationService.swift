@@ -121,7 +121,8 @@ final class LocalNotificationService: NotificationServiceProtocol {
             "activity": remote.activity,
             "startTime": remote.startTime.timeIntervalSince1970,
             "endTime": remote.endTime.timeIntervalSince1970,
-            "fromIdentifier": remote.fromIdentifier
+            "fromIdentifier": remote.fromIdentifier,
+            "friendName": remote.friendName
         ]
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
@@ -131,6 +132,21 @@ final class LocalNotificationService: NotificationServiceProtocol {
             trigger: trigger
         )
         try await center.add(request)
+    }
+
+    func scheduleInviteSentNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite sent!"
+        content.body = "We let \(friendName) know about \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-sent-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
     }
 
     private func formattedTime(_ date: Date) -> String {

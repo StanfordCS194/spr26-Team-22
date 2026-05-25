@@ -62,7 +62,8 @@ final class SupabaseService {
     }()
 
     init() {
-        self.baseURL = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String) ?? ""
+        let host = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String) ?? ""
+        self.baseURL = host.isEmpty ? "" : "https://\(host)"
         self.anonKey = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String) ?? ""
 
         if let saved = UserDefaults.standard.string(forKey: "supabaseDeviceID") {
@@ -81,8 +82,18 @@ final class SupabaseService {
 
     func registerDevice(identifier: String) async {
         guard isConfigured else { return }
-        let body: [String: Any] = ["device_id": deviceID, "identifier": identifier]
-        try? await request(path: "/rest/v1/devices", method: "POST", body: body, upsert: true)
+        let body: [String: Any] = ["device_id": deviceID, "identifier": identifier, "updated_at": iso(Date())]
+        try? await request(path: "/rest/v1/devices?on_conflict=identifier", method: "POST", body: body, upsert: true)
+    }
+
+    /// Returns the device_id UUID for a given identifier (phone or email), or nil if not registered.
+    func lookupDeviceID(for identifier: String) async -> String? {
+        guard isConfigured else { return nil }
+        let encoded = urlEncoded(identifier)
+        guard let data = try? await request(path: "/rest/v1/devices?identifier=eq.\(encoded)&select=device_id", method: "GET"),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let deviceID = rows.first?["device_id"] as? String else { return nil }
+        return deviceID
     }
 
     // MARK: - Invitations
@@ -102,10 +113,10 @@ final class SupabaseService {
         try await request(path: "/rest/v1/invitations", method: "POST", body: body)
     }
 
-    /// Returns invitations sent to this identifier that are still pending (excluding own device).
-    func fetchPendingReceived(forIdentifier identifier: String) async throws -> [RemoteInvitation] {
-        let encoded = urlEncoded(identifier)
-        let path = "/rest/v1/invitations?to_identifier=eq.\(encoded)&status=eq.pending&from_device=neq.\(deviceID)&select=*"
+    /// Returns invitations sent to this device that are still pending.
+    func fetchPendingReceived() async throws -> [RemoteInvitation] {
+        print("[Supabase] polling with deviceID=\(deviceID)")
+        let path = "/rest/v1/invitations?to_identifier=eq.\(deviceID)&status=eq.pending&from_device=neq.\(deviceID)&select=*"
         let data = try await request(path: path, method: "GET")
         return (try? Self.decoder.decode([RemoteInvitation].self, from: data)) ?? []
     }
@@ -120,6 +131,10 @@ final class SupabaseService {
     func respondToInvitation(id: String, accepted: Bool) async throws {
         let body: [String: Any] = ["status": accepted ? "confirmed" : "declined"]
         try await request(path: "/rest/v1/invitations?id=eq.\(id)", method: "PATCH", body: body)
+    }
+
+    func deleteInvitation(id: String) async {
+        try? await request(path: "/rest/v1/invitations?id=eq.\(id)", method: "DELETE")
     }
 
     // MARK: - Private helpers
