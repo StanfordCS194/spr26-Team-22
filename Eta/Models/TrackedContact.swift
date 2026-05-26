@@ -16,7 +16,7 @@ final class TrackedContact {
     var isRemote: Bool
     var city: String?
     var addedAt: Date
-    @Relationship(deleteRule: .cascade, inverse: \ScheduledHangout.contact)
+    @Relationship(deleteRule: .nullify, inverse: \ScheduledHangout.contact)
     var hangouts: [ScheduledHangout] = []
 
     init(

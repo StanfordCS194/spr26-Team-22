@@ -74,7 +74,7 @@ struct FriendDetailView: View {
         .sheet(isPresented: $showingFirstTimeCheckIn) {
             FirstTimeCheckInSheet(
                 displayName: displayName,
-                phoneNumber: contact.phoneNumber ?? "",
+                phoneNumber: contact.phoneNumber ?? contact.emailAddress ?? "",
                 onSave: { template in
                     homeViewModel.updateCheckInTemplate(template)
                     showingFirstTimeCheckIn = false
@@ -91,7 +91,7 @@ struct FriendDetailView: View {
             CheckInSheet(
                 displayName: displayName,
                 givenName: contact.givenName.isEmpty ? displayName : contact.givenName,
-                phoneNumber: contact.phoneNumber ?? "",
+                phoneNumber: contact.phoneNumber ?? contact.emailAddress ?? "",
                 initialTemplate: homeViewModel.checkInTemplate ?? "How have you been?",
                 onSend: { message, saveAsDefault in
                     if saveAsDefault {
@@ -215,6 +215,12 @@ struct FriendDetailView: View {
                             .onSubmit { saveCity() }
                         HStack {
                             Spacer()
+                            Button("Cancel") {
+                                cityText = contact.city ?? ""
+                                editingCity = false
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
                             Button("Save") { saveCity() }
                                 .font(.caption.weight(.semibold))
                         }
@@ -500,7 +506,7 @@ struct FriendDetailView: View {
 
     private var ctaButtons: some View {
         VStack(spacing: 12) {
-            let hasPhone = !(contact.phoneNumber ?? "").isEmpty
+            let hasPhone = !(contact.phoneNumber ?? "").isEmpty || !(contact.emailAddress ?? "").isEmpty
 
             if contact.isRemote {
                 if hasPhone { checkInButton(prominent: true) }

@@ -55,15 +55,7 @@ final class RelationshipService {
             $0.status != .canceled
         }
 
-        // Deduplicate by eventIdentifier — the same event can be returned by
-        // multiple providers if they overlap (e.g. CalDAV + iCloud).
-        var seen = Set<String>()
-        allEvents = allEvents.filter { seen.insert($0.eventIdentifier).inserted }
-
         // Build a lookup of manually logged past hangouts per contact.
-        // These are ScheduledHangout records with a past startDate, stored when the
-        // user logs a hangout they had outside the app.
-        let allHangouts = (try? hangoutRepository.fetchAll()) ?? []
         var manualLastByContactID: [UUID: (date: Date, title: String?)] = [:]
         var manualCountByContactID: [UUID: Int] = [:]
         for hangout in allHangouts where hangout.startDate <= .now && hangout.startDate >= since {
@@ -94,11 +86,11 @@ final class RelationshipService {
                     lastHangoutTitle = manualLast?.title
                 } else {
                     lastHangoutDate = cal
-                    lastHangoutTitle = lastCalEvent?.title.isEmpty == false ? lastCalEvent?.title : nil
+                    lastHangoutTitle = lastCalEvent?.activity.isEmpty == false ? lastCalEvent?.activity : nil
                 }
             } else if let cal = lastCalEvent?.startDate {
                 lastHangoutDate = cal
-                lastHangoutTitle = lastCalEvent?.title.isEmpty == false ? lastCalEvent?.title : nil
+                lastHangoutTitle = lastCalEvent?.activity.isEmpty == false ? lastCalEvent?.activity : nil
             } else {
                 lastHangoutDate = manualLast?.date
                 lastHangoutTitle = manualLast?.title

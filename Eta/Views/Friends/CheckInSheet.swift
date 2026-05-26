@@ -116,6 +116,7 @@ struct CheckInSheet: View {
                     attachmentUTI: attachment.uti,
                     attachmentFilename: attachment.filename,
                     onFinish: {
+                        onSend(trimmed, saveAsDefault)
                         showingComposer = false
                         onDismiss()
                     }
@@ -128,10 +129,10 @@ struct CheckInSheet: View {
 
     private func send() {
         guard !trimmed.isEmpty else { return }
-        onSend(trimmed, saveAsDefault)
 
         switch attachmentMode {
         case .none:
+            onSend(trimmed, saveAsDefault)
             sendViaURLScheme()
 
         case .photo:
@@ -140,6 +141,7 @@ struct CheckInSheet: View {
                 pendingAttachment = (data, "public.jpeg", "photo.jpg")
                 showingComposer = true
             } else {
+                onSend(trimmed, saveAsDefault)
                 sendViaURLScheme()
             }
 
@@ -149,14 +151,18 @@ struct CheckInSheet: View {
                 pendingAttachment = (data, "public.jpeg", "nudge.jpg")
                 showingComposer = true
             } else {
+                onSend(trimmed, saveAsDefault)
                 sendViaURLScheme()
             }
         }
     }
 
     private func sendViaURLScheme() {
-        if let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-           let url = URL(string: "sms:\(phoneNumber)&body=\(encoded)") {
+        var components = URLComponents()
+        components.scheme = "sms"
+        components.path = phoneNumber
+        components.queryItems = [URLQueryItem(name: "body", value: trimmed)]
+        if let url = components.url {
             openURL(url)
         }
         onDismiss()

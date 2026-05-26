@@ -220,7 +220,7 @@ final class HomeViewModel {
 
     func logPastHangout(contact: TrackedContact, activity: Activity, date: Date) {
         let interval = DateInterval(start: date, duration: 3600)
-        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, proposedTime: interval)
+        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, selectedTime: interval)
         hangout.inviteeResponse = .confirmed
         try? hangoutRepository.add(hangout)
         allHangouts = (try? hangoutRepository.fetchAll()) ?? []

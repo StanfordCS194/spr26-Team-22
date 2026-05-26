@@ -45,8 +45,11 @@ struct FirstTimeCheckInSheet: View {
 
     private func saveAndSend() {
         onSave(effectiveMessage)
-        if let encoded = effectiveMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-           let url = URL(string: "sms:\(phoneNumber)&body=\(encoded)") {
+        var components = URLComponents()
+        components.scheme = "sms"
+        components.path = phoneNumber
+        components.queryItems = [URLQueryItem(name: "body", value: effectiveMessage)]
+        if let url = components.url {
             openURL(url)
         }
     }

@@ -55,5 +55,8 @@ struct UpcomingEventsDashboard: View {
                 Task { await viewModel.refresh() }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .scheduledHangoutsDidChange)) { _ in
+            Task { await viewModel.refresh() }
+        }
     }
 }
