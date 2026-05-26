@@ -8,7 +8,7 @@ struct UpcomingEventsDashboard: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.upcomingItems.isEmpty {
+                if viewModel.upcomingItems.isEmpty && viewModel.pendingInvites.isEmpty {
                     ContentUnavailableView(
                         "No upcoming events",
                         systemImage: "calendar",
@@ -17,6 +17,14 @@ struct UpcomingEventsDashboard: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
+                            ForEach(viewModel.pendingInvites) { invite in
+                                ReceivedInviteCard(
+                                    invite: invite,
+                                    onAccept: { Task { await viewModel.respond(to: invite, accepted: true) } },
+                                    onDecline: { Task { await viewModel.respond(to: invite, accepted: false) } }
+                                )
+                                .padding(.horizontal)
+                            }
                             ForEach(viewModel.upcomingItems) { item in
                                 UpcomingEventCardView(item: item, photoRepository: photoRepository)
                                     .padding(.horizontal)

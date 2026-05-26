@@ -137,6 +137,13 @@ final class SupabaseService {
         try? await request(path: "/rest/v1/invitations?id=eq.\(id)", method: "DELETE")
     }
 
+    /// Deletes sent invitations that are still pending but whose end_time has passed.
+    func deleteExpiredSentInvitations() async {
+        let now = iso(Date())
+        let path = "/rest/v1/invitations?from_device=eq.\(deviceID)&status=eq.pending&end_time=lt.\(now)"
+        try? await request(path: path, method: "DELETE")
+    }
+
     // MARK: - Private helpers
 
     @discardableResult

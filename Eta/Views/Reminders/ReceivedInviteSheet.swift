@@ -4,6 +4,7 @@ struct ReceivedInviteSheet: View {
     let invite: RemoteInvitation
     let onAccept: () -> Void
     let onDecline: () -> Void
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 28) {
@@ -35,6 +36,12 @@ struct ReceivedInviteSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .foregroundStyle(.red)
+                    .buttonStyle(.plain)
+
+                Button("Answer Later") { dismiss() }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .foregroundStyle(.secondary)
                     .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)

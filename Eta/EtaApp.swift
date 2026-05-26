@@ -47,7 +47,8 @@ struct EtaApp: App {
                 PersonalRelationshipInsight.self,
                 ContactProfile.self,
                 ActivityPhoto.self,
-                HangoutFeedback.self
+                HangoutFeedback.self,
+                PendingReceivedInvitation.self
         )
         self.container = container
 
@@ -128,11 +129,13 @@ struct EtaApp: App {
         )
 
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
+        let pendingReceivedInviteRepo = PendingReceivedInvitationRepository(modelContext: ctx)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
             modelContext: ctx,
             supabaseService: supabaseService,
-            phoneSetupService: phoneSetupService
+            phoneSetupService: phoneSetupService,
+            pendingReceivedRepo: pendingReceivedInviteRepo
         )
         self.invitationManager = invitationManager
         invitationManager.receivedInviteState = receivedInviteState
@@ -179,6 +182,8 @@ struct EtaApp: App {
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
+            pendingInviteRepository: pendingReceivedInviteRepo,
+            invitationManager: invitationManager,
             formatter: formatter
         )
         self.homeViewModel = HomeViewModel(

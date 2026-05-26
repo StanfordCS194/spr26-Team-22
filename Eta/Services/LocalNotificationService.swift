@@ -149,6 +149,21 @@ final class LocalNotificationService: NotificationServiceProtocol {
         try? await center.add(request)
     }
 
+    func scheduleInviteDeclinedNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite declined"
+        content.body = "\(friendName) can't make it for \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-declined-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
