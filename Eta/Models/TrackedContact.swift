@@ -13,6 +13,8 @@ final class TrackedContact {
     var phoneNumber: String?
     var emailAddress: String?
     var isActive: Bool
+    var isRemote: Bool
+    var city: String?
     var addedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \ScheduledHangout.contact)
     var hangouts: [ScheduledHangout] = []
@@ -26,6 +28,8 @@ final class TrackedContact {
         phoneNumber: String? = nil,
         emailAddress: String? = nil,
         isActive: Bool = true,
+        isRemote: Bool = false,
+        city: String? = nil,
         addedAt: Date = Date()
     ) {
         self.id = id
@@ -36,6 +40,8 @@ final class TrackedContact {
         self.phoneNumber = phoneNumber
         self.emailAddress = emailAddress
         self.isActive = isActive
+        self.isRemote = isRemote
+        self.city = city
         self.addedAt = addedAt
     }
 }

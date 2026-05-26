@@ -9,8 +9,14 @@ struct FriendDetailView: View {
 
     @Environment(\.openURL) private var openURL
     @State private var showingGoalCreation = false
+    @State private var showingLogHangout = false
+    @State private var showingCheckIn = false
+    @State private var showingFirstTimeCheckIn = false
+    @State private var openCheckInAfterFirstTime = false
     @State private var editingNotes = false
     @State private var notesText = ""
+    @State private var editingCity = false
+    @State private var cityText = ""
 
     private var profile: ContactProfile {
         _ = homeViewModel.profileVersion
@@ -44,7 +50,57 @@ struct FriendDetailView: View {
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.large)
-        .onAppear { notesText = profile.notes }
+        .onAppear {
+            notesText = profile.notes
+            cityText = contact.city ?? ""
+        }
+        .onChange(of: showingFirstTimeCheckIn) { _, isShowing in
+            if !isShowing && openCheckInAfterFirstTime {
+                openCheckInAfterFirstTime = false
+                showingCheckIn = true
+            }
+        }
+        .sheet(isPresented: $showingLogHangout) {
+            LogHangoutSheet(
+                contact: contact,
+                displayName: displayName,
+                onLog: { activity, date in
+                    homeViewModel.logPastHangout(contact: contact, activity: activity, date: date)
+                    showingLogHangout = false
+                },
+                onDismiss: { showingLogHangout = false }
+            )
+        }
+        .sheet(isPresented: $showingFirstTimeCheckIn) {
+            FirstTimeCheckInSheet(
+                displayName: displayName,
+                phoneNumber: contact.phoneNumber ?? "",
+                onSave: { template in
+                    homeViewModel.updateCheckInTemplate(template)
+                    showingFirstTimeCheckIn = false
+                },
+                onSkip: {
+                    homeViewModel.markCheckInTemplateSet()
+                    openCheckInAfterFirstTime = true
+                    showingFirstTimeCheckIn = false
+                },
+                onDismiss: { showingFirstTimeCheckIn = false }
+            )
+        }
+        .sheet(isPresented: $showingCheckIn) {
+            CheckInSheet(
+                displayName: displayName,
+                phoneNumber: contact.phoneNumber ?? "",
+                initialTemplate: homeViewModel.checkInTemplate ?? "Hey \(contact.givenName)! How have you been?",
+                onSend: { message, saveAsDefault in
+                    if saveAsDefault {
+                        homeViewModel.updateCheckInTemplate(message)
+                    }
+                    showingCheckIn = false
+                },
+                onDismiss: { showingCheckIn = false }
+            )
+        }
         .sheet(isPresented: $showingGoalCreation) {
             GoalCreationSheet(
                 contacts: homeViewModel.contacts,
@@ -128,6 +184,55 @@ struct FriendDetailView: View {
             Text("Preferences")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
+
+            // Connection type
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Connection type")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Picker("Connection type", selection: Binding(
+                    get: { contact.isRemote },
+                    set: { homeViewModel.updateIsRemote($0, for: contact) }
+                )) {
+                    Text("In person").tag(false)
+                    Text("Online").tag(true)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            // City (in-person only)
+            if !contact.isRemote {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Location")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    if editingCity {
+                        TextField("e.g. San Francisco", text: $cityText)
+                            .font(.subheadline)
+                            .padding(10)
+                            .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+                            .onSubmit { saveCity() }
+                        HStack {
+                            Spacer()
+                            Button("Save") { saveCity() }
+                                .font(.caption.weight(.semibold))
+                        }
+                    } else {
+                        Button {
+                            cityText = contact.city ?? ""
+                            editingCity = true
+                        } label: {
+                            Text(contact.city?.isEmpty == false ? contact.city! : "Add location…")
+                                .font(.subheadline)
+                                .foregroundStyle(contact.city?.isEmpty == false ? .primary : .secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
 
             // Pending inference prompt
             if let pending = profile.pendingInference {
@@ -394,26 +499,59 @@ struct FriendDetailView: View {
 
     private var ctaButtons: some View {
         VStack(spacing: 12) {
-            if let phone = contact.phoneNumber, !phone.isEmpty {
+            let hasPhone = !(contact.phoneNumber ?? "").isEmpty
+
+            if contact.isRemote {
+                if hasPhone { checkInButton(prominent: true) }
                 Button {
-                    let name = contact.givenName.isEmpty ? contact.name : contact.givenName
-                    let body = "Hey \(name)! How have you been?"
-                    if let encoded = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                       let url = URL(string: "sms:\(phone)&body=\(encoded)") {
-                        openURL(url)
-                    }
+                    showingGoalCreation = true
                 } label: {
-                    Label("Send a check-in", systemImage: "message")
-                        .frame(maxWidth: .infinity)
+                    Label("Add a goal", systemImage: "target").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Button {
+                    showingGoalCreation = true
+                } label: {
+                    Label("Add a goal", systemImage: "target").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-            }
 
+                if hasPhone { checkInButton(prominent: false) }
+
+                Button {
+                    showingLogHangout = true
+                } label: {
+                    Label("Log a hangout", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private func saveCity() {
+        let trimmed = cityText.trimmingCharacters(in: .whitespacesAndNewlines)
+        homeViewModel.updateCity(trimmed.isEmpty ? nil : trimmed, for: contact)
+        editingCity = false
+    }
+
+    @ViewBuilder
+    private func checkInButton(prominent: Bool) -> some View {
+        if prominent {
             Button {
-                showingGoalCreation = true
+                if homeViewModel.hasSetCheckInTemplate { showingCheckIn = true }
+                else { showingFirstTimeCheckIn = true }
             } label: {
-                Label("Add a goal", systemImage: "target")
-                    .frame(maxWidth: .infinity)
+                Label("Send a check-in", systemImage: "message").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        } else {
+            Button {
+                if homeViewModel.hasSetCheckInTemplate { showingCheckIn = true }
+                else { showingFirstTimeCheckIn = true }
+            } label: {
+                Label("Send a check-in", systemImage: "message").frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
         }

@@ -18,6 +18,17 @@ final class PreferencesService {
         savePreferences()
     }
 
+    func updateCheckInTemplate(_ template: String) {
+        preferences.checkInTemplate = template
+        preferences.hasSetCheckInTemplate = true
+        savePreferences()
+    }
+
+    func markCheckInTemplateSet() {
+        preferences.hasSetCheckInTemplate = true
+        savePreferences()
+    }
+
     private func savePreferences() {
         if let encoded = try? JSONEncoder().encode(preferences) {
             UserDefaults.standard.set(encoded, forKey: "userPreferences")

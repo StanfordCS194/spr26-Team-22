@@ -21,10 +21,13 @@ final class RulesActivityStrategy: ActivityStrategy {
         for health: RelationshipHealth,
         context: PromptContext
     ) async throws -> ActivityProposal? {
+        let isRemote = health.contact.isRemote
         let disliked = profileService.profile(for: health.contact).dislikedActivities
-        let candidates = Activity.allCases.filter { !disliked.contains($0) }
-        let pool = candidates.isEmpty ? Activity.allCases : candidates
-        guard let activity = pool.randomElement() else { return nil }
+        var candidates = Activity.allCases.filter { !disliked.contains($0) && $0.isRemote == isRemote }
+        if candidates.isEmpty {
+            candidates = Activity.allCases.filter { $0.isRemote == isRemote }
+        }
+        guard let activity = candidates.randomElement() else { return nil }
         return ActivityProposal(
             activityDescription: activity.description,
             reason: reason(for: health)

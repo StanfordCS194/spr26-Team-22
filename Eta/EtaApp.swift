@@ -15,6 +15,7 @@ struct EtaApp: App {
     private let connectionsViewModel: ConnectionsViewModel
     private let suggestionViewModel: SuggestionViewModel
     private let homeViewModel: HomeViewModel
+    private let settingsViewModel: SettingsViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
     private let upcomingEventsViewModel: UpcomingEventsViewModel
@@ -121,7 +122,24 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             formatter: formatter,
             relationshipService: relationshipService,
-            contactProfileService: contactProfileService
+            contactProfileService: contactProfileService,
+            preferencesService: preferencesService
+        )
+
+        self.settingsViewModel = SettingsViewModel(
+            preferencesService: preferencesService,
+            onClearAll: {
+                try? ctx.delete(model: TrackedContact.self)
+                try? ctx.delete(model: ScheduledHangout.self)
+                try? ctx.delete(model: Goal.self)
+                try? ctx.delete(model: PersonalRelationshipInsight.self)
+                try? ctx.delete(model: ContactProfile.self)
+                try? ctx.delete(model: AnalyticsEvent.self)
+                try? ctx.delete(model: Invitation.self)
+                try? ctx.save()
+                UserDefaults.standard.removeObject(forKey: "insight_dismissal_counts")
+                UserDefaults.standard.removeObject(forKey: "eta.sessionNotes")
+            }
         )
 
         let seeder = MockDataSeeder(modelContext: ctx)
@@ -148,6 +166,7 @@ struct EtaApp: App {
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
+                    settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService
                 )
             } else {
