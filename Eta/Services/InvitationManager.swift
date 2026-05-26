@@ -8,6 +8,7 @@ final class InvitationManager {
     private let modelContext: ModelContext
     private let supabaseService: SupabaseService
     private let phoneSetupService: PhoneSetupService
+    private let pendingReceivedRepo: PendingReceivedInvitationRepository
     var pendingFeedbackHangoutID: UUID?
     var receivedInviteState: ReceivedInviteState?
 
@@ -21,12 +22,14 @@ final class InvitationManager {
         notificationService: any NotificationServiceProtocol,
         modelContext: ModelContext,
         supabaseService: SupabaseService,
-        phoneSetupService: PhoneSetupService
+        phoneSetupService: PhoneSetupService,
+        pendingReceivedRepo: PendingReceivedInvitationRepository
     ) {
         self.notificationService = notificationService
         self.modelContext = modelContext
         self.supabaseService = supabaseService
         self.phoneSetupService = phoneSetupService
+        self.pendingReceivedRepo = pendingReceivedRepo
     }
 
     func fetchHangout(id: UUID) -> ScheduledHangout? {
@@ -151,6 +154,7 @@ final class InvitationManager {
         fromIdentifier: String
     ) async {
         try? await supabaseService.respondToInvitation(id: id, accepted: accepted)
+        try? pendingReceivedRepo.delete(id: id)
 
         guard accepted, let sender = findContact(byIdentifier: fromIdentifier) else { return }
 
@@ -172,9 +176,26 @@ final class InvitationManager {
         async let sent: () = pollSentInvitations()
         async let received: () = pollReceivedInvitations()
         _ = await (sent, received)
+        expireStaleHangouts()
     }
 
     // MARK: - Private
+
+    private func expireStaleHangouts() {
+        let now = Date()
+        let descriptor = FetchDescriptor<ScheduledHangout>(
+            predicate: #Predicate { $0.endDate < now }
+        )
+        let stale = (try? modelContext.fetch(descriptor))?.filter {
+            $0.inviteeResponse == .pending
+        } ?? []
+        if !stale.isEmpty {
+            for hangout in stale { hangout.inviteeResponse = .declined }
+            try? modelContext.save()
+            NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
+        }
+        try? pendingReceivedRepo.deleteExpired()
+    }
 
     private func pollSentInvitations() async {
         guard supabaseService.isConfigured else { return }
@@ -183,9 +204,17 @@ final class InvitationManager {
             let descriptor = FetchDescriptor<Invitation>(predicate: #Predicate { $0.id == remote.id })
             guard let inv = try? modelContext.fetch(descriptor).first,
                   inv.status == .pending else { continue }
-            try? handleInvitationResponse(invitationID: remote.id, accepted: remote.status == "confirmed")
+            let accepted = remote.status == "confirmed"
+            try? handleInvitationResponse(invitationID: remote.id, accepted: accepted)
+            if !accepted {
+                await notificationService.scheduleInviteDeclinedNotification(
+                    friendName: remote.friendName,
+                    activityName: remote.activity
+                )
+            }
             await supabaseService.deleteInvitation(id: remote.id)
         }
+        await supabaseService.deleteExpiredSentInvitations()
     }
 
     private func pollReceivedInvitations() async {
@@ -209,6 +238,9 @@ final class InvitationManager {
             guard !notified.contains(remote.id) else { continue }
             print("[Poll] scheduling notification for invite=\(remote.id)")
             try? await notificationService.scheduleReceivedInvitationNotification(remote: remote)
+            if !pendingReceivedRepo.exists(id: remote.id) {
+                try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote))
+            }
             receivedInviteState?.trigger(invite: remote)
             notified.insert(remote.id)
         }
