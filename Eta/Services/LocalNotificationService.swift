@@ -39,8 +39,140 @@ final class LocalNotificationService: NotificationServiceProtocol {
         center.removePendingNotificationRequests(withIdentifiers: ["invitation-response-\(invitationID)"])
     }
 
+    func scheduleFeedbackNotification(hangoutID: UUID, friendName: String, activityName: String, at date: Date) async throws {
+        guard preferencesService.preferences.enableNotifications else { return }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "How was it?"
+        content.body = "Rate your \(activityName) with \(friendName)!"
+        content.sound = .default
+        content.userInfo = ["feedbackHangoutID": hangoutID.uuidString]
+        
+        let interval = max(date.timeIntervalSinceNow, 1)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "feedback-\(hangoutID.uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try await center.add(request)
+    }
+
+    func scheduleHangoutReminders(hangoutID: UUID, activityName: String, friendName: String, startDate: Date, endDate: Date) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+
+        let headsUpTime = startDate.addingTimeInterval(-30 * 60)
+        if headsUpTime > .now {
+            let content = UNMutableNotificationContent()
+            content.title = "Heads up!"
+            content.body = "Your \(activityName.lowercased()) with \(friendName) starts in 30 minutes."
+            content.sound = .default
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: headsUpTime),
+                repeats: false
+            )
+            try? await center.add(UNNotificationRequest(
+                identifier: "hangout-headsup-\(hangoutID)",
+                content: content,
+                trigger: trigger
+            ))
+        }
+
+        if endDate > .now {
+            let content = UNMutableNotificationContent()
+            content.title = activityName
+            content.body = "You just spent time with \(friendName). Tap to relive it."
+            content.sound = .default
+            content.userInfo = [
+                "notificationType": "photoCapture",
+                "activityRawValue": activityName,
+                "hangoutID": hangoutID.uuidString
+            ]
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: endDate),
+                repeats: false
+            )
+            try? await center.add(UNNotificationRequest(
+                identifier: "hangout-photo-\(hangoutID)",
+                content: content,
+                trigger: trigger
+            ))
+        }
+    }
+
+    func cancelHangoutReminders(for hangoutID: UUID) {
+        center.removePendingNotificationRequests(withIdentifiers: [
+            "hangout-headsup-\(hangoutID)",
+            "hangout-photo-\(hangoutID)"
+        ])
+    }
+
+    func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws {
+        guard preferencesService.preferences.enableNotifications else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(remote.friendName) invited you!"
+        content.body = "\(remote.activity) — \(formattedDateTime(remote.startTime))"
+        content.sound = .default
+        content.categoryIdentifier = "INVITE_RESPONSE"
+        content.userInfo = [
+            "notificationType": "receivedInvite",
+            "remoteInvitationID": remote.id,
+            "activity": remote.activity,
+            "startTime": remote.startTime.timeIntervalSince1970,
+            "endTime": remote.endTime.timeIntervalSince1970,
+            "fromIdentifier": remote.fromIdentifier,
+            "friendName": remote.friendName
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "received-invite-\(remote.id)",
+            content: content,
+            trigger: trigger
+        )
+        try await center.add(request)
+    }
+
+    func scheduleInviteSentNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite sent!"
+        content.body = "We let \(friendName) know about \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-sent-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
+    func scheduleInviteDeclinedNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite declined"
+        content.body = "\(friendName) can't make it for \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-declined-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private func formattedDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }

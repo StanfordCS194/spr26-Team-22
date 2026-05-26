@@ -1,22 +1,17 @@
 import Foundation
 
-/// Computes RelationshipHealth for every tracked contact by fanning out
-/// to all registered ImplicitDataProviders and correlating their events.
+/// Computes RelationshipHealth for every tracked contact using hangouts scheduled in Eta.
 final class RelationshipService {
-    private let providers: [any ImplicitDataProvider]
     private let repository: ContactRepository
     private let hangoutRepository: ScheduledHangoutRepository
     private let preferencesService: PreferencesService
     private var analyticsService: AnalyticsService?
-    private var hasRequestedCalendarPermission = false
 
     init(
-        providers: [any ImplicitDataProvider],
         repository: ContactRepository,
         hangoutRepository: ScheduledHangoutRepository,
         preferencesService: PreferencesService
     ) {
-        self.providers = providers
         self.repository = repository
         self.hangoutRepository = hangoutRepository
         self.preferencesService = preferencesService
@@ -29,8 +24,8 @@ final class RelationshipService {
     /// Returns one RelationshipHealth per active tracked contact.
     ///
     /// Uses the user's configured lookBackDays preference (default 90 days) to determine
-    /// how far back to search for hangout events.
-    /// Contacts with no events in this window receive a nil lastHangoutDate and
+    /// how far back to search scheduled hangouts.
+    /// Contacts with no completed hangouts in this window receive a nil lastHangoutDate and
     /// the maximum possible score, surfacing them as most overdue.
     func computeHealth() async -> [RelationshipHealth] {
         let lookBackDays = preferencesService.preferences.lookAheadDays > 0 ? preferencesService.preferences.lookAheadDays : 90
@@ -38,11 +33,14 @@ final class RelationshipService {
         guard !contacts.isEmpty else { return [] }
 
         let since = Calendar.current.date(byAdding: .day, value: -lookBackDays, to: .now) ?? .now
+        let allHangouts = (try? hangoutRepository.fetchAll()) ?? []
 
         // Build a lookup of the nearest upcoming hangout per contact.
         // fetchUpcoming() returns results sorted by startDate ascending, so the first
         // entry per contactID is the soonest.
-        let upcoming = (try? hangoutRepository.fetchUpcoming()) ?? []
+        let upcoming = allHangouts
+            .filter { $0.startDate > .now && $0.status != .canceled }
+            .sorted { $0.startDate < $1.startDate }
         var upcomingByContactID: [UUID: ScheduledHangout] = [:]
         for hangout in upcoming {
             guard let contactID = hangout.contact?.id else { continue }
@@ -51,48 +49,10 @@ final class RelationshipService {
             }
         }
 
-        // Fan out to all providers concurrently. A provider that denies access or
-        // throws contributes an empty result — one bad provider degrades gracefully
-        // rather than aborting the whole computation.
-        var allEvents: [HangoutEvent] = []
-        await withTaskGroup(of: [HangoutEvent].self) { group in
-            for provider in providers {
-                group.addTask { [weak self] in
-                    print("[RelationshipService] requesting access from \(type(of: provider))")
-                    
-                    // Track calendar permission request (only once)
-                    if let strongSelf = self, !strongSelf.hasRequestedCalendarPermission {
-                        strongSelf.analyticsService?.logPermissionRequested(type: "Calendar")
-                        strongSelf.hasRequestedCalendarPermission = true
-                    }
-                    
-                    let requestTime = Date()
-                    let hasAccess = await provider.requestAccess()
-                    let timeElapsed = Date().timeIntervalSince(requestTime)
-                    
-                    print("[RelationshipService] \(type(of: provider)) access granted: \(hasAccess)")
-                    
-                    // Track permission result
-                    if hasAccess {
-                        self?.analyticsService?.logPermissionGranted(
-                            type: "Calendar",
-                            timeElapsed: timeElapsed
-                        )
-                    } else {
-                        self?.analyticsService?.logPermissionDenied(
-                            type: "Calendar",
-                            timeElapsed: timeElapsed
-                        )
-                    }
-                    
-                    guard hasAccess else { return [] }
-                    print("[RelationshipService] calling fetchEvents on \(type(of: provider))")
-                    return (try? await provider.fetchEvents(for: contacts, since: since)) ?? []
-                }
-            }
-            for await events in group {
-                allEvents.append(contentsOf: events)
-            }
+        let completedHangouts = allHangouts.filter {
+            $0.endDate >= since &&
+            $0.endDate <= .now &&
+            $0.status != .canceled
         }
 
         // Deduplicate by eventIdentifier — the same event can be returned by
@@ -119,8 +79,8 @@ final class RelationshipService {
         }
 
         return contacts.map { contact in
-            let matching = allEvents.filter { event in
-                event.participantMatchers.contains { $0.matches(contact) }
+            let matching = completedHangouts.filter { hangout in
+                hangout.contact?.id == contact.id
             }
             let lastCalEvent = matching.max(by: { $0.startDate < $1.startDate })
             let manualLast = manualLastByContactID[contact.id]

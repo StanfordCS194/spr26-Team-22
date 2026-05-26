@@ -18,9 +18,25 @@ struct EtaApp: App {
     private let settingsViewModel: SettingsViewModel
     // Must be held strongly — UNUserNotificationCenter.delegate is weak.
     private let notificationDelegate: NotificationDelegate
+    private let invitationManager: InvitationManager
     private let upcomingEventsViewModel: UpcomingEventsViewModel
+    private let availabilityViewModel: AvailabilityViewModel
     private let analyticsService: AnalyticsService
+    private let photoRepository: ActivityPhotoRepository
+    private let reminderPhotoState: ReminderPhotoState
+    private let supabaseService: SupabaseService
+    private let phoneSetupService: PhoneSetupService
+    @State private var hasPhoneSetup: Bool
+    private let nudgeService: NudgeService
+    private let nudgeScheduler: NudgeScheduler
+    private let weeklyCheckInService: WeeklyCheckInService
+    private let weeklyCheckInState: WeeklyCheckInState
+    private let nudgeReminderState: NudgeReminderState
+    private let receivedInviteState: ReceivedInviteState
+    private let chatViewModel: ChatViewModel
     @State private var onboardingViewModel: OnboardingViewModel
+    private final class TimerBox { var timer: Timer? }
+    private let pollTimerBox = TimerBox()
 
     init() {
         let container = try! ModelContainer(
@@ -30,7 +46,10 @@ struct EtaApp: App {
                 Invitation.self,
                 Goal.self,
                 PersonalRelationshipInsight.self,
-                ContactProfile.self
+                ContactProfile.self,
+                ActivityPhoto.self,
+                HangoutFeedback.self,
+                PendingReceivedInvitation.self
         )
         self.container = container
 
@@ -39,36 +58,68 @@ struct EtaApp: App {
         let hangoutRepository = ScheduledHangoutRepository(modelContext: ctx)
         let goalRepository = GoalRepository(modelContext: ctx)
         let insightRepository = PersonalRelationshipInsightRepository(modelContext: ctx)
+        let photoRepository = ActivityPhotoRepository(modelContext: container.mainContext)
+        
+        self.photoRepository = photoRepository
+        let reminderPhotoState = ReminderPhotoState()
+        self.reminderPhotoState = reminderPhotoState
 
         let analyticsService = AnalyticsService(modelContext: ctx)
         self.analyticsService = analyticsService
+
+        let supabaseService = SupabaseService()
+        self.supabaseService = supabaseService
+        let phoneSetupService = PhoneSetupService()
+        self.phoneSetupService = phoneSetupService
+        self._hasPhoneSetup = State(initialValue: phoneSetupService.myIdentifier != nil)
+
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
-        let calendarDataProvider = CalendarDataProvider(preferencesService: preferencesService)
+        let availabilityRepository = UserDefaultsAvailabilityRepository()
+        let activityDurationSettings = ActivityDurationSettings()
+        let availabilityDataProvider = AvailabilityDataProvider(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
 
         let relationshipService = RelationshipService(
-            providers: [calendarDataProvider],
             repository: repository,
             hangoutRepository: hangoutRepository,
             preferencesService: preferencesService
         )
         relationshipService.setAnalyticsService(analyticsService)
+        let nudgeService = NudgeService(
+            relationshipService: relationshipService,
+            photoRepository: photoRepository,
+            runner: GitHubModelsLLMRunner()
+        )
+        self.nudgeService = nudgeService
+        self.weeklyCheckInService = WeeklyCheckInService()
+        let weeklyCheckInState = WeeklyCheckInState()
+        self.weeklyCheckInState = weeklyCheckInState
+        let nudgeReminderState = NudgeReminderState()
+        self.nudgeReminderState = nudgeReminderState
+        let receivedInviteState = ReceivedInviteState()
+        self.receivedInviteState = receivedInviteState
 
         let profileRepository = ContactProfileRepository(modelContext: ctx)
         let contactProfileService = ContactProfileService(profileRepository: profileRepository)
+        let feedbackRepository = HangoutFeedbackRepository(modelContext: ctx)
 
         // Context engine — fans out to all data sources in parallel on each query.
         let contextEngine = DefaultContextEngine(sources: [
             EventHistoryContextSource(relationshipService: relationshipService),
             PreferencesContextSource(preferencesService: preferencesService),
-            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
+            InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository),
+            HangoutFeedbackContextSource(feedbackRepository: feedbackRepository, hangoutRepository: hangoutRepository)
         ])
 
         // Activity strategy — chooses an activity; falls back to rules if LLM fails
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
         let fallbackStrategy = RulesActivityStrategy(profileService: contactProfileService)
         let suggestionService = SuggestionService(
-            calendar: calendarDataProvider,
+            availabilityProvider: availabilityDataProvider,
             relationshipService: relationshipService,
             contextEngine: contextEngine,
             activityStrategy: activityStrategy,
@@ -77,16 +128,28 @@ struct EtaApp: App {
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(
             provider: inviteProvider,
-            hangoutRepository: hangoutRepository,
-            calendarDataProvider: calendarDataProvider
+            hangoutRepository: hangoutRepository
         )
 
         let notificationService = LocalNotificationService(preferencesService: preferencesService)
+        let pendingReceivedInviteRepo = PendingReceivedInvitationRepository(modelContext: ctx)
         let invitationManager = InvitationManager(
             notificationService: notificationService,
-            modelContext: ctx
+            modelContext: ctx,
+            supabaseService: supabaseService,
+            phoneSetupService: phoneSetupService,
+            pendingReceivedRepo: pendingReceivedInviteRepo
         )
-        let notificationDelegate = NotificationDelegate(invitationManager: invitationManager)
+        self.invitationManager = invitationManager
+        invitationManager.receivedInviteState = receivedInviteState
+        self.nudgeScheduler = NudgeScheduler(availabilityDataProvider: availabilityDataProvider)
+        let notificationDelegate = NotificationDelegate(
+            invitationManager: invitationManager,
+            reminderPhotoState: reminderPhotoState,
+            weeklyCheckInState: weeklyCheckInState,
+            nudgeReminderState: nudgeReminderState,
+            receivedInviteState: receivedInviteState
+        )
         UNUserNotificationCenter.current().delegate = notificationDelegate
         self.notificationDelegate = notificationDelegate
 
@@ -106,14 +169,24 @@ struct EtaApp: App {
             formatter: formatter,
             relationshipService: relationshipService
         )
+        self.chatViewModel = ChatViewModel(
+            contactRepository: repository,
+            inviteService: inviteService,
+            invitationManager: invitationManager,
+            availabilityDataProvider: availabilityDataProvider,
+            goalRepository: goalRepository
+        )
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
             inviteService: inviteService,
             invitationManager: invitationManager,
-            formatter: formatter
+            formatter: formatter,
+            photoRepository: photoRepository
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
+            pendingInviteRepository: pendingReceivedInviteRepo,
+            invitationManager: invitationManager,
             formatter: formatter
         )
         self.homeViewModel = HomeViewModel(
@@ -148,13 +221,19 @@ struct EtaApp: App {
 
         // Returning users: seed is a no-op if data already exists.
         // First-time users: seed fires when they complete onboarding.
-        if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
-            seeder.seedIfNeeded()
-        }
+        // if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+        //     seeder.seedIfNeeded()
+        // }
+        
+        self.availabilityViewModel = AvailabilityViewModel(
+            repository: availabilityRepository,
+            hangoutRepository: hangoutRepository,
+            activityDurationSettings: activityDurationSettings
+        )
 
         self._onboardingViewModel = State(initialValue: OnboardingViewModel(
             preferencesService: preferencesService,
-            onComplete: { seeder.seedIfNeeded() }
+            onComplete: { } // onComplete: { seeder.seedIfNeeded() }
         ))
 
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -162,14 +241,32 @@ struct EtaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if onboardingViewModel.hasCompletedOnboarding {
+            if !hasPhoneSetup {
+                PhoneSetupView(phoneSetupService: phoneSetupService) {
+                    hasPhoneSetup = true
+                    if let id = phoneSetupService.myIdentifier {
+                        Task { await supabaseService.registerDevice(identifier: id) }
+                    }
+                }
+            } else if onboardingViewModel.hasCompletedOnboarding {
                 MainTabView(
                     homeViewModel: homeViewModel,
                     connectionsViewModel: connectionsViewModel,
                     suggestionViewModel: suggestionViewModel,
                     upcomingEventsViewModel: upcomingEventsViewModel,
                     settingsViewModel: settingsViewModel,
-                    analyticsService: analyticsService
+                    availabilityViewModel: availabilityViewModel,
+                    analyticsService: analyticsService,
+                    invitationManager: invitationManager,
+                    photoRepository: photoRepository,
+                    reminderPhotoState: reminderPhotoState,
+                    nudgeService: nudgeService,
+                    nudgeScheduler: nudgeScheduler,
+                    weeklyCheckInService: weeklyCheckInService,
+                    weeklyCheckInState: weeklyCheckInState,
+                    nudgeReminderState: nudgeReminderState,
+                    receivedInviteState: receivedInviteState,
+                    chatViewModel: chatViewModel
                 )
             } else {
                 OnboardingView(viewModel: onboardingViewModel)
@@ -183,16 +280,39 @@ struct EtaApp: App {
             forName: UIApplication.willResignActiveNotification,
             object: nil,
             queue: .main
-        ) { _ in
+        ) { [self] _ in
             analyticsService.logAppBackgrounded()
+            pollTimerBox.timer?.invalidate()
+            pollTimerBox.timer = nil
         }
 
         NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
-        ) { _ in
+        ) { [self] _ in
             analyticsService.logAppForegrounded()
+            Task { await nudgeService.scheduleNudge() }
+            Task { await weeklyCheckInService.scheduleIfNeeded() }
+            Task { await invitationManager.pollForUpdates() }
+            if let id = phoneSetupService.myIdentifier {
+                Task { await supabaseService.registerDevice(identifier: id) }
+            }
+            pollTimerBox.timer?.invalidate()
+            pollTimerBox.timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+                Task { await invitationManager.pollForUpdates() }
+            }
         }
+
+        registerInviteResponseCategory()
+    }
+
+    private func registerInviteResponseCategory() {
+        let category = UNNotificationCategory(
+            identifier: "INVITE_RESPONSE",
+            actions: [],
+            intentIdentifiers: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 }

@@ -85,7 +85,7 @@ final class MockDataSeeder {
             let hangout = ScheduledHangout(
                 contact: contact,
                 activity: activity.rawValue,
-                proposedTime: DateInterval(start: startDate, end: endDate),
+                selectedTime: DateInterval(start: startDate, end: endDate),
                 scheduledAt: startDate.addingTimeInterval(-86400)
             )
             hangout.inviteeResponse = .confirmed

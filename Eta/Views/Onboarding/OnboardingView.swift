@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
 
@@ -76,7 +77,13 @@ struct OnboardingView: View {
                                 .cornerRadius(10)
                         }
                     } else {
-                        Button(action: { viewModel.completeOnboarding() }) {
+                        Button(action: {
+                            Task {
+                                try? await UNUserNotificationCenter.current()
+                                    .requestAuthorization(options: [.alert, .sound, .badge])
+                            }
+                            viewModel.completeOnboarding()
+                        }) {
                             Text("Get Started")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
@@ -120,7 +127,7 @@ struct OnboardingPageWelcome: View {
 
             VStack(spacing: 12) {
                 WelcomeFeatureRow(icon: "heart.fill", color: .pink, text: "Maintain meaningful friendships")
-                WelcomeFeatureRow(icon: "calendar", color: .blue, text: "Find the perfect time to connect")
+                WelcomeFeatureRow(icon: "clock.badge.checkmark", color: .blue, text: "Find the perfect time to connect")
                 WelcomeFeatureRow(icon: "sparkles", color: .orange, text: "Smart suggestions just for you")
             }
             .padding(20)
@@ -164,10 +171,10 @@ struct OnboardingPageFeatures: View {
             
             VStack(spacing: 16) {
                 FeatureCard(
-                    icon: "calendar",
+                    icon: "clock.badge.checkmark",
                     iconColor: .blue,
-                    title: "Smart Calendar Analysis",
-                    description: "Eta reads your calendar to find free slots in your schedule"
+                    title: "Availability Planning",
+                    description: "Add times when you're free, and Eta will suggest hangouts that fit"
                 )
                 
                 FeatureCard(
@@ -245,10 +252,10 @@ struct OnboardingPageGetStarted: View {
             
             VStack(spacing: 16) {
                 PermissionInfo(
-                    icon: "calendar",
+                    icon: "clock.badge.checkmark",
                     iconColor: .blue,
-                    title: "Calendar Access",
-                    description: "We'll analyze your calendar to find free time"
+                    title: "Availability",
+                    description: "Tell Eta when you're free so suggestions only appear at useful times"
                 )
                 
                 PermissionInfo(

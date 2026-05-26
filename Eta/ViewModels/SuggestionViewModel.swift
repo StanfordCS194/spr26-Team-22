@@ -22,23 +22,47 @@ final class SuggestionViewModel {
     private let inviteService: InviteService
     private let invitationManager: InvitationManager
     private let formatter: ContactFormatter
+    private let photoRepository: ActivityPhotoRepository
 
     init(
         suggestionService: SuggestionService,
         inviteService: InviteService,
         invitationManager: InvitationManager,
-        formatter: ContactFormatter
+        formatter: ContactFormatter,
+        photoRepository: ActivityPhotoRepository
     ) {
         self.suggestionService = suggestionService
         self.inviteService = inviteService
         self.invitationManager = invitationManager
         self.formatter = formatter
+        self.photoRepository = photoRepository
     }
 
     // MARK: - Display
 
     func displayName(for suggestion: Suggestion) -> String {
         formatter.displayName(for: suggestion.contact)
+    }
+
+    func latestPhotoData(for suggestion: Suggestion) -> Data? {
+        let contactID = suggestion.contact.id
+        let rawValue = suggestion.activityDescription
+        let activity = Activity(rawValue: rawValue)
+        return photoRepository.photos(forContactID: contactID)
+            .first { $0.activityRawValue == rawValue }?.imageData
+            ?? photoRepository.photos(forContactID: contactID).first?.imageData
+            ?? activity.flatMap { photoRepository.photos(for: $0).first?.imageData }
+    }
+
+    func photos(for suggestion: Suggestion) -> [Data] {
+        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return [] }
+        return photoRepository.photos(for: activity).map { $0.imageData }
+    }
+
+    func savePhoto(_ data: Data, for suggestion: Suggestion) {
+        guard let activity = Activity(rawValue: suggestion.activityDescription) else { return }
+        let photo = ActivityPhoto(activity: activity, imageData: data)
+        try? photoRepository.add(photo)
     }
 
     /// Returns a natural-language description of when the proposed free slot falls,
@@ -75,6 +99,25 @@ final class SuggestionViewModel {
         isLoading = true
         defer { isLoading = false }
         suggestion = await suggestionService.generateSuggestion()
+
+        #if DEBUG
+        if suggestion == nil {
+            let demoContact = TrackedContact(
+                cnContactIdentifier: "demo",
+                name: "Alex Demo",
+                givenName: "Alex",
+                familyName: "Demo"
+            )
+            let start = Calendar.current.date(byAdding: .hour, value: 2, to: .now) ?? .now
+            suggestion = Suggestion(
+                contact: demoContact,
+                activityDescription: "Grab coffee",
+                reason: "You haven't hung out in a while.",
+                proposedTimes: [DateInterval(start: start, duration: 3600)],
+                generatedAt: .now
+            )
+        }
+        #endif
     }
 
     /// Clears the current suggestion. The inbox will show its empty state until
@@ -92,12 +135,12 @@ final class SuggestionViewModel {
             contact: s.contact,
             activityDescription: activity,
             reason: s.reason,
-            proposedTime: newInterval,
+            proposedTimes: [newInterval],
             generatedAt: s.generatedAt
         )
     }
 
-    /// Persists the hangout, creates a calendar event, then sends the invitation
+    /// Persists the hangout, then sends the invitation
     /// via push notification. Drives the UI through accepted → invitationSent states.
     func schedule() {
         guard let suggestion else { return }
@@ -105,14 +148,18 @@ final class SuggestionViewModel {
         let activityName = suggestion.activityDescription
         let scheduledTime = suggestion.proposedTime.start
 
+        let contact = suggestion.contact
         let hangoutID = inviteService.book(suggestion: suggestion)
+        let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
             scheduleState = .accepted
             _ = try? await invitationManager.acceptSuggestion(
+                contact: contact,
                 activityName: activityName,
                 friendName: name,
                 scheduledTime: scheduledTime,
+                endDate: endDate,
                 hangoutID: hangoutID
             )
             scheduleState = .invitationSent(friendName: name)
@@ -123,5 +170,12 @@ final class SuggestionViewModel {
     /// Returns the suggestion view to idle so the user can pull-to-refresh for a new suggestion.
     func done() {
         scheduleState = .idle
+    }
+
+    /// Schedules a hangout built from outside this ViewModel (e.g. nudge sheet).
+    /// Drives the same accepted → invitationSent flow as a normal schedule() call.
+    func scheduleFromNudge(_ suggestion: Suggestion) {
+        self.suggestion = suggestion
+        schedule()
     }
 }

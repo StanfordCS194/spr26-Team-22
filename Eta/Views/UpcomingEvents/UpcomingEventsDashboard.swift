@@ -2,12 +2,13 @@ import SwiftUI
 
 struct UpcomingEventsDashboard: View {
     let viewModel: UpcomingEventsViewModel
+    let photoRepository: ActivityPhotoRepository
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.upcomingItems.isEmpty {
+                if viewModel.upcomingItems.isEmpty && viewModel.pendingInvites.isEmpty {
                     ContentUnavailableView(
                         "No upcoming events",
                         systemImage: "calendar",
@@ -16,8 +17,16 @@ struct UpcomingEventsDashboard: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
+                            ForEach(viewModel.pendingInvites) { invite in
+                                ReceivedInviteCard(
+                                    invite: invite,
+                                    onAccept: { Task { await viewModel.respond(to: invite, accepted: true) } },
+                                    onDecline: { Task { await viewModel.respond(to: invite, accepted: false) } }
+                                )
+                                .padding(.horizontal)
+                            }
                             ForEach(viewModel.upcomingItems) { item in
-                                UpcomingEventCardView(item: item)
+                                UpcomingEventCardView(item: item, photoRepository: photoRepository)
                                     .padding(.horizontal)
                             }
                         }
@@ -30,7 +39,7 @@ struct UpcomingEventsDashboard: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
-                        EventHistoryView(items: viewModel.allItems)
+                        EventHistoryView(items: viewModel.allItems, photoRepository: photoRepository)
                     } label: {
                         Text("See All")
                             .font(.subheadline)

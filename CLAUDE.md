@@ -58,51 +58,105 @@ without a clear reason.
 Eta/
 ├── App/
 │   ├── EtaApp.swift              # ModelContainer setup + dependency wiring
-│   └── MainTabView.swift         # Root TabView — "For You" | "Friends"
+│   ├── MainTabView.swift         # Root TabView — Friends | Events | Suggestions; hosts all global sheets
+│   └── NotificationDelegate.swift # UNUserNotificationCenterDelegate — routes taps to InvitationManager,
+│                                  #   ReminderPhotoState, WeeklyCheckInState, or NudgeReminderState
 │
 ├── Models/
 │   ├── TrackedContact.swift      # @Model — SwiftData persisted contact
 │   ├── HangoutEvent.swift        # Value type — parsed calendar event
 │   ├── RelationshipHealth.swift  # Value type — computed score + metadata per contact
 │   ├── Suggestion.swift          # Value type — friend + activity + reason string
-│   └── Activity.swift            # enum — hardcoded pool for MVP
+│   ├── Activity.swift            # enum — hardcoded pool for MVP
+│   ├── ActivityPhoto.swift       # @Model — activity-scoped photo captured during/after a hangout
+│   ├── ScheduledHangout.swift    # @Model — persisted confirmed hangout
+│   ├── Invitation.swift          # @Model — persisted outgoing invite
+│   ├── AnalyticsEvent.swift      # @Model — persisted analytics event
+│   ├── HangoutStatus.swift       # enum — pending / confirmed / declined
+│   ├── ActivityProposal.swift    # Value type — LLM activity suggestion with structured fields
+│   ├── PromptContext.swift       # Value type — assembled context fed to LLM
+│   ├── UserPreferences.swift     # Value type — user-configurable preferences
+│   └── SessionInfo.swift         # Value type — analytics session metadata
 │
 ├── Protocols/
 │   ├── ImplicitDataProvider.swift
-│   ├── SuggestionStrategy.swift
-│   └── InviteProvider.swift
+│   ├── InviteProvider.swift
+│   ├── NotificationServiceProtocol.swift  # scheduleHangoutReminders / cancelHangoutReminders
+│   ├── ActivityStrategy.swift             # chooseActivity(for:context:) → ActivityProposal
+│   ├── ActivityRepresentable.swift        # description computed property — Activity conforms
+│   ├── ContextEngine.swift                # assemble(for:) → PromptContext
+│   └── ContextSource.swift               # contribute(for:) → partial context
 │
 ├── Formatters/
-│   └── ContactFormatter.swift           # Locale-aware name formatting via CNContactFormatter
+│   └── ContactFormatter.swift    # Locale-aware name formatting via CNContactFormatter
 │
 ├── DataProviders/
-│   └── CalendarDataProvider.swift   # Concrete ImplicitDataProvider — EKEventStore
+│   ├── CalendarDataProvider.swift        # Concrete ImplicitDataProvider — EKEventStore; also findFreeSlot()
+│   ├── DefaultContextEngine.swift        # Fans out to all ContextSources in parallel
+│   ├── EventHistoryContextSource.swift   # ContextSource — recent hangout history
+│   ├── PreferencesContextSource.swift    # ContextSource — user preferences
+│   └── GitHubModelsLLMRunner.swift       # LLMRunner — GitHub Models API; falls back to random Activity on no key OR any API error (rate limit, network). Never throws to callers.
 │
 ├── Strategies/
-│   └── RulesSuggestionStrategy.swift  # Concrete SuggestionStrategy — sorts by health score
+│   ├── LLMActivityStrategy.swift         # ActivityStrategy — calls LLMRunner; key path
+│   └── RulesActivityStrategy.swift       # ActivityStrategy — deterministic fallback
 │
 ├── InviteProviders/
-│   └── iMessageInviteProvider.swift   # Concrete InviteProvider — iMessage URL scheme
+│   └── iMessageInviteProvider.swift      # Concrete InviteProvider — iMessage URL scheme
 │
 ├── Repositories/
-│   └── ContactRepository.swift        # SwiftData CRUD for TrackedContact
+│   ├── ContactRepository.swift           # SwiftData CRUD for TrackedContact
+│   ├── ActivityPhotoRepository.swift     # SwiftData CRUD for ActivityPhoto; fetches by Activity or contact
+│   └── ScheduledHangoutRepository.swift  # SwiftData CRUD for ScheduledHangout
 │
 ├── Services/
-│   ├── RelationshipService.swift      # [ImplicitDataProvider] + contacts → [RelationshipHealth]
-│   ├── SuggestionService.swift        # RelationshipService + SuggestionStrategy → Suggestion
-│   └── InviteService.swift            # Wraps InviteProvider; formats the invite message text
+│   ├── RelationshipService.swift         # [ImplicitDataProvider] + contacts → [RelationshipHealth]
+│   ├── SuggestionService.swift           # RelationshipService + ActivityStrategy + ContextEngine → Suggestion
+│   ├── InviteService.swift               # Wraps InviteProvider; formats invite text; books hangout
+│   ├── InvitationManager.swift           # acceptSuggestion → schedules notifications + persists Invitation
+│   ├── LocalNotificationService.swift    # Concrete NotificationServiceProtocol — UNUserNotificationCenter
+│   ├── NudgeService.swift                # Schedules friend-driven nudge notifications (4-mode: force×llmMode)
+│   ├── NudgeScheduler.swift              # Builds a Suggestion from a free slot for direct scheduling from nudge
+│   ├── NudgeReminderState.swift          # @Observable — bridges nudge notification tap → NudgeReminderSheet
+│   ├── ReminderPhotoState.swift          # @Observable — bridges photo-capture notification tap → photo sheet
+│   ├── WeeklyCheckInService.swift        # Schedules weekly check-in notification (once per calendar week)
+│   ├── WeeklyCheckInState.swift          # @Observable — bridges weekly check-in tap → WeeklyCheckInView
+│   ├── PreferencesService.swift          # Reads/writes UserPreferences from UserDefaults
+│   ├── AnalyticsService.swift            # Logs analytics events to SwiftData
+│   └── AnalyticsService+CustomEvents.swift
 │
 ├── ViewModels/
-│   ├── SuggestionViewModel.swift      # Drives SuggestionView
-│   └── ConnectionsViewModel.swift     # Drives ConnectionsView
+│   ├── SuggestionViewModel.swift         # Drives SuggestionView; scheduleFromNudge reuses accepted→sent flow
+│   ├── ConnectionsViewModel.swift        # Drives ConnectionsView; owns healthScores dictionary
+│   ├── UpcomingEventsViewModel.swift     # Drives UpcomingEventsDashboard
+│   └── OnboardingViewModel.swift         # Drives OnboardingView; persists completion flag
 │
 └── Views/
     ├── Suggestion/
-    │   ├── SuggestionView.swift
-    │   └── SuggestionCard.swift
-    └── Connections/
-        ├── ConnectionsView.swift
-        └── AddConnectionSheet.swift
+    │   ├── SuggestionView.swift          # Suggestion tab root
+    │   └── SuggestionCard.swift          # Shows rotating activity photo thumbnail
+    ├── Connections/
+    │   ├── ConnectionsView.swift
+    │   └── AddConnectionSheet.swift
+    ├── UpcomingEvents/
+    │   ├── UpcomingEventsDashboard.swift  # Events tab root
+    │   ├── EventHistoryView.swift
+    │   └── UpcomingEventCardView.swift    # Camera icon: confirmed hangouts only, disappears 24h after startDate
+    ├── Reminders/
+    │   ├── CameraView.swift              # UIViewControllerRepresentable wrapping UIImagePickerController
+    │   ├── ReminderPhotoSheet.swift      # Sheet: shows existing photo, prompts capture, ~20% skip if photos exist
+    │   ├── ActivityNudgeView.swift       # In-app nudge view (photo + activity label)
+    │   ├── NudgeReminderSheet.swift      # Sheet on nudge tap: photo + title + actions (schedule / suggestions / later)
+    │   └── ReminderDebugModifier.swift   # Triple-tap bottom-left debug trigger for photo sheet
+    ├── WeeklyCheckIn/
+    │   └── WeeklyCheckInView.swift       # Full-screen sheet: weekly stats, overdue friends, goal picker
+    ├── Onboarding/
+    │   └── OnboardingView.swift
+    └── Analytics/
+        ├── AnalyticsDebugTrigger.swift   # Protocol + TripleTapBottomRightTrigger (bottom-right)
+        ├── AnalyticsDebugModifier.swift
+        ├── AnalyticsDebugOverlay.swift
+        └── ScreenTrackingModifier.swift
 ```
 
 ---
@@ -163,21 +217,41 @@ downward via constructors. No singletons. No environment objects for services.
 ```
 EtaApp
  ├─ ContactRepository(modelContext:)
+ ├─ ScheduledHangoutRepository(modelContext:)
+ ├─ ActivityPhotoRepository(modelContext:)
+ ├─ ReminderPhotoState()
+ ├─ NudgeReminderState()
+ ├─ WeeklyCheckInState()
  ├─ ContactFormatter()
- ├─ CalendarDataProvider()
- ├─ RelationshipService(providers: [CalendarDataProvider], repository: ContactRepository)
- ├─ RulesSuggestionStrategy()
- ├─ SuggestionService(calendar: CalendarDataProvider, relationship: RelationshipService, strategy: RulesSuggestionStrategy)
+ ├─ PreferencesService()
+ ├─ CalendarDataProvider(preferencesService:)          ← shared instance
+ ├─ RelationshipService(providers: [CalendarDataProvider], repository:, hangoutRepository:, preferencesService:)
+ ├─ DefaultContextEngine(sources: [EventHistoryContextSource, PreferencesContextSource])
+ ├─ LLMActivityStrategy(runner: GitHubModelsLLMRunner())
+ ├─ SuggestionService(calendar: CalendarDataProvider, relationshipService:, contextEngine:, activityStrategy:)
  ├─ iMessageInviteProvider()
- ├─ InviteService(provider: iMessageInviteProvider)
- ├─ SuggestionViewModel(suggestionService: SuggestionService, inviteService: InviteService, formatter: ContactFormatter)
- └─ ConnectionsViewModel(repository: ContactRepository, formatter: ContactFormatter, relationshipService: RelationshipService)
+ ├─ InviteService(provider: iMessageInviteProvider, hangoutRepository:, calendarDataProvider:)
+ ├─ LocalNotificationService(preferencesService:)
+ ├─ InvitationManager(notificationService: LocalNotificationService, modelContext:)
+ ├─ NudgeService(relationshipService:, photoRepository:, runner: GitHubModelsLLMRunner())
+ ├─ NudgeScheduler(calendarDataProvider:)
+ ├─ WeeklyCheckInService()
+ ├─ AnalyticsService(modelContext:)
+ ├─ NotificationDelegate(invitationManager:, reminderPhotoState:, weeklyCheckInState:, nudgeReminderState:)
+ │       ← held strongly on EtaApp; UNUserNotificationCenter.delegate is weak
+ ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:)
+ ├─ ConnectionsViewModel(repository:, formatter:, relationshipService:)
+ ├─ UpcomingEventsViewModel(hangoutRepository:, formatter:)
+ └─ MainTabView(connectionsViewModel:, suggestionViewModel:, upcomingEventsViewModel:, analyticsService:,
+                photoRepository:, reminderPhotoState:, nudgeService:, nudgeScheduler:,
+                weeklyCheckInService:, weeklyCheckInState:, nudgeReminderState:)
 ```
 
 `CalendarDataProvider` is injected into both `RelationshipService` (as an `ImplicitDataProvider` for historical event fetching) and `SuggestionService` (concretely, for free slot detection). A single instance is shared between both.
 
-ViewModels are created in `EtaApp` and passed into views as constructor arguments
-or via `.environment()` if needed across the tab hierarchy.
+The three `@Observable` state objects — `ReminderPhotoState`, `NudgeReminderState`, `WeeklyCheckInState` — follow the same pattern: `NotificationDelegate` writes on notification tap; `MainTabView` reads to present the corresponding sheet.
+
+ViewModels are created in `EtaApp` and passed into views as constructor arguments.
 
 ---
 
@@ -230,12 +304,14 @@ struct RelationshipHealth {
 ```swift
 struct Suggestion {
     var contact: TrackedContact
-    var activity: Activity
+    var activityDescription: String   // Free-form phrase from LLM, or Activity.rawValue in enum mode
     var reason: String                // Human-readable, e.g. "You haven't hung out in 3 weeks"
     var proposedTime: DateInterval    // The specific free slot that triggered this suggestion
     var generatedAt: Date
 }
 ```
+
+`activityDescription` is a `String` rather than `Activity` because LLM mode produces free-form phrases that don't map to enum cases. Use `Activity(rawValue: suggestion.activityDescription)` to recover a typed value when needed (e.g. for photo lookup); it returns nil for LLM-generated phrases.
 
 ### `Activity` (enum — hardcoded for MVP)
 
@@ -249,6 +325,23 @@ enum Activity: String, CaseIterable {
     case studySession = "Study together"
 }
 ```
+
+### `ActivityPhoto` (`@Model` — persisted)
+
+Photos are **activity-scoped**, not friend-scoped. A photo taken during a "Go for a walk" event is associated with that activity type and appears on any future walk suggestion, regardless of which friend is involved.
+
+```swift
+@Model final class ActivityPhoto {
+    var id: UUID
+    var activityRawValue: String   // String (not Activity) to avoid SwiftData enum persistence issues
+    var hangoutID: UUID?           // Set when captured from an event card; nil otherwise
+    var contactID: UUID?           // Set when a specific friend is associated with the capture
+    var imageData: Data            // JPEG, thumbnailed to 800px max before storage
+    var capturedAt: Date
+}
+```
+
+`activityRawValue` is a `String` rather than `Activity` because SwiftData cannot persist custom enums directly. Use `Activity(rawValue: photo.activityRawValue)` to recover the typed value.
 
 ---
 
@@ -280,9 +373,107 @@ Both permission requests must be preceded by a brief in-context explanation
 
 ## Navigation
 
-- Root: `MainTabView` — two tabs, "For You" (SuggestionView) and "Friends" (ConnectionsView)
+- Root: `MainTabView` — three tabs: **Friends** (ConnectionsView), **Events** (UpcomingEventsDashboard), **Suggestions** (SuggestionView)
 - No custom router or coordinator — use SwiftUI `NavigationStack` inside each tab
-- Sheets: `AddConnectionSheet` presented from ConnectionsView
+- Global sheets hosted in `MainTabView` (driven by shared state objects):
+  - `ReminderPhotoSheet` — photo capture post-hangout (driven by `ReminderPhotoState`)
+  - `NudgeReminderSheet` — nudge notification response (driven by `NudgeReminderState`)
+  - `WeeklyCheckInView` — weekly friendship summary (driven by `WeeklyCheckInState`)
+- Local sheets: `AddConnectionSheet` from ConnectionsView
+
+---
+
+## Photo capture feature
+
+Users can capture a photo during or after a hangout. Photos are activity-scoped and displayed as a rotating thumbnail on future suggestion cards for the same activity type.
+
+### Capture entry points
+
+1. **Event card camera icon** — visible for confirmed hangouts from the moment they are confirmed until 24 hours after `startDate`. Presents `ReminderPhotoSheet` with the hangout's resolved activity and ID. The 24h window allows capturing photos shortly after a hangout without cluttering the card indefinitely.
+2. **Notification tap** — "How was it?" local notification fires at `hangout.endDate`. Tap routes through `NotificationDelegate` → `ReminderPhotoState.trigger(activity:hangoutID:)` → global sheet in `MainTabView`.
+3. **Debug trigger** — triple-tap bottom-left corner anywhere in `MainTabView` (DEBUG only). Picks the activity with the most photos; falls back to a random activity if none have photos.
+
+There is **no camera on the suggestion card** — photos are only captured in the context of a confirmed event.
+
+### ReminderPhotoSheet behavior
+
+- If photos exist for the activity: shows one at random, with ~20% chance of skipping the prompt entirely ("Enjoy the moment!"). User can still tap "Take one anyway".
+- If no photos exist: shows camera button directly.
+- On capture: image is thumbnailed to 800px max, stored as JPEG (80% quality) via `ActivityPhotoRepository`.
+
+### Notification schedule
+
+`InvitationManager.acceptSuggestion` calls `notificationService.scheduleHangoutReminders` after creating an invitation:
+- **Heads-up** (`hangout-headsup-<UUID>`): fires 30 min before `startDate` if in the future
+- **Photo capture** (`hangout-photo-<UUID>`): fires at `endDate` if in the future; `userInfo` contains `notificationType: "photoCapture"`, `activityRawValue`, and `hangoutID`
+
+`NotificationDelegate.handleResponse` checks `notificationType` first. If `"photoCapture"`, it sets `ReminderPhotoState` on `@MainActor`; otherwise it falls through to invitation-response handling.
+
+### Debug triggers (DEBUG only)
+
+| Trigger | Gesture | Location | What it opens |
+|---|---|---|---|
+| `TripleTapBottomRightTrigger` | Triple tap | Bottom-right | Analytics export overlay |
+| `ReminderDebugModifier` | Triple tap | Bottom-left | `ReminderPhotoSheet` for activity with most photos |
+
+Both are applied in `MainTabView` via `.analyticsDebug(service:)` and `.reminderDebug(nudgeService:weeklyCheckInService:)`.
+
+---
+
+## Nudge system
+
+`NudgeService` schedules a single daily nudge notification encouraging the user to reach out to the friend with the highest relationship health score.
+
+### Four modes (force × llmMode)
+
+Two orthogonal flags produce four modes:
+
+| | Debug (`force=true`) | Production (`force=false`) |
+|---|---|---|
+| **LLM mode** (API key present) | Activity: LLM free-form · Body: LLM | Activity: LLM free-form · Body: LLM |
+| | Photo: any friend photo | Photo: any friend photo |
+| **Enum mode** (no API key) | Activity: photo-biased cascade · Body: template | Activity: random enum via runner · Body: template |
+| | Photo: friend+activity → any friend → activity | Photo: friend+activity → any friend → activity |
+
+- **LLM mode** (`llmMode = true`): `GitHubModelsLLMRunner` generates a free-form activity phrase and a warm body sentence. Photo selection uses any friend photo because the LLM activity is free-form and activity-matching would be meaningless. If the API call fails (rate limit, network error), the runner falls back to a random `Activity.rawValue` internally — the strategy never sees an error and still produces a suggestion.
+- **Enum mode** (`llmMode = false`): runner returns a random `Activity.rawValue` (its no-key path). In Debug only, the activity is instead chosen via a photo-biased cascade: friend+activity photo → any friend photo's activity → any repo photo's activity → random enum. This maximises the chance of showing a photo in the debug notification.
+- Body text: LLM mode generates a contextual sentence via runner; enum mode uses a hardcoded template keyed on `Activity`.
+
+### Runner failure model
+
+`GitHubModelsLLMRunner` owns all its failure modes and never throws to callers:
+- No API key → returns `Activity.allCases.randomElement()?.description`
+- API error (any HTTP non-200, network failure, decode error) → logs and returns the same random Activity fallback
+
+This keeps `LLMActivityStrategy` and `NudgeService` free of error-handling boilerplate. Do not add `try/catch` around `runner.generate()` in strategies or services.
+
+### Notification routing
+
+`NudgeService` sets `notificationType: "nudge"` in `userInfo`. `NotificationDelegate` routes taps to `NudgeReminderState`, which signals `MainTabView` to present `NudgeReminderSheet`.
+
+### NudgeReminderSheet
+
+Sheet presented when the user taps a nudge notification:
+- Shows a tiered photo (friend+activity → any friend → activity-scoped fallback)
+- Subtitle: "great time together" only if the friend has any friend-scoped photo; otherwise "it's been a while"
+- **Schedule it now** — calls `NudgeScheduler.buildSuggestion(contact:activityRawValue:)` which finds the next free calendar slot. On success, calls `SuggestionViewModel.scheduleFromNudge(_:)` which reuses the full accepted → invitation-sent flow and switches to the Suggestions tab. On failure (no free slot), surfaces a "No free slot" message and shows "View suggestions" instead.
+- **View suggestions** — dismisses sheet and switches to Suggestions tab
+- **Maybe later** — dismisses sheet
+
+`NudgeScheduler` depends only on `CalendarDataProvider`. All booking is delegated to `SuggestionViewModel.schedule()`, keeping the nudge path consistent with the normal suggestion path.
+
+---
+
+## Weekly check-in
+
+`WeeklyCheckInService` schedules a local notification once per calendar week. Tap routes through `NotificationDelegate` → `WeeklyCheckInState` → `WeeklyCheckInView` sheet in `MainTabView`.
+
+### WeeklyCheckInView data
+
+- Always re-fetches contacts and health scores on appearance (no stale-cache guard).
+- **"Seen this week"** — contacts whose `lastHangoutDate >= weekStart` (calendar-week boundary, not rolling 7 days).
+- **"Overdue"** — contacts whose `lastHangoutDate < weekStart`, excluding any contact with a confirmed upcoming hangout.
+- **Goal** — user picks one friend to prioritise; persisted in `UserDefaults` keyed to the current `weekStart` timestamp so it resets automatically on the next calendar week.
 
 ---
 
