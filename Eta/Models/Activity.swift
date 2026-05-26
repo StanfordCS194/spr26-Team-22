@@ -9,8 +9,17 @@ enum Activity: String, CaseIterable, Identifiable {
     case lunch        = "Get lunch"
     case workout      = "Work out together"
     case studySession = "Study together"
+    case videoCall    = "Video call"
 
     var id: String { rawValue }
+
+    /// True for activities that don't require being in the same place.
+    var isRemote: Bool {
+        switch self {
+        case .videoCall: return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - ActivityRepresentable

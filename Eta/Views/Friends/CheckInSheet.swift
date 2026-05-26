@@ -4,6 +4,7 @@ import MessageUI
 
 struct CheckInSheet: View {
     let displayName: String
+    let givenName: String
     let phoneNumber: String
     let initialTemplate: String
     let onSend: (String, Bool) -> Void
@@ -26,17 +27,22 @@ struct CheckInSheet: View {
 
     init(
         displayName: String,
+        givenName: String,
         phoneNumber: String,
         initialTemplate: String,
         onSend: @escaping (String, Bool) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.displayName = displayName
+        self.givenName = givenName
         self.phoneNumber = phoneNumber
         self.initialTemplate = initialTemplate
         self.onSend = onSend
         self.onDismiss = onDismiss
-        _messageText = State(initialValue: initialTemplate)
+        let personalized = initialTemplate.localizedCaseInsensitiveContains(givenName)
+            ? initialTemplate
+            : "Hey \(givenName)! \(initialTemplate)"
+        _messageText = State(initialValue: personalized)
     }
 
     private var trimmed: String {

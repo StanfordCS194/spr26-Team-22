@@ -90,8 +90,9 @@ struct FriendDetailView: View {
         .sheet(isPresented: $showingCheckIn) {
             CheckInSheet(
                 displayName: displayName,
+                givenName: contact.givenName.isEmpty ? displayName : contact.givenName,
                 phoneNumber: contact.phoneNumber ?? "",
-                initialTemplate: homeViewModel.checkInTemplate ?? "Hey \(contact.givenName)! How have you been?",
+                initialTemplate: homeViewModel.checkInTemplate ?? "How have you been?",
                 onSend: { message, saveAsDefault in
                     if saveAsDefault {
                         homeViewModel.updateCheckInTemplate(message)

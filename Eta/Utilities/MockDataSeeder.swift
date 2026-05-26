@@ -70,7 +70,7 @@ final class MockDataSeeder {
             (6, 44), (6, 59),                    // Riley — drifting
             (7, 1),  (7, 15),                    // Morgan — very recent
             (8, 27),                             // Casey
-            // Drew (9): no history — weak tie
+            // Drew (9): no history
             (10, 21), (10, 45),                  // Sage
             (11, 55),                            // Quinn — long gap
         ]

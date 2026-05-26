@@ -19,6 +19,7 @@ final class SuggestionService {
     private let relationshipService: RelationshipService
     private let contextEngine: any ContextEngine
     private let activityStrategy: any ActivityStrategy
+    private let fallbackStrategy: RulesActivityStrategy
 
     /// Contacts with a health score below this threshold are considered "recently seen"
     /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
@@ -28,12 +29,14 @@ final class SuggestionService {
         calendar: CalendarDataProvider,
         relationshipService: RelationshipService,
         contextEngine: any ContextEngine,
-        activityStrategy: any ActivityStrategy
+        activityStrategy: any ActivityStrategy,
+        fallbackStrategy: RulesActivityStrategy
     ) {
         self.calendar = calendar
         self.relationshipService = relationshipService
         self.contextEngine = contextEngine
         self.activityStrategy = activityStrategy
+        self.fallbackStrategy = fallbackStrategy
     }
 
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
@@ -56,17 +59,22 @@ final class SuggestionService {
         let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
 
         // Delegate activity and reason selection to the strategy.
+        // On LLM failure, fall back to the rules-based strategy so the inbox isn't left empty.
         let proposal: ActivityProposal
-        
         do {
-            guard let proposalAttempt = try await activityStrategy.propose(for: topHealth, context: context) else {
+            if let proposalAttempt = try await activityStrategy.propose(for: topHealth, context: context) {
+                proposal = proposalAttempt
+            } else if let fallback = try await fallbackStrategy.propose(for: topHealth, context: context) {
+                proposal = fallback
+            } else {
                 return nil
             }
-            
-            proposal = proposalAttempt
         } catch {
             print(error.localizedDescription)
-            return nil
+            guard let fallback = try? await fallbackStrategy.propose(for: topHealth, context: context) else {
+                return nil
+            }
+            proposal = fallback
         }
 
         return Suggestion(

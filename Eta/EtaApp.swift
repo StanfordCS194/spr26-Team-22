@@ -64,13 +64,15 @@ struct EtaApp: App {
             InsightsContextSource(contactProfileService: contactProfileService, insightRepository: insightRepository)
         ])
 
-        // Activity strategy — chooses an activity
+        // Activity strategy — chooses an activity; falls back to rules if LLM fails
         let activityStrategy = LLMActivityStrategy(runner: GitHubModelsLLMRunner())
+        let fallbackStrategy = RulesActivityStrategy(profileService: contactProfileService)
         let suggestionService = SuggestionService(
             calendar: calendarDataProvider,
             relationshipService: relationshipService,
             contextEngine: contextEngine,
-            activityStrategy: activityStrategy
+            activityStrategy: activityStrategy,
+            fallbackStrategy: fallbackStrategy
         )
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(

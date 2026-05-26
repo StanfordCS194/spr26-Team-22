@@ -9,6 +9,7 @@ struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let settingsViewModel: SettingsViewModel
     let analyticsService: AnalyticsService
 
     @State private var selectedTab: TabChoice = .friends
@@ -19,6 +20,7 @@ struct MainTabView: View {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
+                    settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService
                 )
             }
