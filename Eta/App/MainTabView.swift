@@ -29,6 +29,7 @@ struct MainTabView: View {
                 AvailabilityView(
                     viewModel: availabilityViewModel
                 )
+                .walkthrough(key: "availability", steps: TabWalkthroughs.availability)
             }
             Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
@@ -36,18 +37,21 @@ struct MainTabView: View {
                     homeViewModel: homeViewModel,
                     analyticsService: analyticsService
                 )
+                .walkthrough(key: "friends", steps: TabWalkthroughs.friends)
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
                     photoRepository: photoRepository
                 )
+                .walkthrough(key: "events", steps: TabWalkthroughs.events)
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
                     analyticsService: analyticsService
                 )
+                .walkthrough(key: "suggestions", steps: TabWalkthroughs.suggestions)
             }
         }
         .sheet(isPresented: Binding(
