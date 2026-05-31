@@ -3,7 +3,6 @@ import SwiftUI
 struct SuggestionView: View {
     let viewModel: SuggestionViewModel
     let analyticsService: AnalyticsService
-    let onShowSettings: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
@@ -70,12 +69,7 @@ struct SuggestionView: View {
                 }
             }
             .navigationTitle("For You")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { onShowSettings() } label: { Image(systemName: "gearshape") }
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await viewModel.refresh()
             }

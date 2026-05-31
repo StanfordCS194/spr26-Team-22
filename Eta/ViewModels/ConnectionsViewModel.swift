@@ -106,19 +106,13 @@ final class ConnectionsViewModel {
             return "No hangouts on record"
         }
 
-        let titleSuffix: String
-        if let title = health.lastHangoutTitle, !title.isEmpty {
-            let downcased = title.prefix(1).lowercased() + title.dropFirst()
-            titleSuffix = " at \(downcased)"
-        } else {
-            titleSuffix = ""
-        }
-
-        let localityPrefix = contact.city != nil ? (contact.isRemote ? "Remotely · " : "Locally · ") : ""
         switch days {
-        case 0:  return "\(localityPrefix)Seen today\(titleSuffix)"
-        case 1:  return "\(localityPrefix)Seen yesterday\(titleSuffix)"
-        default: return "\(localityPrefix)Last seen \(days) days ago\(titleSuffix)"
+        case 0:        return "Seen today"
+        case 1:        return "Seen yesterday"
+        case 2..<7:    return "Last seen \(days) days ago"
+        case 7..<30:   return "Last seen \(days / 7) week\(days / 7 == 1 ? "" : "s") ago"
+        case 30..<365: return "Last seen \(days / 30) month\(days / 30 == 1 ? "" : "s") ago"
+        default:       return "Last seen \(days / 365) year\(days / 365 == 1 ? "" : "s") ago"
         }
     }
 

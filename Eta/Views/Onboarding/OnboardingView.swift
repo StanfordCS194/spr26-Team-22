@@ -376,14 +376,14 @@ struct OnboardingPagePreferences: View {
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.black.opacity(0.9))
 
-                        TextField("e.g. San Francisco", text: $cityText)
-                            .font(.system(size: 14))
-                            .padding(12)
-                            .background(Color.white.opacity(0.8))
-                            .cornerRadius(8)
-                            .onChange(of: cityText) { _, value in
-                                viewModel.userPreferences.userCity = value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value.trimmingCharacters(in: .whitespacesAndNewlines)
-                            }
+                        CitySearchField(city: $cityText, onCommit: { value in
+                            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            viewModel.userPreferences.userCity = trimmed.isEmpty ? nil : trimmed
+                        })
+                        .onChange(of: cityText) { _, value in
+                            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            viewModel.userPreferences.userCity = trimmed.isEmpty ? nil : trimmed
+                        }
 
                         Text("Used to suggest in-person vs. online hangouts.")
                             .font(.system(size: 12))

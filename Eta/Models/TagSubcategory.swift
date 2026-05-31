@@ -16,7 +16,6 @@ enum TagSubcategory: String, CaseIterable, Codable, Identifiable {
     case childhoodFriend     = "Childhood friend"
     case roommate            = "Roommate"
     case friendGroup         = "Friend group"
-    case clubHobbyGroup      = "Club / hobby group"
     case sportsTeam          = "Sports team"
     case travel              = "Travel"
     case friendOfFriend      = "Friend of a friend"
@@ -30,6 +29,7 @@ enum TagSubcategory: String, CaseIterable, Codable, Identifiable {
     case faithCommunity      = "Faith community"
     case volunteerOrg        = "Volunteer org"
     case neighbor            = "Neighbor"
+    case clubHobbyGroup      = "Club / hobby group"
 
     var id: String { rawValue }
 
@@ -39,12 +39,12 @@ enum TagSubcategory: String, CaseIterable, Codable, Identifiable {
             return .school
         case .currentColleague, .formerColleague, .professionalNetwork, .conferenceEvent:
             return .work
-        case .childhoodFriend, .roommate, .friendGroup, .clubHobbyGroup, .sportsTeam,
+        case .childhoodFriend, .roommate, .friendGroup, .sportsTeam,
              .travel, .friendOfFriend, .partnersFriend:
             return .friends
         case .extendedFamily, .familyFriend:
             return .family
-        case .faithCommunity, .volunteerOrg, .neighbor:
+        case .faithCommunity, .volunteerOrg, .neighbor, .clubHobbyGroup:
             return .community
         }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 struct FriendSpotlightItem: Identifiable {
     var id: UUID { contact.id }
@@ -227,16 +228,74 @@ final class HomeViewModel {
     }
 
     private func recomputeIsRemote(for contact: TrackedContact) {
-        let userCity = preferencesService.preferences.userCity?.lowercased()
+        let prefs = preferencesService.preferences
+        if let uLat = prefs.userLatitude, let uLon = prefs.userLongitude,
+           let cLat = contact.cityLatitude, let cLon = contact.cityLongitude {
+            let userLoc = CLLocation(latitude: uLat, longitude: uLon)
+            let contactLoc = CLLocation(latitude: cLat, longitude: cLon)
+            contact.isRemote = userLoc.distance(from: contactLoc) > 80_000 // 80 km
+            return
+        }
+        let userCity = prefs.userCity?.lowercased()
         let contactCity = contact.city?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard let userCity, !userCity.isEmpty,
               let contactCity, !contactCity.isEmpty else { return }
         contact.isRemote = userCity != contactCity
     }
 
+    func updateCityCoordinates(_ latitude: Double, _ longitude: Double, for contact: TrackedContact) {
+        contact.cityLatitude = latitude
+        contact.cityLongitude = longitude
+        recomputeIsRemote(for: contact)
+        try? contactRepository.save()
+    }
+
+    func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
+        preferencesService.updateUserCoordinates(latitude, longitude)
+        recomputeAllIsRemote()
+    }
+
+    func geocodeMissingCities() async {
+        let geocoder = CLGeocoder()
+        for contact in contacts where contact.city != nil && contact.cityLatitude == nil {
+            guard let city = contact.city else { continue }
+            if let placemarks = try? await geocoder.geocodeAddressString(city),
+               let loc = placemarks.first?.location {
+                contact.cityLatitude = loc.coordinate.latitude
+                contact.cityLongitude = loc.coordinate.longitude
+            }
+        }
+        try? contactRepository.save()
+        let prefs = preferencesService.preferences
+        if let city = prefs.userCity, prefs.userLatitude == nil {
+            if let placemarks = try? await geocoder.geocodeAddressString(city),
+               let loc = placemarks.first?.location {
+                preferencesService.updateUserCoordinates(loc.coordinate.latitude, loc.coordinate.longitude)
+            }
+        }
+        recomputeAllIsRemote()
+    }
+
     func updateTags(_ tags: [ContactTag], for contact: TrackedContact) {
         contact.contextTags = tags
         try? contactRepository.save()
+    }
+
+    var existingCustomLabels: [TagSubcategory: [String]] {
+        var result: [TagSubcategory: [String]] = [:]
+        for contact in contacts {
+            for tag in contact.contextTags {
+                guard let label = tag.customLabel, !label.isEmpty else { continue }
+                result[tag.subcategory, default: []].append(label)
+            }
+        }
+        for key in result.keys { result[key] = Array(Set(result[key]!)).sorted() }
+        return result
+    }
+
+    func deleteHangout(_ hangout: ScheduledHangout) {
+        try? hangoutRepository.remove(hangout)
+        allHangouts = (try? hangoutRepository.fetchAll()) ?? []
     }
 
     func logPastHangout(contact: TrackedContact, activity: String, date: Date) {

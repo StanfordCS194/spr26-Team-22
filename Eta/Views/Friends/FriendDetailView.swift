@@ -15,7 +15,6 @@ struct FriendDetailView: View {
     @State private var openCheckInAfterFirstTime = false
     @State private var editingNotes = false
     @State private var notesText = ""
-    @State private var editingCity = false
     @State private var cityText = ""
     @State private var showingTagPicker = false
     @State private var editingTags: [ContactTag] = []
@@ -109,9 +108,11 @@ struct FriendDetailView: View {
             )
         }
         .sheet(isPresented: $showingTagPicker) {
-            ContactTagPickerView(selectedTags: $editingTags) {
-                homeViewModel.updateTags(editingTags, for: contact)
-            }
+            ContactTagPickerView(
+                selectedTags: $editingTags,
+                onDone: { homeViewModel.updateTags(editingTags, for: contact) },
+                existingLabels: homeViewModel.existingCustomLabels
+            )
         }
         .sheet(isPresented: $showingGoalCreation) {
             GoalCreationSheet(
@@ -173,6 +174,11 @@ struct FriendDetailView: View {
                 if let days = health.daysSinceLastHangout {
                     statPill(value: "\(days)d", label: "since last")
                 }
+
+                statPill(
+                    value: contact.isRemote ? "🌐" : "📍",
+                    label: contact.isRemote ? "online" : "in person"
+                )
             }
         }
         .padding(16)
@@ -197,62 +203,15 @@ struct FriendDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            // Connection type (auto-determined from location)
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Connection type")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(contact.isRemote ? "Online" : "In person")
-                        .font(.subheadline)
-                }
-                Spacer()
-                if contact.city != nil {
-                    Text("Based on location")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            // City (in-person only)
-            if !contact.isRemote {
-                VStack(alignment: .leading, spacing: 6) {
+            // Location
+            VStack(alignment: .leading, spacing: 6) {
                     Text("Location")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    if editingCity {
-                        TextField("e.g. San Francisco", text: $cityText)
-                            .font(.subheadline)
-                            .padding(10)
-                            .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
-                            .onSubmit { saveCity() }
-                        HStack {
-                            Spacer()
-                            Button("Cancel") {
-                                cityText = contact.city ?? ""
-                                editingCity = false
-                            }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            Button("Save") { saveCity() }
-                                .font(.caption.weight(.semibold))
-                        }
-                    } else {
-                        Button {
-                            cityText = contact.city ?? ""
-                            editingCity = true
-                        } label: {
-                            Text(contact.city?.isEmpty == false ? contact.city! : "Add location…")
-                                .font(.subheadline)
-                                .foregroundStyle(contact.city?.isEmpty == false ? .primary : .secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(10)
-                                .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    CitySearchField(city: $cityText,
+                        onCommit: { _ in saveCity() },
+                        onCoordinates: { homeViewModel.updateCityCoordinates($0, $1, for: contact) })
                 }
-            }
 
             // Context tags
             VStack(alignment: .leading, spacing: 6) {
@@ -409,31 +368,35 @@ struct FriendDetailView: View {
     private func activityChipRow(activities: [Activity], sentiment: ChipSentiment) -> some View {
         FlexibleWrap {
             ForEach(activities, id: \.self) { activity in
-                Text(activity.rawValue)
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        sentiment == .like
-                            ? Color.green.opacity(0.12)
-                            : Color.red.opacity(0.10),
-                        in: Capsule()
-                    )
-                    .foregroundStyle(sentiment == .like ? Color.green : Color.red)
-                    .contextMenu {
-                        if sentiment == .like {
-                            Button("Mark as not a fit") {
-                                homeViewModel.recordDislike(activity, for: contact)
-                            }
-                        } else {
-                            Button("Mark as liked") {
-                                homeViewModel.recordLike(activity, for: contact)
-                            }
+                HStack(spacing: 4) {
+                    Text(sentiment == .like ? "👍" : "👎")
+                        .font(.caption)
+                    Text(activity.rawValue)
+                        .font(.caption.weight(.medium))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    sentiment == .like
+                        ? Color.green.opacity(0.12)
+                        : Color.red.opacity(0.10),
+                    in: Capsule()
+                )
+                .foregroundStyle(sentiment == .like ? Color.green : Color.red)
+                .contextMenu {
+                    if sentiment == .like {
+                        Button("👎 Mark as not a fit") {
+                            homeViewModel.recordDislike(activity, for: contact)
                         }
-                        Button("Remove", role: .destructive) {
-                            homeViewModel.removeSentiment(for: activity, contact: contact)
+                    } else {
+                        Button("👍 Mark as liked") {
+                            homeViewModel.recordLike(activity, for: contact)
                         }
                     }
+                    Button("Remove", role: .destructive) {
+                        homeViewModel.removeSentiment(for: activity, contact: contact)
+                    }
+                }
             }
         }
     }
@@ -442,8 +405,8 @@ struct FriendDetailView: View {
         FlexibleWrap {
             ForEach(activities, id: \.self) { activity in
                 Menu {
-                    Button("Like") { homeViewModel.recordLike(activity, for: contact) }
-                    Button("Not a fit") { homeViewModel.recordDislike(activity, for: contact) }
+                    Button("👍 Like") { homeViewModel.recordLike(activity, for: contact) }
+                    Button("👎 Not a fit") { homeViewModel.recordDislike(activity, for: contact) }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
@@ -539,25 +502,15 @@ struct FriendDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        if let activity = hangout.resolvedActivity {
-                            Menu {
-                                Button {
-                                    homeViewModel.recordLike(activity, for: contact)
-                                } label: {
-                                    Label("Like this activity", systemImage: "hand.thumbsup")
-                                }
-                                Button {
-                                    homeViewModel.recordDislike(activity, for: contact)
-                                } label: {
-                                    Label("Not a great fit", systemImage: "hand.thumbsdown")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 24, height: 24)
-                            }
+                        Button(role: .destructive) {
+                            homeViewModel.deleteHangout(hangout)
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, height: 24)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -573,7 +526,7 @@ struct FriendDetailView: View {
                 Button {
                     showingLogHangout = true
                 } label: {
-                    Label("Log a call", systemImage: "phone").frame(maxWidth: .infinity)
+                    Label("Log a hangout", systemImage: "phone").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 Button {
@@ -606,7 +559,6 @@ struct FriendDetailView: View {
     private func saveCity() {
         let trimmed = cityText.trimmingCharacters(in: .whitespacesAndNewlines)
         homeViewModel.updateCity(trimmed.isEmpty ? nil : trimmed, for: contact)
-        editingCity = false
     }
 
     @ViewBuilder

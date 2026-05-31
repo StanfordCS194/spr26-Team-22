@@ -30,8 +30,7 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
                 AvailabilityView(
-                    viewModel: availabilityViewModel,
-                    onShowSettings: { showingSettings = true }
+                    viewModel: availabilityViewModel
                 )
             }
             Tab("Friends", systemImage: "person.2.fill", value: .friends) {
@@ -45,15 +44,13 @@ struct MainTabView: View {
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
-                    photoRepository: photoRepository,
-                    onShowSettings: { showingSettings = true }
+                    photoRepository: photoRepository
                 )
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
-                    analyticsService: analyticsService,
-                    onShowSettings: { showingSettings = true }
+                    analyticsService: analyticsService
                 )
             }
         }

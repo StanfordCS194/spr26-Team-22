@@ -14,6 +14,19 @@ enum Activity: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var shortLabel: String {
+        switch self {
+        case .walk:       return "walk"
+        case .coffee:     return "coffee"
+        case .groceryRun: return "grocery run"
+        case .lunch:      return "lunch"
+        case .workout:    return "workout"
+        case .coWork:     return "co-work"
+        case .drinks:     return "drinks"
+        case .videoCall:  return "video call"
+        }
+    }
+
     var pastTense: String {
         switch self {
         case .walk:       return "Went for a walk"

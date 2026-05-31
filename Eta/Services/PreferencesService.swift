@@ -38,6 +38,12 @@ final class PreferencesService {
         savePreferences()
     }
 
+    func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
+        preferences.userLatitude = latitude
+        preferences.userLongitude = longitude
+        savePreferences()
+    }
+
     private func savePreferences() {
         if let encoded = try? JSONEncoder().encode(preferences) {
             UserDefaults.standard.set(encoded, forKey: "userPreferences")

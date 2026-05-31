@@ -15,6 +15,8 @@ final class TrackedContact {
     var isActive: Bool
     var isRemote: Bool
     var city: String?
+    var cityLatitude: Double?
+    var cityLongitude: Double?
     var addedAt: Date
     var contextTagsData: Data = Data()
 

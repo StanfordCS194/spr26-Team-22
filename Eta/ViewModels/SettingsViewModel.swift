@@ -19,6 +19,10 @@ final class SettingsViewModel {
         preferencesService.updateUserCity(city)
     }
 
+    func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
+        preferencesService.updateUserCoordinates(latitude, longitude)
+    }
+
     func clearAllData() {
         onClearAll()
     }

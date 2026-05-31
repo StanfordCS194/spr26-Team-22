@@ -3,10 +3,12 @@ import SwiftUI
 struct ContactTagPickerView: View {
     @Binding var selectedTags: [ContactTag]
     let onDone: () -> Void
+    var existingLabels: [TagSubcategory: [String]] = [:]
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchQuery = ""
     @State private var expandedCategories: Set<TagCategory> = []
+    @FocusState private var focusedLabel: TagSubcategory?
 
     private let defaultSubcategories: [TagSubcategory] = [
         .college, .highSchool, .currentColleague, .childhoodFriend, .roommate, .friendGroup
@@ -193,13 +195,46 @@ struct ContactTagPickerView: View {
 
             if isSelected, sub.supportsCustomLabel,
                let idx = selectedTags.firstIndex(where: { $0.subcategory == sub }) {
-                TextField(sub.customLabelPlaceholder, text: Binding(
-                    get: { selectedTags[idx].customLabel ?? "" },
-                    set: { selectedTags[idx].customLabel = $0.isEmpty ? nil : $0 }
-                ))
-                .font(.subheadline)
-                .padding(8)
-                .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                let currentLabel = selectedTags[idx].customLabel ?? ""
+                let suggestions = (existingLabels[sub] ?? []).filter {
+                    currentLabel.isEmpty || $0.localizedCaseInsensitiveContains(currentLabel)
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    TextField(sub.customLabelPlaceholder, text: Binding(
+                        get: { selectedTags[idx].customLabel ?? "" },
+                        set: { selectedTags[idx].customLabel = $0.isEmpty ? nil : $0 }
+                    ))
+                    .focused($focusedLabel, equals: sub)
+                    .font(.subheadline)
+                    .padding(8)
+                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+
+                    if focusedLabel == sub && !currentLabel.isEmpty && !suggestions.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(suggestions.prefix(4).enumerated()), id: \.element) { i, label in
+                                Button {
+                                    selectedTags[idx].customLabel = label
+                                    focusedLabel = nil
+                                } label: {
+                                    Text(label)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                }
+                                .buttonStyle(.plain)
+                                if i < suggestions.prefix(4).count - 1 {
+                                    Divider().padding(.leading, 10)
+                                }
+                            }
+                        }
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
+                        .padding(.top, 4)
+                    }
+                }
             }
         }
         .padding(.vertical, 2)

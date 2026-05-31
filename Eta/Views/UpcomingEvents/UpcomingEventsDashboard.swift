@@ -3,7 +3,6 @@ import SwiftUI
 struct UpcomingEventsDashboard: View {
     let viewModel: UpcomingEventsViewModel
     let photoRepository: ActivityPhotoRepository
-    let onShowSettings: () -> Void
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -38,9 +37,6 @@ struct UpcomingEventsDashboard: View {
             }
             .navigationTitle("Events")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { onShowSettings() } label: { Image(systemName: "gearshape") }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         EventHistoryView(items: viewModel.allItems, photoRepository: photoRepository)

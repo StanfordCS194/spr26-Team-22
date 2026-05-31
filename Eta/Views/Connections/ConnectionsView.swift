@@ -6,6 +6,7 @@ struct ConnectionsView: View {
     let analyticsService: AnalyticsService
     let onShowSettings: () -> Void
 
+    @State private var searchText = ""
     @State private var showingAddSheet = false
     @State private var isSelecting = false
     @State private var selectedContactIDs: Set<UUID> = []
@@ -14,8 +15,27 @@ struct ConnectionsView: View {
     @State private var showingDeleteConfirmation = false
     @Environment(\.scenePhase) private var scenePhase
 
+    private var displayedContacts: [TrackedContact] {
+        guard !searchText.isEmpty else { return viewModel.filteredContacts }
+        return viewModel.filteredContacts.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
     private var selectedContacts: [TrackedContact] {
-        viewModel.filteredContacts.filter { selectedContactIDs.contains($0.id) }
+        displayedContacts.filter { selectedContactIDs.contains($0.id) }
+    }
+
+    private var existingCustomLabels: [TagSubcategory: [String]] {
+        var result: [TagSubcategory: [String]] = [:]
+        for contact in viewModel.contacts {
+            for tag in contact.contextTags {
+                guard let label = tag.customLabel, !label.isEmpty else { continue }
+                result[tag.subcategory, default: []].append(label)
+            }
+        }
+        for key in result.keys { result[key] = Array(Set(result[key]!)).sorted() }
+        return result
     }
 
     var body: some View {
@@ -28,8 +48,9 @@ struct ConnectionsView: View {
                         description: Text("Tap + to add friends you want to keep up with.")
                     )
                 } else {
-                    VStack(spacing: 0) {
+                    SearchAwareContent(searchText: searchText) {
                         filterBar
+                    } listContent: {
                         List {
                             if !homeViewModel.friendSpotlights.isEmpty && !isSelecting {
                                 Section {
@@ -61,7 +82,7 @@ struct ConnectionsView: View {
                             }
 
                             Section {
-                                ForEach(viewModel.filteredContacts) { contact in
+                                ForEach(displayedContacts) { contact in
                                     if isSelecting {
                                         Button {
                                             if selectedContactIDs.contains(contact.id) {
@@ -74,7 +95,8 @@ struct ConnectionsView: View {
                                                 contact: contact,
                                                 viewModel: viewModel,
                                                 isSelecting: true,
-                                                isSelected: selectedContactIDs.contains(contact.id)
+                                                isSelected: selectedContactIDs.contains(contact.id),
+                                                activeFilter: viewModel.selectedTagFilter
                                             )
                                         }
                                         .buttonStyle(.plain)
@@ -94,14 +116,14 @@ struct ConnectionsView: View {
                                                 homeViewModel: homeViewModel
                                             )
                                         } label: {
-                                            ContactRow(contact: contact, viewModel: viewModel)
+                                            ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)
                                         }
                                     }
                                 }
                                 .onDelete { indexSet in
                                     guard !isSelecting else { return }
                                     for index in indexSet {
-                                        let contact = viewModel.filteredContacts[index]
+                                        let contact = displayedContacts[index]
                                         analyticsService.logConnectionRemoved(
                                             contactName: contact.name,
                                             totalContacts: viewModel.contacts.count - 1
@@ -121,6 +143,7 @@ struct ConnectionsView: View {
                 }
             }
             .navigationTitle("Friends")
+            .searchable(text: $searchText, prompt: "Search friends")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if isSelecting {
@@ -134,29 +157,38 @@ struct ConnectionsView: View {
                         }
                     }
                 }
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     if isSelecting {
-                        Button(selectedContactIDs.count == viewModel.filteredContacts.count ? "Deselect All" : "Select All") {
-                            if selectedContactIDs.count == viewModel.filteredContacts.count {
+                        Button(selectedContactIDs.count == displayedContacts.count ? "Deselect All" : "Select All") {
+                            if selectedContactIDs.count == displayedContacts.count {
                                 selectedContactIDs = []
                             } else {
-                                selectedContactIDs = Set(viewModel.filteredContacts.map(\.id))
+                                selectedContactIDs = Set(displayedContacts.map(\.id))
                             }
                         }
                     } else {
-                        Button("Select") {
-                            isSelecting = true
-                        }
-                        Button {
-                            analyticsService.logButtonTapped(screen: "ConnectionsView", button: "AddConnection")
-                            showingAddSheet = true
+                        Menu {
+                            Button {
+                                analyticsService.logButtonTapped(screen: "ConnectionsView", button: "AddConnection")
+                                showingAddSheet = true
+                            } label: {
+                                Label("Add Contact", systemImage: "person.badge.plus")
+                            }
+                            Button {
+                                isSelecting = true
+                            } label: {
+                                Label("Select", systemImage: "checkmark.circle")
+                            }
                         } label: {
-                            Image(systemName: "plus")
+                            Image(systemName: "ellipsis.circle")
                         }
                     }
                 }
-                ToolbarItemGroup(placement: .bottomBar) {
-                    if isSelecting {
+            }
+            .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
+            .safeAreaInset(edge: .bottom) {
+                if isSelecting {
+                    HStack {
                         Button {
                             bulkEditingTags = []
                             showingBulkTagPicker = true
@@ -180,6 +212,9 @@ struct ConnectionsView: View {
                         }
                         .disabled(selectedContactIDs.isEmpty)
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(.bar)
                 }
             }
             .sheet(isPresented: $showingAddSheet) {
@@ -189,13 +224,17 @@ struct ConnectionsView: View {
                 )
             }
             .sheet(isPresented: $showingBulkTagPicker) {
-                ContactTagPickerView(selectedTags: $bulkEditingTags) {
-                    for contact in selectedContacts {
-                        homeViewModel.updateTags(bulkEditingTags, for: contact)
-                    }
-                    isSelecting = false
-                    selectedContactIDs = []
-                }
+                ContactTagPickerView(
+                    selectedTags: $bulkEditingTags,
+                    onDone: {
+                        for contact in selectedContacts {
+                            homeViewModel.updateTags(bulkEditingTags, for: contact)
+                        }
+                        isSelecting = false
+                        selectedContactIDs = []
+                    },
+                    existingLabels: existingCustomLabels
+                )
             }
             .confirmationDialog(
                 "Delete \(selectedContactIDs.count) friend\(selectedContactIDs.count == 1 ? "" : "s")?",
@@ -219,6 +258,7 @@ struct ConnectionsView: View {
                 viewModel.loadContacts()
                 await viewModel.loadHealthScores()
                 await homeViewModel.refresh()
+                await homeViewModel.geocodeMissingCities()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
@@ -271,13 +311,47 @@ struct ConnectionsView: View {
     }
 }
 
+// MARK: - Search-aware wrapper
+
+private struct SearchAwareContent<FilterBar: View, ListContent: View>: View {
+    let searchText: String
+    @ViewBuilder let filterBar: FilterBar
+    @ViewBuilder let listContent: ListContent
+
+    @Environment(\.isSearching) private var isSearching
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !isSearching { filterBar }
+            if isSearching && searchText.isEmpty {
+                Color.clear
+            } else {
+                listContent
+            }
+        }
+    }
+}
+
 // MARK: - Contact row
+
+private let tagCategoryPriority: [TagCategory] = [.family, .friends, .school, .work, .community]
+
+private func primaryTag(for contact: TrackedContact, filter: TagCategory?) -> ContactTag? {
+    let tags = contact.contextTags
+    guard !tags.isEmpty else { return nil }
+    if let filter, let match = tags.first(where: { $0.parentCategory == filter }) { return match }
+    for category in tagCategoryPriority {
+        if let match = tags.first(where: { $0.parentCategory == category }) { return match }
+    }
+    return tags.first
+}
 
 private struct ContactRow: View {
     let contact: TrackedContact
     let viewModel: ConnectionsViewModel
     var isSelecting: Bool = false
     var isSelected: Bool = false
+    var activeFilter: TagCategory? = nil
 
     var body: some View {
         HStack(spacing: 10) {
@@ -296,28 +370,10 @@ private struct ContactRow: View {
                     .font(.body)
 
                 if let label = viewModel.healthLabel(for: contact) {
-                    Text(label)
+                    let tag = primaryTag(for: contact, filter: activeFilter)
+                    Text((tag.map { "\($0.displayName) · " } ?? "") + label)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-
-                let tags = contact.contextTags
-                if !tags.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(Array(tags.prefix(2))) { tag in
-                            Text(tag.displayName)
-                                .font(.caption2.weight(.medium))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(tag.parentCategory.color.opacity(0.15), in: Capsule())
-                                .foregroundStyle(tag.parentCategory.color)
-                        }
-                        if tags.count > 2 {
-                            Text("+\(tags.count - 2)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
             }
         }

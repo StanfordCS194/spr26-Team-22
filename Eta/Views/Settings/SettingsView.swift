@@ -45,11 +45,9 @@ struct SettingsView: View {
 
     private var locationSection: some View {
         Section {
-            TextField("e.g. San Francisco", text: $cityText)
-                .onSubmit { viewModel.updateUserCity(cityText) }
-                .onChange(of: cityText) { _, value in
-                    viewModel.updateUserCity(value)
-                }
+            CitySearchField(city: $cityText,
+                onCommit: { viewModel.updateUserCity($0) },
+                onCoordinates: { viewModel.updateUserCoordinates($0, $1) })
         } header: {
             Text("Your Location")
         } footer: {
