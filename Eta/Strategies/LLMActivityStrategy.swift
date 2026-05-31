@@ -22,6 +22,13 @@ final class LLMActivityStrategy: ActivityStrategy {
         for health: RelationshipHealth,
         context: PromptContext
     ) async throws -> ActivityProposal? {
+        if health.contact.isRemote {
+            return ActivityProposal(
+                activityDescription: Activity.videoCall.description,
+                reason: reason(for: health)
+            )
+        }
+
         let systemPrompt = """
         You are a helpful assistant that suggests activities for friends to do together. \
         Suggest a single short activity phrase (2–5 words, imperative form, e.g. "Grab coffee", "Go for a walk"). \

@@ -9,6 +9,7 @@ struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let settingsViewModel: SettingsViewModel
     let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let invitationManager: InvitationManager
@@ -19,6 +20,7 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let receivedInviteState: ReceivedInviteState
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
@@ -34,6 +36,7 @@ struct MainTabView: View {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
+                    settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService
                 )
             }
@@ -108,6 +111,44 @@ struct MainTabView: View {
                 connectionsViewModel: connectionsViewModel,
                 onDismiss: { weeklyCheckInState.clear() }
             )
+        }
+        .sheet(isPresented: Binding(
+            get: { receivedInviteState.isPresented },
+            set: { if !$0 { receivedInviteState.clear(); Task { await upcomingEventsViewModel.refresh() } } }
+        )) {
+            if let invite = receivedInviteState.pendingInvite {
+                ReceivedInviteSheet(
+                    invite: invite,
+                    onAccept: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: true,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                            await upcomingEventsViewModel.refresh()
+                        }
+                    },
+                    onDecline: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: false,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                            await upcomingEventsViewModel.refresh()
+                        }
+                    }
+                )
+            }
         }
         .sheet(isPresented: Binding(
             get: { reminderPhotoState.pendingActivity != nil },

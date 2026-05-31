@@ -2,12 +2,18 @@ import Foundation
 import SwiftData
 
 enum InsightType: String, Codable, CaseIterable {
+    /// You're falling out of touch — shown when days since last hangout exceeds 1.5× your typical cadence.
     case drift
+    /// A recurring habit was noticed (e.g. "you always grab coffee") — asks user to confirm as a preference.
     case pattern
-    case opportunity
-    case milestone
+    /// Shown after a confirmed hangout in the last 7 days — asks "how was it?"
     case reflection
+    /// More than 65% of recent hangouts are concentrated in the same 2 people — nudges variety.
     case network
+    /// A free slot + overdue contact — proactively surfaces a scheduling opportunity.
+    case opportunity
+    /// A goal was completed or a streak was reached.
+    case milestone
 }
 
 enum InsightAction: String, Codable {

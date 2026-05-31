@@ -1,0 +1,21 @@
+import Foundation
+
+@Observable
+final class SettingsViewModel {
+    private let preferencesService: PreferencesService
+    private let onClearAll: () -> Void
+
+    var preferences: UserPreferences {
+        get { preferencesService.preferences }
+        set { preferencesService.updatePreferences(newValue) }
+    }
+
+    init(preferencesService: PreferencesService, onClearAll: @escaping () -> Void) {
+        self.preferencesService = preferencesService
+        self.onClearAll = onClearAll
+    }
+
+    func clearAllData() {
+        onClearAll()
+    }
+}

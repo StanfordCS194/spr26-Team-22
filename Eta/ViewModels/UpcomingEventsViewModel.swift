@@ -9,6 +9,7 @@ struct HangoutDisplayItem: Identifiable {
     var id: UUID { hangout.id }
 }
 
+@MainActor
 @Observable
 final class UpcomingEventsViewModel {
     /// Events from today onwards, sorted soonest first.
@@ -19,11 +20,23 @@ final class UpcomingEventsViewModel {
     /// Feeds the EventHistoryView.
     private(set) var allItems: [HangoutDisplayItem] = []
 
+    /// Invitations received that are still awaiting a response, sorted soonest first.
+    private(set) var pendingInvites: [PendingReceivedInvitation] = []
+
     private let hangoutRepository: ScheduledHangoutRepository
+    private let pendingInviteRepository: PendingReceivedInvitationRepository
+    private let invitationManager: InvitationManager
     private let formatter: ContactFormatter
 
-    init(hangoutRepository: ScheduledHangoutRepository, formatter: ContactFormatter) {
+    init(
+        hangoutRepository: ScheduledHangoutRepository,
+        pendingInviteRepository: PendingReceivedInvitationRepository,
+        invitationManager: InvitationManager,
+        formatter: ContactFormatter
+    ) {
         self.hangoutRepository = hangoutRepository
+        self.pendingInviteRepository = pendingInviteRepository
+        self.invitationManager = invitationManager
         self.formatter = formatter
     }
 
@@ -33,6 +46,7 @@ final class UpcomingEventsViewModel {
             let startOfToday = Calendar.current.startOfDay(for: .now)
 
             let items: [HangoutDisplayItem] = hangouts
+                .filter { $0.contact != nil }
                 .sorted { $0.startDate < $1.startDate }
                 .map { hangout in
                     let name = hangout.contact.map { formatter.displayName(for: $0) } ?? "Unknown"
@@ -44,5 +58,21 @@ final class UpcomingEventsViewModel {
         } catch {
             // SwiftData fetch failed; leave existing data in place.
         }
+
+        pendingInvites = ((try? pendingInviteRepository.fetchAll()) ?? [])
+            .filter { $0.endTime > .now }
+            .sorted { $0.startTime < $1.startTime }
+    }
+
+    func respond(to invite: PendingReceivedInvitation, accepted: Bool) async {
+        await invitationManager.respondToRemoteInvitation(
+            id: invite.id,
+            accepted: accepted,
+            activity: invite.activity,
+            startTime: invite.startTime,
+            endTime: invite.endTime,
+            fromIdentifier: invite.fromIdentifier
+        )
+        await refresh()
     }
 }
