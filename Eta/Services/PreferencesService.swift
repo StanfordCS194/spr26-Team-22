@@ -1,5 +1,9 @@
 import Foundation
 
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
 /// Manages user preferences — loads from UserDefaults, provides access to all services.
 final class PreferencesService {
     private(set) var preferences: UserPreferences
@@ -26,6 +30,11 @@ final class PreferencesService {
 
     func markCheckInTemplateSet() {
         preferences.hasSetCheckInTemplate = true
+        savePreferences()
+    }
+
+    func updateUserCity(_ city: String?) {
+        preferences.userCity = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         savePreferences()
     }
 

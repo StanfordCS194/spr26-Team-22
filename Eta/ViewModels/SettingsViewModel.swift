@@ -15,6 +15,10 @@ final class SettingsViewModel {
         self.onClearAll = onClearAll
     }
 
+    func updateUserCity(_ city: String?) {
+        preferencesService.updateUserCity(city)
+    }
+
     func clearAllData() {
         onClearAll()
     }

@@ -7,6 +7,7 @@ import SwiftUI
 struct AvailabilityView: View {
 
     let viewModel: AvailabilityViewModel
+    let onShowSettings: () -> Void
     /// Day currently shown in the availability grid.
     @State private var selectedDate = Date()
     /// Controls whether schedule blocks can be selected and deselected.
@@ -70,6 +71,11 @@ struct AvailabilityView: View {
                 .padding()
             }
             .navigationTitle("Availability")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { onShowSettings() } label: { Image(systemName: "gearshape") }
+                }
+            }
             .task {
                 await viewModel.loadAvailability()
             }
@@ -101,7 +107,7 @@ struct AvailabilityView: View {
     private var activityDurationEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Hangout length")
+                Text("Preferred hangout length")
                     .font(.headline)
                 Spacer()
                 Text(viewModel.activityDurationLabel)
@@ -114,7 +120,7 @@ struct AvailabilityView: View {
                 in: 15...360,
                 step: 15
             ) {
-                Text("Hangout length")
+                Text("Preferred hangout length")
             } minimumValueLabel: {
                 Text("15m")
                     .font(.caption)

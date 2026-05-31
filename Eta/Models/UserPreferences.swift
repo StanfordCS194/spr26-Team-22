@@ -8,6 +8,7 @@ struct UserPreferences: Codable {
     var notificationTime: Date
     var checkInTemplate: String?
     var hasSetCheckInTemplate: Bool
+    var userCity: String?
 
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
@@ -21,7 +22,8 @@ struct UserPreferences: Codable {
             return Calendar.current.date(from: components) ?? Date()
         }(),
         checkInTemplate: String? = nil,
-        hasSetCheckInTemplate: Bool = false
+        hasSetCheckInTemplate: Bool = false,
+        userCity: String? = nil
     ) {
         self.preferredActivities = preferredActivities
         self.relationshipHealthThreshold = relationshipHealthThreshold
@@ -30,6 +32,7 @@ struct UserPreferences: Codable {
         self.notificationTime = notificationTime
         self.checkInTemplate = checkInTemplate
         self.hasSetCheckInTemplate = hasSetCheckInTemplate
+        self.userCity = userCity
     }
 
     func encode(to encoder: Encoder) throws {
@@ -41,6 +44,7 @@ struct UserPreferences: Codable {
         try container.encode(notificationTime.timeIntervalSince1970, forKey: .notificationTimeInterval)
         try container.encodeIfPresent(checkInTemplate, forKey: .checkInTemplate)
         try container.encode(hasSetCheckInTemplate, forKey: .hasSetCheckInTemplate)
+        try container.encodeIfPresent(userCity, forKey: .userCity)
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +57,7 @@ struct UserPreferences: Codable {
         notificationTime = Date(timeIntervalSince1970: timeInterval)
         checkInTemplate = try container.decodeIfPresent(String.self, forKey: .checkInTemplate)
         hasSetCheckInTemplate = try container.decodeIfPresent(Bool.self, forKey: .hasSetCheckInTemplate) ?? false
+        userCity = try container.decodeIfPresent(String.self, forKey: .userCity)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -63,5 +68,6 @@ struct UserPreferences: Codable {
         case notificationTimeInterval
         case checkInTemplate
         case hasSetCheckInTemplate
+        case userCity
     }
 }

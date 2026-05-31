@@ -3,12 +3,15 @@ import SwiftUI
 struct LogHangoutSheet: View {
     let contact: TrackedContact
     let displayName: String
-    let onLog: (Activity, Date) -> Void
+    var isRemote: Bool = false
+    let onLog: (String, Date) -> Void
     let onDismiss: () -> Void
 
     @State private var step = 1
     @State private var selectedActivity: Activity = .coffee
     @State private var selectedDate: Date = .now
+    @State private var isOther = false
+    @State private var otherText = ""
 
     private var maximumDate: Date { .now }
 
@@ -17,7 +20,7 @@ struct LogHangoutSheet: View {
             Group {
                 if step == 1 { whenStep } else { whatStep }
             }
-            .navigationTitle(step == 1 ? "When?" : "What did you do?")
+            .navigationTitle(step == 1 ? "When?" : (isRemote ? "How did you connect?" : "What did you do?"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -26,8 +29,12 @@ struct LogHangoutSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(step == 1 ? "Next" : "Save") {
                         if step == 1 { step = 2 }
-                        else { onLog(selectedActivity, selectedDate) }
+                        else {
+                            let activityString = isOther ? otherText : selectedActivity.rawValue
+                            onLog(activityString, selectedDate)
+                        }
                     }
+                    .disabled(step == 2 && isOther && otherText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
@@ -35,7 +42,7 @@ struct LogHangoutSheet: View {
 
     private var whenStep: some View {
         Form {
-            Section("When did you hang out?") {
+            Section(isRemote ? "When did you catch up?" : "When did you hang out?") {
                 DatePicker(
                     "Date",
                     selection: $selectedDate,
@@ -48,14 +55,44 @@ struct LogHangoutSheet: View {
 
     private var whatStep: some View {
         Form {
-            Section("What did you do?") {
-                Picker("Activity", selection: $selectedActivity) {
-                    ForEach(Activity.allCases) { activity in
-                        Text(activity.rawValue).tag(activity)
+            Section(isRemote ? "How did you connect?" : "What did you do?") {
+                ForEach(Activity.allCases, id: \.rawValue) { (activity: Activity) in
+                    Button {
+                        selectedActivity = activity
+                        isOther = false
+                    } label: {
+                        HStack {
+                            Text(activity.pastTense)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if !isOther && selectedActivity == activity {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    isOther = true
+                } label: {
+                    HStack {
+                        Text("Something else")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if isOther {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
                     }
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
+                .buttonStyle(.plain)
+
+                if isOther {
+                    TextField("e.g. Went to a concert", text: $otherText)
+                        .font(.subheadline)
+                }
             }
         }
     }

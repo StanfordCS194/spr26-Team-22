@@ -17,6 +17,8 @@ struct FriendDetailView: View {
     @State private var notesText = ""
     @State private var editingCity = false
     @State private var cityText = ""
+    @State private var showingTagPicker = false
+    @State private var editingTags: [ContactTag] = []
 
     private var profile: ContactProfile {
         _ = homeViewModel.profileVersion
@@ -54,6 +56,9 @@ struct FriendDetailView: View {
             notesText = profile.notes
             cityText = contact.city ?? ""
         }
+        .onChange(of: showingTagPicker) { _, isShowing in
+            if isShowing { editingTags = contact.contextTags }
+        }
         .onChange(of: showingFirstTimeCheckIn) { _, isShowing in
             if !isShowing && openCheckInAfterFirstTime {
                 openCheckInAfterFirstTime = false
@@ -64,6 +69,7 @@ struct FriendDetailView: View {
             LogHangoutSheet(
                 contact: contact,
                 displayName: displayName,
+                isRemote: contact.isRemote,
                 onLog: { activity, date in
                     homeViewModel.logPastHangout(contact: contact, activity: activity, date: date)
                     showingLogHangout = false
@@ -101,6 +107,11 @@ struct FriendDetailView: View {
                 },
                 onDismiss: { showingCheckIn = false }
             )
+        }
+        .sheet(isPresented: $showingTagPicker) {
+            ContactTagPickerView(selectedTags: $editingTags) {
+                homeViewModel.updateTags(editingTags, for: contact)
+            }
         }
         .sheet(isPresented: $showingGoalCreation) {
             GoalCreationSheet(
@@ -186,19 +197,21 @@ struct FriendDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            // Connection type
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Connection type")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Picker("Connection type", selection: Binding(
-                    get: { contact.isRemote },
-                    set: { homeViewModel.updateIsRemote($0, for: contact) }
-                )) {
-                    Text("In person").tag(false)
-                    Text("Online").tag(true)
+            // Connection type (auto-determined from location)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connection type")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(contact.isRemote ? "Online" : "In person")
+                        .font(.subheadline)
                 }
-                .pickerStyle(.segmented)
+                Spacer()
+                if contact.city != nil {
+                    Text("Based on location")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             // City (in-person only)
@@ -237,6 +250,53 @@ struct FriendDetailView: View {
                                 .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
                         }
                         .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Context tags
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Context")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !contact.contextTags.isEmpty {
+                        Button("Edit") { showingTagPicker = true }
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+
+                if contact.contextTags.isEmpty {
+                    Button {
+                        showingTagPicker = true
+                    } label: {
+                        Label("Where do you know them from?", systemImage: "tag")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color.secondary.opacity(0.10), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    FlexibleWrap {
+                        ForEach(Array(contact.contextTags.prefix(2))) { tag in
+                            Text(tag.displayName)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(tag.parentCategory.color.opacity(0.15), in: Capsule())
+                                .foregroundStyle(tag.parentCategory.color)
+                        }
+                        if contact.contextTags.count > 2 {
+                            Text("+\(contact.contextTags.count - 2)")
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.secondary.opacity(0.10), in: Capsule())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -457,7 +517,7 @@ struct FriendDetailView: View {
             }
 
             if recentHangouts.isEmpty {
-                Text("No hangouts recorded in the last 60 days.")
+                Text("No hangouts recorded yet.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -466,7 +526,7 @@ struct FriendDetailView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
-                ForEach(recentHangouts.prefix(5)) { hangout in
+                ForEach(recentHangouts.prefix(10)) { hangout in
                     HStack {
                         Image(systemName: "calendar")
                             .font(.caption)
@@ -510,6 +570,12 @@ struct FriendDetailView: View {
 
             if contact.isRemote {
                 if hasPhone { checkInButton(prominent: true) }
+                Button {
+                    showingLogHangout = true
+                } label: {
+                    Label("Log a call", systemImage: "phone").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
                 Button {
                     showingGoalCreation = true
                 } label: {

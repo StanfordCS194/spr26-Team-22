@@ -43,6 +43,15 @@ final class EventHistoryContextSource: ContextSource {
             ))
         }
 
+        let tags = contact.contextTags
+        if !tags.isEmpty {
+            let tagList = tags.map(\.displayName).joined(separator: ", ")
+            facts.append(ContextFact(
+                description: "Your relationship context with \(contact.givenName): \(tagList)",
+                source: .eventHistory
+            ))
+        }
+
         return facts
     }
 

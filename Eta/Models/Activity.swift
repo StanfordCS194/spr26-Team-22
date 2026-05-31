@@ -8,10 +8,24 @@ enum Activity: String, CaseIterable, Identifiable {
     case groceryRun   = "Do a grocery run"
     case lunch        = "Get lunch"
     case workout      = "Work out together"
-    case studySession = "Study together"
+    case coWork       = "Co-work"
+    case drinks       = "Grab a drink"
     case videoCall    = "Video call"
 
     var id: String { rawValue }
+
+    var pastTense: String {
+        switch self {
+        case .walk:       return "Went for a walk"
+        case .coffee:     return "Grabbed coffee"
+        case .groceryRun: return "Did a grocery run"
+        case .lunch:      return "Got lunch"
+        case .workout:    return "Worked out together"
+        case .coWork:     return "Co-worked"
+        case .drinks:     return "Grabbed a drink"
+        case .videoCall:  return "Had a video call"
+        }
+    }
 
     /// True for activities that don't require being in the same place.
     var isRemote: Bool {

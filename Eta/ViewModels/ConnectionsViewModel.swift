@@ -18,6 +18,12 @@ struct ContactPickerItem: Identifiable {
 @Observable
 final class ConnectionsViewModel {
     private(set) var contacts: [TrackedContact] = []
+    var selectedTagFilter: TagCategory? = nil
+
+    var filteredContacts: [TrackedContact] {
+        guard let filter = selectedTagFilter else { return contacts }
+        return contacts.filter { $0.contextTags.contains { $0.parentCategory == filter } }
+    }
     /// Filtered slice of the address book — updated synchronously as the search query changes.
     private(set) var searchResults: [ContactPickerItem] = []
     private(set) var isPermissionDenied: Bool = false
@@ -108,10 +114,11 @@ final class ConnectionsViewModel {
             titleSuffix = ""
         }
 
+        let localityPrefix = contact.city != nil ? (contact.isRemote ? "Remotely · " : "Locally · ") : ""
         switch days {
-        case 0:  return "Seen today\(titleSuffix)"
-        case 1:  return "Seen yesterday\(titleSuffix)"
-        default: return "Last seen \(days) days ago\(titleSuffix)"
+        case 0:  return "\(localityPrefix)Seen today\(titleSuffix)"
+        case 1:  return "\(localityPrefix)Seen yesterday\(titleSuffix)"
+        default: return "\(localityPrefix)Last seen \(days) days ago\(titleSuffix)"
         }
     }
 
@@ -204,7 +211,7 @@ final class ConnectionsViewModel {
 
     /// Resolves the given picker items back to CNContacts, persists them as
     /// TrackedContacts, then removes them from the picker pool.
-    func addContacts(_ items: [ContactPickerItem]) {
+    func addContacts(_ items: [ContactPickerItem], tags: [ContactTag] = []) {
         let cnContacts = items.compactMap { cnContactIndex[$0.id] }
 
         for cnContact in cnContacts {
@@ -216,6 +223,9 @@ final class ConnectionsViewModel {
                 phoneNumber: cnContact.phoneNumbers.first?.value.stringValue,
                 emailAddress: cnContact.emailAddresses.first?.value as String?
             )
+            if !tags.isEmpty {
+                contact.contextTags = tags
+            }
             try? repository.add(contact)
         }
 

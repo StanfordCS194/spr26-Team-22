@@ -24,34 +24,45 @@ struct MainTabView: View {
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
+    @State private var showingSettings = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
                 AvailabilityView(
-                    viewModel: availabilityViewModel
+                    viewModel: availabilityViewModel,
+                    onShowSettings: { showingSettings = true }
                 )
             }
             Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
-                    settingsViewModel: settingsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    onShowSettings: { showingSettings = true }
                 )
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
-                    photoRepository: photoRepository
+                    photoRepository: photoRepository,
+                    onShowSettings: { showingSettings = true }
                 )
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    onShowSettings: { showingSettings = true }
                 )
             }
+        }
+        .sheet(isPresented: $showingSettings, onDismiss: {
+            connectionsViewModel.loadContacts()
+            homeViewModel.recomputeAllIsRemote()
+            Task { await homeViewModel.refresh() }
+        }) {
+            SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false })
         }
         .sheet(isPresented: Binding(
             get: { invitationManager.pendingFeedbackHangoutID != nil },

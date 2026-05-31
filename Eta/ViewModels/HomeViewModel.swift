@@ -210,17 +210,38 @@ final class HomeViewModel {
 
     func updateCity(_ city: String?, for contact: TrackedContact) {
         contact.city = city
+        recomputeIsRemote(for: contact)
         try? contactRepository.save()
     }
 
-    func updateIsRemote(_ isRemote: Bool, for contact: TrackedContact) {
-        contact.isRemote = isRemote
+    func updateUserCity(_ city: String?) {
+        preferencesService.updateUserCity(city)
+        recomputeAllIsRemote()
+    }
+
+    func recomputeAllIsRemote() {
+        for contact in contacts {
+            recomputeIsRemote(for: contact)
+        }
         try? contactRepository.save()
     }
 
-    func logPastHangout(contact: TrackedContact, activity: Activity, date: Date) {
+    private func recomputeIsRemote(for contact: TrackedContact) {
+        let userCity = preferencesService.preferences.userCity?.lowercased()
+        let contactCity = contact.city?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let userCity, !userCity.isEmpty,
+              let contactCity, !contactCity.isEmpty else { return }
+        contact.isRemote = userCity != contactCity
+    }
+
+    func updateTags(_ tags: [ContactTag], for contact: TrackedContact) {
+        contact.contextTags = tags
+        try? contactRepository.save()
+    }
+
+    func logPastHangout(contact: TrackedContact, activity: String, date: Date) {
         let interval = DateInterval(start: date, duration: 3600)
-        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, selectedTime: interval)
+        let hangout = ScheduledHangout(contact: contact, activity: activity, selectedTime: interval)
         hangout.inviteeResponse = .confirmed
         try? hangoutRepository.add(hangout)
         allHangouts = (try? hangoutRepository.fetchAll()) ?? []
