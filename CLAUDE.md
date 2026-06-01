@@ -30,7 +30,7 @@ MVP invite mechanism: pre-filled iMessage via URL scheme.
 - **EventKit** for Calendar access
 - **Contacts framework** (`CNContactStore`) for the contacts picker
 - No third-party dependencies
-- No backend — fully on-device for MVP
+- **Supabase** for backend invite routing — raw `URLSession` REST calls only, no SDK
 
 ---
 
@@ -63,20 +63,22 @@ Eta/
 │                                  #   ReminderPhotoState, WeeklyCheckInState, or NudgeReminderState
 │
 ├── Models/
-│   ├── TrackedContact.swift      # @Model — SwiftData persisted contact
-│   ├── HangoutEvent.swift        # Value type — parsed calendar event
-│   ├── RelationshipHealth.swift  # Value type — computed score + metadata per contact
-│   ├── Suggestion.swift          # Value type — friend + activity + reason string
-│   ├── Activity.swift            # enum — hardcoded pool for MVP
-│   ├── ActivityPhoto.swift       # @Model — activity-scoped photo captured during/after a hangout
-│   ├── ScheduledHangout.swift    # @Model — persisted confirmed hangout
-│   ├── Invitation.swift          # @Model — persisted outgoing invite
-│   ├── AnalyticsEvent.swift      # @Model — persisted analytics event
-│   ├── HangoutStatus.swift       # enum — pending / confirmed / declined
-│   ├── ActivityProposal.swift    # Value type — LLM activity suggestion with structured fields
-│   ├── PromptContext.swift       # Value type — assembled context fed to LLM
-│   ├── UserPreferences.swift     # Value type — user-configurable preferences
-│   └── SessionInfo.swift         # Value type — analytics session metadata
+│   ├── TrackedContact.swift              # @Model — SwiftData persisted contact
+│   ├── HangoutEvent.swift                # Value type — parsed calendar event
+│   ├── RelationshipHealth.swift          # Value type — computed score + metadata per contact
+│   ├── Suggestion.swift                  # Value type — friend + activity + reason string
+│   ├── Activity.swift                    # enum — hardcoded pool for MVP
+│   ├── ActivityPhoto.swift               # @Model — activity-scoped photo captured during/after a hangout
+│   ├── ScheduledHangout.swift            # @Model — persisted confirmed hangout
+│   ├── Invitation.swift                  # @Model — persisted outgoing invite
+│   ├── AnalyticsEvent.swift              # @Model — persisted analytics event
+│   ├── HangoutStatus.swift               # enum — pending / confirmed / declined
+│   ├── ActivityProposal.swift            # Value type — LLM activity suggestion with structured fields
+│   ├── PromptContext.swift               # Value type — assembled context fed to LLM
+│   ├── UserPreferences.swift             # Value type — user-configurable preferences
+│   ├── SessionInfo.swift                 # Value type — analytics session metadata
+│   ├── RemoteInvitation.swift            # Value type — invite payload sent to/from Supabase
+│   └── PendingReceivedInvitation.swift   # @Model — persisted received invite awaiting response
 │
 ├── Protocols/
 │   ├── ImplicitDataProvider.swift
@@ -105,16 +107,21 @@ Eta/
 │   └── iMessageInviteProvider.swift      # Concrete InviteProvider — iMessage URL scheme
 │
 ├── Repositories/
-│   ├── ContactRepository.swift           # SwiftData CRUD for TrackedContact
-│   ├── ActivityPhotoRepository.swift     # SwiftData CRUD for ActivityPhoto; fetches by Activity or contact
-│   └── ScheduledHangoutRepository.swift  # SwiftData CRUD for ScheduledHangout
+│   ├── ContactRepository.swift                       # SwiftData CRUD for TrackedContact
+│   ├── ActivityPhotoRepository.swift                 # SwiftData CRUD for ActivityPhoto; fetches by Activity or contact
+│   ├── ScheduledHangoutRepository.swift              # SwiftData CRUD for ScheduledHangout
+│   └── PendingReceivedInvitationRepository.swift     # SwiftData CRUD for PendingReceivedInvitation; also deleteExpired()
 │
 ├── Services/
 │   ├── RelationshipService.swift         # [ImplicitDataProvider] + contacts → [RelationshipHealth]
 │   ├── SuggestionService.swift           # RelationshipService + ActivityStrategy + ContextEngine → Suggestion
 │   ├── InviteService.swift               # Wraps InviteProvider; formats invite text; books hangout
-│   ├── InvitationManager.swift           # acceptSuggestion → schedules notifications + persists Invitation
+│   ├── InvitationManager.swift           # Full invite lifecycle: send via Supabase or simulated, poll for updates,
+│   │                                     #   respond to received invites, expire stale hangouts
 │   ├── LocalNotificationService.swift    # Concrete NotificationServiceProtocol — UNUserNotificationCenter
+│   ├── SupabaseService.swift             # REST client for Supabase — device registration, invite CRUD, polling
+│   ├── PhoneSetupService.swift           # Reads/writes the user's phone/email identifier from UserDefaults
+│   ├── ReceivedInviteState.swift         # @Observable — bridges received-invite notification tap → ReceivedInviteSheet
 │   ├── NudgeService.swift                # Schedules friend-driven nudge notifications (4-mode: force×llmMode)
 │   ├── NudgeScheduler.swift              # Builds a Suggestion from a free slot for direct scheduling from nudge
 │   ├── NudgeReminderState.swift          # @Observable — bridges nudge notification tap → NudgeReminderSheet
@@ -139,19 +146,22 @@ Eta/
     │   ├── ConnectionsView.swift
     │   └── AddConnectionSheet.swift
     ├── UpcomingEvents/
-    │   ├── UpcomingEventsDashboard.swift  # Events tab root
+    │   ├── UpcomingEventsDashboard.swift  # Events tab root; shows ReceivedInviteCards above event cards
     │   ├── EventHistoryView.swift
-    │   └── UpcomingEventCardView.swift    # Camera icon: confirmed hangouts only, disappears 24h after startDate
+    │   ├── UpcomingEventCardView.swift    # Camera icon: confirmed hangouts only, disappears 24h after startDate
+    │   └── ReceivedInviteCard.swift       # Compact card for pending received invite; Accept/Decline buttons inline
     ├── Reminders/
     │   ├── CameraView.swift              # UIViewControllerRepresentable wrapping UIImagePickerController
     │   ├── ReminderPhotoSheet.swift      # Sheet: shows existing photo, prompts capture, ~20% skip if photos exist
     │   ├── ActivityNudgeView.swift       # In-app nudge view (photo + activity label)
     │   ├── NudgeReminderSheet.swift      # Sheet on nudge tap: photo + title + actions (schedule / suggestions / later)
+    │   ├── ReceivedInviteSheet.swift     # Sheet on received-invite notification tap; Accept / Decline / Answer Later
     │   └── ReminderDebugModifier.swift   # Triple-tap bottom-left debug trigger for photo sheet
     ├── WeeklyCheckIn/
     │   └── WeeklyCheckInView.swift       # Full-screen sheet: weekly stats, overdue friends, goal picker
     ├── Onboarding/
-    │   └── OnboardingView.swift
+    │   ├── OnboardingView.swift
+    │   └── PhoneSetupView.swift          # Shown before main app if no identifier registered; saves to PhoneSetupService
     └── Analytics/
         ├── AnalyticsDebugTrigger.swift   # Protocol + TripleTapBottomRightTrigger (bottom-right)
         ├── AnalyticsDebugModifier.swift
@@ -219,11 +229,15 @@ EtaApp
  ├─ ContactRepository(modelContext:)
  ├─ ScheduledHangoutRepository(modelContext:)
  ├─ ActivityPhotoRepository(modelContext:)
+ ├─ PendingReceivedInvitationRepository(modelContext:)
  ├─ ReminderPhotoState()
  ├─ NudgeReminderState()
  ├─ WeeklyCheckInState()
+ ├─ ReceivedInviteState()
  ├─ ContactFormatter()
  ├─ PreferencesService()
+ ├─ SupabaseService()
+ ├─ PhoneSetupService()
  ├─ CalendarDataProvider(preferencesService:)          ← shared instance
  ├─ RelationshipService(providers: [CalendarDataProvider], repository:, hangoutRepository:, preferencesService:)
  ├─ DefaultContextEngine(sources: [EventHistoryContextSource, PreferencesContextSource])
@@ -232,19 +246,20 @@ EtaApp
  ├─ iMessageInviteProvider()
  ├─ InviteService(provider: iMessageInviteProvider, hangoutRepository:, calendarDataProvider:)
  ├─ LocalNotificationService(preferencesService:)
- ├─ InvitationManager(notificationService: LocalNotificationService, modelContext:)
+ ├─ InvitationManager(notificationService:, modelContext:, supabaseService:, phoneSetupService:, pendingReceivedRepo:)
+ │       .receivedInviteState = receivedInviteState   ← set after construction
  ├─ NudgeService(relationshipService:, photoRepository:, runner: GitHubModelsLLMRunner())
  ├─ NudgeScheduler(calendarDataProvider:)
  ├─ WeeklyCheckInService()
  ├─ AnalyticsService(modelContext:)
- ├─ NotificationDelegate(invitationManager:, reminderPhotoState:, weeklyCheckInState:, nudgeReminderState:)
+ ├─ NotificationDelegate(invitationManager:, reminderPhotoState:, weeklyCheckInState:, nudgeReminderState:, receivedInviteState:)
  │       ← held strongly on EtaApp; UNUserNotificationCenter.delegate is weak
  ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:)
  ├─ ConnectionsViewModel(repository:, formatter:, relationshipService:)
- ├─ UpcomingEventsViewModel(hangoutRepository:, formatter:)
+ ├─ UpcomingEventsViewModel(hangoutRepository:, pendingInviteRepository:, invitationManager:, formatter:)
  └─ MainTabView(connectionsViewModel:, suggestionViewModel:, upcomingEventsViewModel:, analyticsService:,
                 photoRepository:, reminderPhotoState:, nudgeService:, nudgeScheduler:,
-                weeklyCheckInService:, weeklyCheckInState:, nudgeReminderState:)
+                weeklyCheckInService:, weeklyCheckInState:, nudgeReminderState:, receivedInviteState:)
 ```
 
 `CalendarDataProvider` is injected into both `RelationshipService` (as an `ImplicitDataProvider` for historical event fetching) and `SuggestionService` (concretely, for free slot detection). A single instance is shared between both.
@@ -379,7 +394,82 @@ Both permission requests must be preceded by a brief in-context explanation
   - `ReminderPhotoSheet` — photo capture post-hangout (driven by `ReminderPhotoState`)
   - `NudgeReminderSheet` — nudge notification response (driven by `NudgeReminderState`)
   - `WeeklyCheckInView` — weekly friendship summary (driven by `WeeklyCheckInState`)
+  - `ReceivedInviteSheet` — received invite response (driven by `ReceivedInviteState`); has Accept, Decline, Answer Later
 - Local sheets: `AddConnectionSheet` from ConnectionsView
+
+---
+
+## Backend invitation system
+
+Invitations between devices are routed through Supabase using raw `URLSession` REST calls (no SDK).
+
+### Device registration
+
+`PhoneSetupService` stores the user's phone number or email as their identifier. On every app foreground, `SupabaseService.registerDevice(identifier:)` upserts a row in the `devices` table keyed on `identifier` with the device's UUID and `updated_at`. This ensures reinstalls update the existing row rather than creating duplicates.
+
+### Sending an invite
+
+`InvitationManager.acceptSuggestion` checks whether the contact has a registered device by calling `SupabaseService.lookupDeviceID(for:)` using the contact's phone or email. If found:
+- Posts a `RemoteInvitation` row to Supabase
+- Fires an "Invite sent!" local notification
+
+If not found (contact has never installed the app): falls back to the simulated local acceptance flow (fake "accepted" notification after 10 seconds).
+
+### Receiving an invite
+
+`InvitationManager.pollReceivedInvitations` runs on every foreground poll (10-second interval via `TimerBox` timer in `EtaApp`). For each new pending invite:
+- Schedules a `ReceivedInvitationNotification` local notification
+- Creates a `PendingReceivedInvitation` record in SwiftData
+- Triggers `ReceivedInviteState` so the sheet appears if the app is in the foreground
+
+The `ReceivedInviteSheet` has Accept, Decline, and Answer Later buttons. Answer Later (or swipe-to-dismiss) leaves the `PendingReceivedInvitation` in place — it appears as a `ReceivedInviteCard` in the Events tab with inline Accept/Decline buttons.
+
+### Responding to an invite
+
+`InvitationManager.respondToRemoteInvitation` is called from both the sheet and the card:
+- Updates the Supabase row to `confirmed` or `declined`
+- Deletes the local `PendingReceivedInvitation`
+- If accepted and sender is in the receiver's friends list: creates a confirmed `ScheduledHangout` on the receiver's device
+
+### Polling and cleanup
+
+`InvitationManager.pollForUpdates()` runs concurrently:
+- `pollSentInvitations` — fetches non-pending updates, calls `handleInvitationResponse`, fires "can't make it" notification on decline, deletes processed rows, then deletes any sent rows still pending past `end_time`
+- `pollReceivedInvitations` — fetches pending received rows, creates notifications + `PendingReceivedInvitation` records for new ones, deletes expired rows from Supabase
+- `expireStaleHangouts` — marks local `ScheduledHangout` records as declined if past `endDate` and still pending; also calls `pendingReceivedRepo.deleteExpired()`
+
+All cleanup requires the app to be open — there is no background polling.
+
+### `RemoteInvitation` (value type)
+
+```swift
+struct RemoteInvitation: Codable {
+    var id: String
+    var fromDevice: String
+    var fromIdentifier: String
+    var toIdentifier: String
+    var friendName: String
+    var activity: String
+    var startTime: Date
+    var endTime: Date
+    var status: String   // "pending" | "confirmed" | "declined"
+}
+```
+
+### `PendingReceivedInvitation` (`@Model` — persisted)
+
+```swift
+@Model final class PendingReceivedInvitation {
+    var id: String            // matches RemoteInvitation.id
+    var fromDevice: String
+    var fromIdentifier: String
+    var friendName: String
+    var activity: String
+    var startTime: Date
+    var endTime: Date
+    var receivedAt: Date
+}
+```
 
 ---
 
