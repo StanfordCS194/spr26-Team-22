@@ -9,6 +9,7 @@ struct HangoutDisplayItem: Identifiable {
     var id: UUID { hangout.id }
 }
 
+@MainActor
 @Observable
 final class UpcomingEventsViewModel {
     /// Events from today onwards, sorted soonest first.
@@ -45,6 +46,7 @@ final class UpcomingEventsViewModel {
             let startOfToday = Calendar.current.startOfDay(for: .now)
 
             let items: [HangoutDisplayItem] = hangouts
+                .filter { $0.contact != nil }
                 .sorted { $0.startDate < $1.startDate }
                 .map { hangout in
                     let name = hangout.contact.map { formatter.displayName(for: $0) } ?? "Unknown"

@@ -24,6 +24,11 @@ final class ContactRepository {
         try modelContext.save()
     }
 
+    /// Persists any pending changes to tracked contacts.
+    func save() throws {
+        try modelContext.save()
+    }
+
     /// Returns all persisted TrackedContacts, sorted by the date they were added (oldest first).
     func fetchAll() throws -> [TrackedContact] {
         let descriptor = FetchDescriptor<TrackedContact>(

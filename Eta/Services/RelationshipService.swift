@@ -55,22 +55,54 @@ final class RelationshipService {
             $0.status != .canceled
         }
 
+        // Build a lookup of manually logged past hangouts per contact.
+        var manualLastByContactID: [UUID: (date: Date, title: String?)] = [:]
+        var manualCountByContactID: [UUID: Int] = [:]
+        for hangout in allHangouts where hangout.startDate <= .now && hangout.startDate >= since {
+            guard let contactID = hangout.contact?.id else { continue }
+            manualCountByContactID[contactID, default: 0] += 1
+            if let existing = manualLastByContactID[contactID] {
+                if hangout.startDate > existing.date {
+                    manualLastByContactID[contactID] = (hangout.startDate, hangout.activity)
+                }
+            } else {
+                manualLastByContactID[contactID] = (hangout.startDate, hangout.activity)
+            }
+        }
+
         return contacts.map { contact in
             let matching = completedHangouts.filter { hangout in
                 hangout.contact?.id == contact.id
             }
-            let lastHangout = matching.max(by: { $0.startDate < $1.startDate })
-            let lastHangoutDate = lastHangout?.startDate
+            let lastCalEvent = matching.max(by: { $0.startDate < $1.startDate })
+            let manualLast = manualLastByContactID[contact.id]
+
+            // Merge: use whichever source recorded a more recent hangout.
+            let lastHangoutDate: Date?
+            let lastHangoutTitle: String?
+            if let cal = lastCalEvent?.startDate, let man = manualLast?.date {
+                if man >= cal {
+                    lastHangoutDate = man
+                    lastHangoutTitle = manualLast?.title
+                } else {
+                    lastHangoutDate = cal
+                    lastHangoutTitle = lastCalEvent?.activity.isEmpty == false ? lastCalEvent?.activity : nil
+                }
+            } else if let cal = lastCalEvent?.startDate {
+                lastHangoutDate = cal
+                lastHangoutTitle = lastCalEvent?.activity.isEmpty == false ? lastCalEvent?.activity : nil
+            } else {
+                lastHangoutDate = manualLast?.date
+                lastHangoutTitle = manualLast?.title
+            }
+
             let upcomingHangout = upcomingByContactID[contact.id]
-            // Suppress the overdue score when a hangout is already on the books —
-            // score 0 falls below the strategy's threshold so this contact won't
-            // be suggested again until the scheduled hangout passes.
             let computedScore = score(lastHangoutDate: lastHangoutDate, lookBackDays: lookBackDays)
             return RelationshipHealth(
                 contact: contact,
                 lastHangoutDate: lastHangoutDate,
-                lastHangoutTitle: lastHangout?.activity,
-                hangoutCount: matching.count,
+                lastHangoutTitle: lastHangoutTitle,
+                hangoutCount: matching.count + (manualCountByContactID[contact.id] ?? 0),
                 score: upcomingHangout != nil ? 0.0 : computedScore,
                 upcomingHangout: upcomingHangout
             )

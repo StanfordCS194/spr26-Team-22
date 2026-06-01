@@ -48,6 +48,7 @@ struct ActivityNudgeView: View {
         case .lunch:        return "fork.knife"
         case .workout:      return "figure.run"
         case .studySession: return "book"
+        case .videoCall:    return "video"
         }
     }
 }

@@ -37,6 +37,10 @@ final class HomeViewModel {
     let formatter: ContactFormatter
     private let relationshipService: RelationshipService
     private let contactProfileService: ContactProfileService
+    private let preferencesService: PreferencesService
+
+    var checkInTemplate: String? { preferencesService.preferences.checkInTemplate }
+    var hasSetCheckInTemplate: Bool { preferencesService.preferences.hasSetCheckInTemplate }
 
     init(
         goalRepository: GoalRepository,
@@ -46,7 +50,8 @@ final class HomeViewModel {
         hangoutRepository: ScheduledHangoutRepository,
         formatter: ContactFormatter,
         relationshipService: RelationshipService,
-        contactProfileService: ContactProfileService
+        contactProfileService: ContactProfileService,
+        preferencesService: PreferencesService
     ) {
         self.goalRepository = goalRepository
         self.insightGenerationService = insightGenerationService
@@ -56,6 +61,7 @@ final class HomeViewModel {
         self.formatter = formatter
         self.relationshipService = relationshipService
         self.contactProfileService = contactProfileService
+        self.preferencesService = preferencesService
     }
 
     // MARK: - Refresh
@@ -147,6 +153,13 @@ final class HomeViewModel {
             .sorted { $0.startDate > $1.startDate }
     }
 
+    func upcomingHangouts(for contact: TrackedContact) -> [ScheduledHangout] {
+        let all = allHangouts.isEmpty ? ((try? hangoutRepository.fetchAll()) ?? []) : allHangouts
+        return all
+            .filter { $0.contact?.id == contact.id && $0.startDate > .now && $0.inviteeResponse != .declined }
+            .sorted { $0.startDate < $1.startDate }
+    }
+
     func allGoals() -> [Goal] {
         (try? goalRepository.fetchAll()) ?? []
     }
@@ -185,6 +198,32 @@ final class HomeViewModel {
     func updateNotes(_ notes: String, for contact: TrackedContact) {
         contactProfileService.updateNotes(notes, for: contact)
         profileVersion += 1
+    }
+
+    func updateCheckInTemplate(_ template: String) {
+        preferencesService.updateCheckInTemplate(template)
+    }
+
+    func markCheckInTemplateSet() {
+        preferencesService.markCheckInTemplateSet()
+    }
+
+    func updateCity(_ city: String?, for contact: TrackedContact) {
+        contact.city = city
+        try? contactRepository.save()
+    }
+
+    func updateIsRemote(_ isRemote: Bool, for contact: TrackedContact) {
+        contact.isRemote = isRemote
+        try? contactRepository.save()
+    }
+
+    func logPastHangout(contact: TrackedContact, activity: Activity, date: Date) {
+        let interval = DateInterval(start: date, duration: 3600)
+        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, selectedTime: interval)
+        hangout.inviteeResponse = .confirmed
+        try? hangoutRepository.add(hangout)
+        allHangouts = (try? hangoutRepository.fetchAll()) ?? []
     }
 
     // MARK: - Private computation

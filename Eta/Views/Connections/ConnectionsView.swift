@@ -3,9 +3,11 @@ import SwiftUI
 struct ConnectionsView: View {
     let viewModel: ConnectionsViewModel
     let homeViewModel: HomeViewModel
+    let settingsViewModel: SettingsViewModel
     let analyticsService: AnalyticsService
 
     @State private var showingAddSheet = false
+    @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -98,12 +100,25 @@ struct ConnectionsView: View {
                         Image(systemName: "plus")
                     }
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
             }
             .sheet(isPresented: $showingAddSheet) {
                 AddConnectionSheet(
                     viewModel: viewModel,
                     analyticsService: analyticsService
                 )
+            }
+            .sheet(isPresented: $showingSettings, onDismiss: {
+                viewModel.loadContacts()
+                Task { await homeViewModel.refresh() }
+            }) {
+                SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false })
             }
             .task {
                 viewModel.loadContacts()

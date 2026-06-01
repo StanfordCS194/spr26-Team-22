@@ -2,21 +2,32 @@ import Foundation
 
 /// Selects a hangout activity using deterministic rules.
 ///
-/// Picks a random activity from the hardcoded Activity enum pool and produces
-/// a reason string derived from the contact's relationship health score.
-/// Context (PromptContext) is intentionally ignored — the rules path does not
-/// require LLM or historical context to function.
+/// Picks a random activity from the hardcoded Activity enum pool, excluding
+/// any activities the user has marked as "not a fit" for this contact.
+/// Falls back to the full pool if all activities have been disliked.
 ///
 /// ActivityType = Activity (the structured enum). The enum value is erased to
 /// its description String before constructing ActivityProposal.
 final class RulesActivityStrategy: ActivityStrategy {
     typealias ActivityType = Activity
 
+    private let profileService: ContactProfileService
+
+    init(profileService: ContactProfileService) {
+        self.profileService = profileService
+    }
+
     func propose(
         for health: RelationshipHealth,
         context: PromptContext
     ) async throws -> ActivityProposal? {
-        guard let activity = Activity.allCases.randomElement() else { return nil }
+        let isRemote = health.contact.isRemote
+        let disliked = profileService.profile(for: health.contact).dislikedActivities
+        var candidates = Activity.allCases.filter { !disliked.contains($0) && $0.isRemote == isRemote }
+        if candidates.isEmpty {
+            candidates = Activity.allCases.filter { $0.isRemote == isRemote }
+        }
+        guard let activity = candidates.randomElement() else { return nil }
         return ActivityProposal(
             activityDescription: activity.description,
             reason: reason(for: health)

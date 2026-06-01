@@ -9,6 +9,7 @@ struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let settingsViewModel: SettingsViewModel
     let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let invitationManager: InvitationManager
@@ -35,6 +36,7 @@ struct MainTabView: View {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
+                    settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService
                 )
             }
@@ -112,7 +114,7 @@ struct MainTabView: View {
         }
         .sheet(isPresented: Binding(
             get: { receivedInviteState.isPresented },
-            set: { if !$0 { receivedInviteState.clear() } }
+            set: { if !$0 { receivedInviteState.clear(); Task { await upcomingEventsViewModel.refresh() } } }
         )) {
             if let invite = receivedInviteState.pendingInvite {
                 ReceivedInviteSheet(
@@ -128,6 +130,7 @@ struct MainTabView: View {
                                 endTime: invite.endTime,
                                 fromIdentifier: invite.fromIdentifier
                             )
+                            await upcomingEventsViewModel.refresh()
                         }
                     },
                     onDecline: {
@@ -141,6 +144,7 @@ struct MainTabView: View {
                                 endTime: invite.endTime,
                                 fromIdentifier: invite.fromIdentifier
                             )
+                            await upcomingEventsViewModel.refresh()
                         }
                     }
                 )
