@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 struct FriendSpotlightItem: Identifiable {
     var id: UUID { contact.id }
@@ -210,17 +211,103 @@ final class HomeViewModel {
 
     func updateCity(_ city: String?, for contact: TrackedContact) {
         contact.city = city
+        recomputeIsRemote(for: contact)
         try? contactRepository.save()
     }
 
-    func updateIsRemote(_ isRemote: Bool, for contact: TrackedContact) {
-        contact.isRemote = isRemote
+    func updateUserCity(_ city: String?) {
+        preferencesService.updateUserCity(city)
+        recomputeAllIsRemote()
+    }
+
+    func recomputeAllIsRemote() {
+        for contact in contacts {
+            recomputeIsRemote(for: contact)
+        }
         try? contactRepository.save()
     }
 
-    func logPastHangout(contact: TrackedContact, activity: Activity, date: Date) {
+    private func recomputeIsRemote(for contact: TrackedContact) {
+        let prefs = preferencesService.preferences
+        if let uLat = prefs.userLatitude, let uLon = prefs.userLongitude,
+           let cLat = contact.cityLatitude, let cLon = contact.cityLongitude {
+            let userLoc = CLLocation(latitude: uLat, longitude: uLon)
+            let contactLoc = CLLocation(latitude: cLat, longitude: cLon)
+            contact.isRemote = userLoc.distance(from: contactLoc) > 80_000 // 80 km
+            return
+        }
+        let userCity = prefs.userCity?.lowercased()
+        let contactCity = contact.city?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let userCity, !userCity.isEmpty,
+              let contactCity, !contactCity.isEmpty else { return }
+        contact.isRemote = userCity != contactCity
+    }
+
+    func updateCityCoordinates(_ latitude: Double, _ longitude: Double, for contact: TrackedContact) {
+        contact.cityLatitude = latitude
+        contact.cityLongitude = longitude
+        recomputeIsRemote(for: contact)
+        try? contactRepository.save()
+    }
+
+    func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
+        preferencesService.updateUserCoordinates(latitude, longitude)
+        recomputeAllIsRemote()
+    }
+
+    func geocodeMissingCities() async {
+        let geocoder = CLGeocoder()
+        for contact in contacts where contact.city != nil && contact.cityLatitude == nil {
+            guard let city = contact.city else { continue }
+            if let placemarks = try? await geocoder.geocodeAddressString(city),
+               let loc = placemarks.first?.location {
+                contact.cityLatitude = loc.coordinate.latitude
+                contact.cityLongitude = loc.coordinate.longitude
+            }
+        }
+        try? contactRepository.save()
+        let prefs = preferencesService.preferences
+        if let city = prefs.userCity, prefs.userLatitude == nil {
+            if let placemarks = try? await geocoder.geocodeAddressString(city),
+               let loc = placemarks.first?.location {
+                preferencesService.updateUserCoordinates(loc.coordinate.latitude, loc.coordinate.longitude)
+            }
+        }
+        recomputeAllIsRemote()
+    }
+
+    func updateTags(_ tags: [ContactTag], for contact: TrackedContact) {
+        contact.contextTags = tags
+        try? contactRepository.save()
+    }
+
+    var existingCustomLabels: [TagSubcategory: [String]] {
+        var result: [TagSubcategory: [String]] = [:]
+        for contact in contacts {
+            for tag in contact.contextTags {
+                guard let label = tag.customLabel, !label.isEmpty else { continue }
+                result[tag.subcategory, default: []].append(label)
+            }
+        }
+        for key in result.keys { result[key] = Array(Set(result[key]!)).sorted() }
+        return result
+    }
+
+    func deleteHangout(_ hangout: ScheduledHangout) {
+        try? hangoutRepository.remove(hangout)
+        allHangouts = (try? hangoutRepository.fetchAll()) ?? []
+    }
+
+    func updateHangout(_ hangout: ScheduledHangout, activity: String, date: Date) {
+        hangout.activity = activity
+        hangout.startDate = date
+        hangout.endDate = date.addingTimeInterval(3600)
+        allHangouts = (try? hangoutRepository.fetchAll()) ?? []
+    }
+
+    func logPastHangout(contact: TrackedContact, activity: String, date: Date) {
         let interval = DateInterval(start: date, duration: 3600)
-        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, selectedTime: interval)
+        let hangout = ScheduledHangout(contact: contact, activity: activity, selectedTime: interval)
         hangout.inviteeResponse = .confirmed
         try? hangoutRepository.add(hangout)
         allHangouts = (try? hangoutRepository.fetchAll()) ?? []

@@ -15,7 +15,16 @@ final class TrackedContact {
     var isActive: Bool
     var isRemote: Bool
     var city: String?
+    var cityLatitude: Double?
+    var cityLongitude: Double?
     var addedAt: Date
+    var contextTagsData: Data = Data()
+
+    var contextTags: [ContactTag] {
+        get { (try? JSONDecoder().decode([ContactTag].self, from: contextTagsData)) ?? [] }
+        set { contextTagsData = (try? JSONEncoder().encode(newValue)) ?? Data() }
+    }
+
     @Relationship(deleteRule: .nullify, inverse: \ScheduledHangout.contact)
     var hangouts: [ScheduledHangout] = []
 

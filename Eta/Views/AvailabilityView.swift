@@ -70,6 +70,7 @@ struct AvailabilityView: View {
                 .padding()
             }
             .navigationTitle("Availability")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await viewModel.loadAvailability()
             }
@@ -101,7 +102,7 @@ struct AvailabilityView: View {
     private var activityDurationEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Hangout length")
+                Text("Preferred hangout length")
                     .font(.headline)
                 Spacer()
                 Text(viewModel.activityDurationLabel)
@@ -114,7 +115,7 @@ struct AvailabilityView: View {
                 in: 15...360,
                 step: 15
             ) {
-                Text("Hangout length")
+                Text("Preferred hangout length")
             } minimumValueLabel: {
                 Text("15m")
                     .font(.caption)

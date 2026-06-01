@@ -24,6 +24,7 @@ struct MainTabView: View {
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
+    @State private var showingSettings = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -36,8 +37,8 @@ struct MainTabView: View {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
-                    settingsViewModel: settingsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    onShowSettings: { showingSettings = true }
                 )
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
@@ -52,6 +53,13 @@ struct MainTabView: View {
                     analyticsService: analyticsService
                 )
             }
+        }
+        .sheet(isPresented: $showingSettings, onDismiss: {
+            connectionsViewModel.loadContacts()
+            homeViewModel.recomputeAllIsRemote()
+            Task { await homeViewModel.refresh() }
+        }) {
+            SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false })
         }
         .sheet(isPresented: Binding(
             get: { invitationManager.pendingFeedbackHangoutID != nil },

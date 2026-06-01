@@ -8,6 +8,9 @@ struct UserPreferences: Codable {
     var notificationTime: Date
     var checkInTemplate: String?
     var hasSetCheckInTemplate: Bool
+    var userCity: String?
+    var userLatitude: Double?
+    var userLongitude: Double?
 
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
@@ -21,7 +24,10 @@ struct UserPreferences: Codable {
             return Calendar.current.date(from: components) ?? Date()
         }(),
         checkInTemplate: String? = nil,
-        hasSetCheckInTemplate: Bool = false
+        hasSetCheckInTemplate: Bool = false,
+        userCity: String? = nil,
+        userLatitude: Double? = nil,
+        userLongitude: Double? = nil
     ) {
         self.preferredActivities = preferredActivities
         self.relationshipHealthThreshold = relationshipHealthThreshold
@@ -30,6 +36,9 @@ struct UserPreferences: Codable {
         self.notificationTime = notificationTime
         self.checkInTemplate = checkInTemplate
         self.hasSetCheckInTemplate = hasSetCheckInTemplate
+        self.userCity = userCity
+        self.userLatitude = userLatitude
+        self.userLongitude = userLongitude
     }
 
     func encode(to encoder: Encoder) throws {
@@ -41,6 +50,9 @@ struct UserPreferences: Codable {
         try container.encode(notificationTime.timeIntervalSince1970, forKey: .notificationTimeInterval)
         try container.encodeIfPresent(checkInTemplate, forKey: .checkInTemplate)
         try container.encode(hasSetCheckInTemplate, forKey: .hasSetCheckInTemplate)
+        try container.encodeIfPresent(userCity, forKey: .userCity)
+        try container.encodeIfPresent(userLatitude, forKey: .userLatitude)
+        try container.encodeIfPresent(userLongitude, forKey: .userLongitude)
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +65,9 @@ struct UserPreferences: Codable {
         notificationTime = Date(timeIntervalSince1970: timeInterval)
         checkInTemplate = try container.decodeIfPresent(String.self, forKey: .checkInTemplate)
         hasSetCheckInTemplate = try container.decodeIfPresent(Bool.self, forKey: .hasSetCheckInTemplate) ?? false
+        userCity = try container.decodeIfPresent(String.self, forKey: .userCity)
+        userLatitude = try container.decodeIfPresent(Double.self, forKey: .userLatitude)
+        userLongitude = try container.decodeIfPresent(Double.self, forKey: .userLongitude)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -63,5 +78,8 @@ struct UserPreferences: Codable {
         case notificationTimeInterval
         case checkInTemplate
         case hasSetCheckInTemplate
+        case userCity
+        case userLatitude
+        case userLongitude
     }
 }
