@@ -21,8 +21,12 @@ final class ConnectionsViewModel {
     var selectedTagFilter: TagCategory? = nil
 
     var filteredContacts: [TrackedContact] {
-        guard let filter = selectedTagFilter else { return contacts }
-        return contacts.filter { $0.contextTags.contains { $0.parentCategory == filter } }
+        let base = selectedTagFilter.map { filter in
+            contacts.filter { $0.contextTags.contains { $0.parentCategory == filter } }
+        } ?? contacts
+        return base.sorted {
+            (healthScores[$0.id]?.score ?? 0) > (healthScores[$1.id]?.score ?? 0)
+        }
     }
     /// Filtered slice of the address book — updated synchronously as the search query changes.
     private(set) var searchResults: [ContactPickerItem] = []

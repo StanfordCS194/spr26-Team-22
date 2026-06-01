@@ -8,10 +8,43 @@ struct LogHangoutSheet: View {
     let onDismiss: () -> Void
 
     @State private var step = 1
-    @State private var selectedActivity: Activity = .coffee
-    @State private var selectedDate: Date = .now
-    @State private var isOther = false
-    @State private var otherText = ""
+    @State private var selectedActivity: Activity
+    @State private var selectedDate: Date
+    @State private var isOther: Bool
+    @State private var otherText: String
+
+    init(
+        contact: TrackedContact,
+        displayName: String,
+        isRemote: Bool = false,
+        initialActivity: String? = nil,
+        initialDate: Date? = nil,
+        onLog: @escaping (String, Date) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.contact = contact
+        self.displayName = displayName
+        self.isRemote = isRemote
+        self.onLog = onLog
+        self.onDismiss = onDismiss
+
+        let date = initialDate ?? .now
+        _selectedDate = State(initialValue: date)
+
+        if let raw = initialActivity, let resolved = Activity(rawValue: raw) {
+            _selectedActivity = State(initialValue: resolved)
+            _isOther = State(initialValue: false)
+            _otherText = State(initialValue: "")
+        } else if let raw = initialActivity {
+            _selectedActivity = State(initialValue: .coffee)
+            _isOther = State(initialValue: true)
+            _otherText = State(initialValue: raw)
+        } else {
+            _selectedActivity = State(initialValue: .coffee)
+            _isOther = State(initialValue: false)
+            _otherText = State(initialValue: "")
+        }
+    }
 
     private var maximumDate: Date { .now }
 

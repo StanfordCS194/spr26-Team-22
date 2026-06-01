@@ -13,6 +13,7 @@ struct FriendDetailView: View {
     @State private var showingCheckIn = false
     @State private var showingFirstTimeCheckIn = false
     @State private var openCheckInAfterFirstTime = false
+    @State private var editingHangout: ScheduledHangout? = nil
     @State private var editingNotes = false
     @State private var notesText = ""
     @State private var cityText = ""
@@ -74,6 +75,20 @@ struct FriendDetailView: View {
                     showingLogHangout = false
                 },
                 onDismiss: { showingLogHangout = false }
+            )
+        }
+        .sheet(item: $editingHangout) { hangout in
+            LogHangoutSheet(
+                contact: contact,
+                displayName: displayName,
+                isRemote: contact.isRemote,
+                initialActivity: hangout.activity,
+                initialDate: hangout.startDate,
+                onLog: { activity, date in
+                    homeViewModel.updateHangout(hangout, activity: activity, date: date)
+                    editingHangout = nil
+                },
+                onDismiss: { editingHangout = nil }
             )
         }
         .sheet(isPresented: $showingFirstTimeCheckIn) {
@@ -495,22 +510,23 @@ struct FriendDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .frame(width: 18)
-                        Text(hangout.resolvedActivity?.rawValue ?? "Hangout")
+                        Text(hangout.resolvedActivity?.rawValue ?? hangout.activity)
                             .font(.subheadline)
                         Spacer()
                         Text(hangout.startDate, style: .date)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-
+                    }
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button { editingHangout = hangout } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
                         Button(role: .destructive) {
                             homeViewModel.deleteHangout(hangout)
                         } label: {
-                            Image(systemName: "trash")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 24, height: 24)
+                            Label("Delete", systemImage: "trash")
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }

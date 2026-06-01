@@ -222,6 +222,7 @@ private struct TagContactsStep: View {
             let names = selectedItems.map(\.displayName)
             let summary: String = {
                 switch names.count {
+                case 0:  return ""
                 case 1:  return names[0]
                 case 2:  return "\(names[0]) and \(names[1])"
                 default: return "\(names[0]), \(names[1]) and \(names.count - 2) more"

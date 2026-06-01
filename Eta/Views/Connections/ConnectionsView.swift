@@ -14,6 +14,7 @@ struct ConnectionsView: View {
     @State private var bulkEditingTags: [ContactTag] = []
     @State private var showingDeleteConfirmation = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.isSearching) private var isSearching
 
     private var displayedContacts: [TrackedContact] {
         guard !searchText.isEmpty else { return viewModel.filteredContacts }
@@ -38,6 +39,127 @@ struct ConnectionsView: View {
         return result
     }
 
+    private var deleteDialogTitle: String {
+        let n = selectedContactIDs.count
+        return "Delete \(n) friend\(n == 1 ? "" : "s")?"
+    }
+
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        guard newPhase == .active else { return }
+        Task {
+            await viewModel.loadHealthScores()
+            await homeViewModel.refresh()
+        }
+    }
+
+    @ViewBuilder
+    private var forYouSection: some View {
+        if !homeViewModel.friendSpotlights.isEmpty && !isSelecting && searchText.isEmpty {
+            Section {
+                ForEach(homeViewModel.friendSpotlights) { item in
+                    NavigationLink {
+                        FriendDetailView(
+                            contact: item.contact,
+                            health: item.health,
+                            displayName: homeViewModel.displayName(for: item.contact),
+                            homeViewModel: homeViewModel
+                        )
+                    } label: {
+                        FriendSpotlightCard(
+                            item: item,
+                            displayName: homeViewModel.displayName(for: item.contact)
+                        )
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
+            } header: {
+                Text("For You")
+                    .font(.title3.weight(.semibold))
+                    .textCase(nil)
+                    .foregroundStyle(.primary)
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var allFriendsSection: some View {
+        Section {
+            ForEach(displayedContacts) { contact in
+                if isSelecting {
+                    Button {
+                        if selectedContactIDs.contains(contact.id) {
+                            selectedContactIDs.remove(contact.id)
+                        } else {
+                            selectedContactIDs.insert(contact.id)
+                        }
+                    } label: {
+                        ContactRow(
+                            contact: contact,
+                            viewModel: viewModel,
+                            isSelecting: true,
+                            isSelected: selectedContactIDs.contains(contact.id),
+                            activeFilter: viewModel.selectedTagFilter
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                } else {
+                    NavigationLink {
+                        FriendDetailView(
+                            contact: contact,
+                            health: viewModel.healthScores[contact.id] ?? RelationshipHealth(
+                                contact: contact,
+                                lastHangoutDate: nil,
+                                lastHangoutTitle: nil,
+                                hangoutCount: 0,
+                                score: 0,
+                                upcomingHangout: nil
+                            ),
+                            displayName: viewModel.displayName(for: contact),
+                            homeViewModel: homeViewModel
+                        )
+                    } label: {
+                        ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                }
+            }
+            .onDelete { indexSet in
+                guard !isSelecting else { return }
+                for index in indexSet {
+                    let contact = displayedContacts[index]
+                    analyticsService.logConnectionRemoved(
+                        contactName: contact.name,
+                        totalContacts: viewModel.contacts.count - 1
+                    )
+                    viewModel.removeContact(contact)
+                }
+                Task { await homeViewModel.refresh() }
+            }
+        } header: {
+            Text("All Friends")
+                .font(.title3.weight(.semibold))
+                .textCase(nil)
+                .foregroundStyle(.primary)
+                .padding(.top, 4)
+        }
+    }
+
+    private var contactList: some View {
+        List {
+            if !isSearching {
+                Section {} header: { filterBar }
+            }
+            forYouSection
+            allFriendsSection
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -47,99 +169,10 @@ struct ConnectionsView: View {
                         systemImage: "person.2",
                         description: Text("Tap + to add friends you want to keep up with.")
                     )
+                } else if isSearching && searchText.isEmpty {
+                    Color.clear
                 } else {
-                    SearchAwareContent(searchText: searchText) {
-                        filterBar
-                    } listContent: {
-                        List {
-                            if !homeViewModel.friendSpotlights.isEmpty && !isSelecting {
-                                Section {
-                                    ForEach(homeViewModel.friendSpotlights) { item in
-                                        NavigationLink {
-                                            FriendDetailView(
-                                                contact: item.contact,
-                                                health: item.health,
-                                                displayName: homeViewModel.displayName(for: item.contact),
-                                                homeViewModel: homeViewModel
-                                            )
-                                        } label: {
-                                            FriendSpotlightCard(
-                                                item: item,
-                                                displayName: homeViewModel.displayName(for: item.contact)
-                                            )
-                                        }
-                                        .listRowBackground(Color.clear)
-                                        .listRowSeparator(.hidden)
-                                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                                    }
-                                } header: {
-                                    Text("For You")
-                                        .font(.title3.weight(.semibold))
-                                        .textCase(nil)
-                                        .foregroundStyle(.primary)
-                                        .padding(.top, 4)
-                                }
-                            }
-
-                            Section {
-                                ForEach(displayedContacts) { contact in
-                                    if isSelecting {
-                                        Button {
-                                            if selectedContactIDs.contains(contact.id) {
-                                                selectedContactIDs.remove(contact.id)
-                                            } else {
-                                                selectedContactIDs.insert(contact.id)
-                                            }
-                                        } label: {
-                                            ContactRow(
-                                                contact: contact,
-                                                viewModel: viewModel,
-                                                isSelecting: true,
-                                                isSelected: selectedContactIDs.contains(contact.id),
-                                                activeFilter: viewModel.selectedTagFilter
-                                            )
-                                        }
-                                        .buttonStyle(.plain)
-                                    } else {
-                                        NavigationLink {
-                                            FriendDetailView(
-                                                contact: contact,
-                                                health: viewModel.healthScores[contact.id] ?? RelationshipHealth(
-                                                    contact: contact,
-                                                    lastHangoutDate: nil,
-                                                    lastHangoutTitle: nil,
-                                                    hangoutCount: 0,
-                                                    score: 0,
-                                                    upcomingHangout: nil
-                                                ),
-                                                displayName: viewModel.displayName(for: contact),
-                                                homeViewModel: homeViewModel
-                                            )
-                                        } label: {
-                                            ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)
-                                        }
-                                    }
-                                }
-                                .onDelete { indexSet in
-                                    guard !isSelecting else { return }
-                                    for index in indexSet {
-                                        let contact = displayedContacts[index]
-                                        analyticsService.logConnectionRemoved(
-                                            contactName: contact.name,
-                                            totalContacts: viewModel.contacts.count - 1
-                                        )
-                                        viewModel.removeContact(contact)
-                                    }
-                                }
-                            } header: {
-                                Text("All Friends")
-                                    .font(.title3.weight(.semibold))
-                                    .textCase(nil)
-                                    .foregroundStyle(.primary)
-                                    .padding(.top, 4)
-                            }
-                        }
-                    }
+                    contactList
                 }
             }
             .navigationTitle("Friends")
@@ -237,7 +270,7 @@ struct ConnectionsView: View {
                 )
             }
             .confirmationDialog(
-                "Delete \(selectedContactIDs.count) friend\(selectedContactIDs.count == 1 ? "" : "s")?",
+                deleteDialogTitle,
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
@@ -251,6 +284,7 @@ struct ConnectionsView: View {
                     }
                     isSelecting = false
                     selectedContactIDs = []
+                    Task { await homeViewModel.refresh() }
                 }
                 Button("Cancel", role: .cancel) {}
             }
@@ -260,14 +294,7 @@ struct ConnectionsView: View {
                 await homeViewModel.refresh()
                 await homeViewModel.geocodeMissingCities()
             }
-            .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active {
-                    Task {
-                        await viewModel.loadHealthScores()
-                        await homeViewModel.refresh()
-                    }
-                }
-            }
+            .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
             .trackScreen("ConnectionsView", analytics: analyticsService)
         }
     }
@@ -311,26 +338,6 @@ struct ConnectionsView: View {
     }
 }
 
-// MARK: - Search-aware wrapper
-
-private struct SearchAwareContent<FilterBar: View, ListContent: View>: View {
-    let searchText: String
-    @ViewBuilder let filterBar: FilterBar
-    @ViewBuilder let listContent: ListContent
-
-    @Environment(\.isSearching) private var isSearching
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if !isSearching { filterBar }
-            if isSearching && searchText.isEmpty {
-                Color.clear
-            } else {
-                listContent
-            }
-        }
-    }
-}
 
 // MARK: - Contact row
 
@@ -354,38 +361,56 @@ private struct ContactRow: View {
     var activeFilter: TagCategory? = nil
 
     var body: some View {
-        HStack(spacing: 10) {
-            if isSelecting {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-            } else {
-                Circle()
-                    .fill(healthColor)
-                    .frame(width: 10, height: 10)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.displayName(for: contact))
-                    .font(.body)
-
-                if let label = viewModel.healthLabel(for: contact) {
-                    let tag = primaryTag(for: contact, filter: activeFilter)
-                    Text((tag.map { "\($0.displayName) · " } ?? "") + label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                if isSelecting {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.displayName(for: contact))
+                        .font(.body)
+
+                    if let label = viewModel.healthLabel(for: contact) {
+                        let tag = primaryTag(for: contact, filter: activeFilter)
+                        Text((tag.map { "\($0.displayName) · " } ?? "") + label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 16)
+
+            WarmthBar(days: viewModel.healthScores[contact.id]?.daysSinceLastHangout)
         }
-        .padding(.vertical, 2)
+    }
+}
+
+private struct WarmthBar: View {
+    let days: Int?
+
+    private func warmth(_ d: Int) -> Double {
+        max(0, min(1, 1 - log10(Double(d) + 1) / 3))
     }
 
-    private var healthColor: Color {
-        guard let health = viewModel.healthScores[contact.id] else { return .gray }
-        if health.upcomingHangout != nil { return .green }
-        guard let days = health.daysSinceLastHangout else { return .gray }
-        if days <= 14 { return .green }
-        if days <= 30 { return .yellow }
-        return .red
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Rectangle()
+                .fill(Color(white: 0.22))
+
+            if let d = days {
+                let w = warmth(d)
+                let hue = (150.0 + (1.0 - w) * 28.0) / 360.0
+                Rectangle()
+                    .fill(Color(hue: hue, saturation: 0.62, brightness: 0.52))
+                    .scaleEffect(x: max(0.02, w), anchor: .leading)
+            }
+        }
+        .frame(height: 2)
+        .frame(maxWidth: .infinity)
     }
 }
