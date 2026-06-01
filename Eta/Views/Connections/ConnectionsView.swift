@@ -137,7 +137,7 @@ struct ConnectionsView: View {
                         } label: {
                             ZStack(alignment: .topTrailing) {
                                 Image(systemName: "checkmark.circle")
-                                if !homeViewModel.hasCompletedCheckInThisWeek {
+                                if !homeViewModel.hasCompletedCheckInThisWeek && !viewModel.contacts.isEmpty {
                                     Circle()
                                         .fill(Color.accentColor)
                                         .frame(width: 8, height: 8)
