@@ -19,6 +19,7 @@ final class SuggestionService {
     private let contextEngine: any ContextEngine
     private let activityStrategy: any ActivityStrategy
     private let fallbackStrategy: RulesActivityStrategy
+    private let preferencesService: PreferencesService
 
     /// Contacts with a health score below this threshold are considered "recently seen"
     /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
@@ -29,13 +30,15 @@ final class SuggestionService {
         relationshipService: RelationshipService,
         contextEngine: any ContextEngine,
         activityStrategy: any ActivityStrategy,
-        fallbackStrategy: RulesActivityStrategy
+        fallbackStrategy: RulesActivityStrategy,
+        preferencesService: PreferencesService
     ) {
         self.availabilityProvider = availabilityProvider
         self.relationshipService = relationshipService
         self.contextEngine = contextEngine
         self.activityStrategy = activityStrategy
         self.fallbackStrategy = fallbackStrategy
+        self.preferencesService = preferencesService
     }
 
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
@@ -92,10 +95,23 @@ final class SuggestionService {
 
     // MARK: - Private
 
-    /// Returns the most overdue active contact above the score threshold, or nil if none qualifies.
+    /// Returns the contact to suggest.
+    /// If a weekly priority is active (not suppressed, not waived), picks that contact
+    /// as long as they have a non-zero score (no confirmed upcoming hangout).
+    /// Otherwise falls back to the highest-scoring contact above the recency threshold.
     private func topContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
-        healthScores
-            .filter { $0.contact.isActive && $0.score >= minimumScoreThreshold }
+        let eligible = healthScores.filter { $0.contact.isActive }
+
+        if let priorityID = preferencesService.weeklyPriorityContactID(),
+           !preferencesService.isWeeklyPrioritySuppressed(),
+           !preferencesService.isWeeklyPriorityWaived(),
+           let priorityHealth = eligible.first(where: { $0.contact.id == priorityID }),
+           priorityHealth.score > 0 {
+            return priorityHealth
+        }
+
+        return eligible
+            .filter { $0.score >= minimumScoreThreshold }
             .max(by: { $0.score < $1.score })
     }
 }

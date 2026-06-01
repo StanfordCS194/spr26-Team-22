@@ -5,6 +5,7 @@ struct ConnectionsView: View {
     let homeViewModel: HomeViewModel
     let settingsViewModel: SettingsViewModel
     let analyticsService: AnalyticsService
+    let weeklyCheckInState: WeeklyCheckInState
 
     @State private var showingAddSheet = false
     @State private var showingSettings = false
@@ -21,6 +22,30 @@ struct ConnectionsView: View {
                     )
                 } else {
                     List {
+                        if let contact = homeViewModel.weeklyPriorityContact {
+                            Section {
+                                HStack(spacing: 14) {
+                                    Image(systemName: "target")
+                                        .font(.title3)
+                                        .foregroundStyle(Color.accentColor)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("This week's priority")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text(homeViewModel.displayName(for: contact))
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    Spacer()
+                                    Button("Clear") {
+                                        homeViewModel.saveWeeklyGoal(contactID: nil)
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+
                         if !homeViewModel.friendSpotlights.isEmpty {
                             Section {
                                 ForEach(homeViewModel.friendSpotlights) { item in
@@ -101,10 +126,25 @@ struct ConnectionsView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
+                    HStack(spacing: 16) {
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        Button {
+                            weeklyCheckInState.trigger()
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "checkmark.circle")
+                                if !homeViewModel.hasCompletedCheckInThisWeek {
+                                    Circle()
+                                        .fill(Color.accentColor)
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: 3, y: -3)
+                                }
+                            }
+                        }
                     }
                 }
             }
