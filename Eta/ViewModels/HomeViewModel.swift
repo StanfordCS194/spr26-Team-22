@@ -28,6 +28,7 @@ final class HomeViewModel {
     private(set) var profileVersion: Int = 0
     private(set) var weeklyPriorityContactID: UUID? = nil
     private(set) var hasCompletedCheckInThisWeek: Bool = false
+    private(set) var hasInitiallyLoaded: Bool = false
 
     private var allHangouts: [ScheduledHangout] = []
 
@@ -130,6 +131,7 @@ final class HomeViewModel {
         currentInsight = await insightTask
         // Second pass: refresh with calendar-enhanced health data.
         friendSpotlights = computeSpotlights(healthScores: healthScores)
+        hasInitiallyLoaded = true
     }
 
     // MARK: - Insight actions
