@@ -126,14 +126,17 @@ Eta/
 │   ├── NudgeScheduler.swift              # Builds a Suggestion from a free slot for direct scheduling from nudge
 │   ├── NudgeReminderState.swift          # @Observable — bridges nudge notification tap → NudgeReminderSheet
 │   ├── ReminderPhotoState.swift          # @Observable — bridges photo-capture notification tap → photo sheet
-│   ├── WeeklyCheckInService.swift        # Schedules weekly check-in notification (once per calendar week)
+│   ├── WeeklyCheckInService.swift        # Schedules weekly check-in notification using user-configured day/time;
+│   │                                     #   independent of enableNotifications; reschedule() after settings change
 │   ├── WeeklyCheckInState.swift          # @Observable — bridges weekly check-in tap → WeeklyCheckInView
-│   ├── PreferencesService.swift          # Reads/writes UserPreferences from UserDefaults
+│   ├── PreferencesService.swift          # Reads/writes UserPreferences from UserDefaults; also owns week-keyed
+│   │                                     #   priority API (weeklyPriorityContactID, dismiss escalation, completion)
 │   ├── AnalyticsService.swift            # Logs analytics events to SwiftData
 │   └── AnalyticsService+CustomEvents.swift
 │
 ├── ViewModels/
-│   ├── SuggestionViewModel.swift         # Drives SuggestionView; scheduleFromNudge reuses accepted→sent flow
+│   ├── SuggestionViewModel.swift         # Drives SuggestionView; scheduleFromNudge reuses accepted→sent flow;
+│   │                                     #   dismiss() increments weekly dismiss count when priority friend is dismissed
 │   ├── ConnectionsViewModel.swift        # Drives ConnectionsView; owns healthScores dictionary
 │   ├── UpcomingEventsViewModel.swift     # Drives UpcomingEventsDashboard
 │   └── OnboardingViewModel.swift         # Drives OnboardingView; persists completion flag
@@ -143,7 +146,8 @@ Eta/
     │   ├── SuggestionView.swift          # Suggestion tab root
     │   └── SuggestionCard.swift          # Shows rotating activity photo thumbnail
     ├── Connections/
-    │   ├── ConnectionsView.swift
+    │   ├── ConnectionsView.swift         # Priority card at top of list when priority set; gear + check-in button
+    │   │                                 #   grouped in leading toolbar; + (add friend) alone on trailing
     │   └── AddConnectionSheet.swift
     ├── UpcomingEvents/
     │   ├── UpcomingEventsDashboard.swift  # Events tab root; shows ReceivedInviteCards above event cards
@@ -158,7 +162,9 @@ Eta/
     │   ├── ReceivedInviteSheet.swift     # Sheet on received-invite notification tap; Accept / Decline / Answer Later
     │   └── ReminderDebugModifier.swift   # Triple-tap bottom-left debug trigger for photo sheet
     ├── WeeklyCheckIn/
-    │   └── WeeklyCheckInView.swift       # Full-screen sheet: weekly stats, overdue friends, goal picker
+    │   └── WeeklyCheckInView.swift       # Sheet: weekly stats (seen/overdue), upcoming hangouts this week,
+    │                                     #   active goals with progress rings, network concentration nudge,
+    │                                     #   priority picker with "View suggestions" / "Send check-in" actions
     ├── Onboarding/
     │   ├── OnboardingView.swift
     │   └── PhoneSetupView.swift          # Shown before main app if no identifier registered; saves to PhoneSetupService
@@ -242,21 +248,24 @@ EtaApp
  ├─ RelationshipService(providers: [CalendarDataProvider], repository:, hangoutRepository:, preferencesService:)
  ├─ DefaultContextEngine(sources: [EventHistoryContextSource, PreferencesContextSource])
  ├─ LLMActivityStrategy(runner: GitHubModelsLLMRunner())
- ├─ SuggestionService(calendar: CalendarDataProvider, relationshipService:, contextEngine:, activityStrategy:)
+ ├─ SuggestionService(availabilityProvider:, relationshipService:, contextEngine:, activityStrategy:,
+ │                    fallbackStrategy:, preferencesService:)
  ├─ iMessageInviteProvider()
  ├─ InviteService(provider: iMessageInviteProvider, hangoutRepository:, calendarDataProvider:)
  ├─ LocalNotificationService(preferencesService:)
  ├─ InvitationManager(notificationService:, modelContext:, supabaseService:, phoneSetupService:, pendingReceivedRepo:)
  │       .receivedInviteState = receivedInviteState   ← set after construction
  ├─ NudgeService(relationshipService:, photoRepository:, runner: GitHubModelsLLMRunner())
- ├─ NudgeScheduler(calendarDataProvider:)
- ├─ WeeklyCheckInService()
+ ├─ NudgeScheduler(availabilityDataProvider:)
+ ├─ WeeklyCheckInService(preferencesService:)
  ├─ AnalyticsService(modelContext:)
  ├─ NotificationDelegate(invitationManager:, reminderPhotoState:, weeklyCheckInState:, nudgeReminderState:, receivedInviteState:)
  │       ← held strongly on EtaApp; UNUserNotificationCenter.delegate is weak
- ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:)
+ ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:,
+ │                       preferencesService:)
  ├─ ConnectionsViewModel(repository:, formatter:, relationshipService:)
  ├─ UpcomingEventsViewModel(hangoutRepository:, pendingInviteRepository:, invitationManager:, formatter:)
+ ├─ SettingsViewModel(preferencesService:, weeklyCheckInService:, onClearAll:)
  └─ MainTabView(connectionsViewModel:, suggestionViewModel:, upcomingEventsViewModel:, analyticsService:,
                 photoRepository:, reminderPhotoState:, nudgeService:, nudgeScheduler:,
                 weeklyCheckInService:, weeklyCheckInState:, nudgeReminderState:, receivedInviteState:)
@@ -556,14 +565,64 @@ Sheet presented when the user taps a nudge notification:
 
 ## Weekly check-in
 
-`WeeklyCheckInService` schedules a local notification once per calendar week. Tap routes through `NotificationDelegate` → `WeeklyCheckInState` → `WeeklyCheckInView` sheet in `MainTabView`.
+`WeeklyCheckInService` schedules a recurring local notification on a user-configured weekday and time. It is independent of the global `enableNotifications` preference — it has its own toggle in Settings. Tap routes through `NotificationDelegate` → `WeeklyCheckInState` → `WeeklyCheckInView` sheet in `MainTabView`. The check-in button (`checkmark.circle`) also appears in the leading toolbar of `ConnectionsView` (alongside the gear) for in-app access anytime. A badge dot shows when the check-in has not been completed this week and at least one friend exists.
 
-### WeeklyCheckInView data
+### Settings
 
-- Always re-fetches contacts and health scores on appearance (no stale-cache guard).
-- **"Seen this week"** — contacts whose `lastHangoutDate >= weekStart` (calendar-week boundary, not rolling 7 days).
-- **"Overdue"** — contacts whose `lastHangoutDate < weekStart`, excluding any contact with a confirmed upcoming hangout.
-- **Goal** — user picks one friend to prioritise; persisted in `UserDefaults` keyed to the current `weekStart` timestamp so it resets automatically on the next calendar week.
+`UserPreferences` carries three new fields:
+- `weeklyCheckInEnabled: Bool` — default `true`
+- `weeklyCheckInDay: Int` — weekday (1 = Sunday … 7 = Saturday), default Sunday
+- `weeklyCheckInTime: Date` — only hour/minute used, default 6 pm
+
+Changing any of these calls `WeeklyCheckInService.reschedule()`, which cancels the pending notification and re-schedules with the new components. Clear All Data resets priority/dismiss state but preserves day/time.
+
+### WeeklyCheckInView sections
+
+Always re-fetches on appearance (no stale-cache guard). Sections in order:
+
+1. **Header** — week range label + "How are your friendships doing?"
+2. **Stats** — two stat cards: friends seen this week / friends overdue
+3. **Planned this week** — upcoming confirmed hangouts before week end (hidden if none)
+4. **Who needs your attention?** — overdue friends list (score-sorted); "You're all caught up!" if none
+5. **Your goals** — active goals with progress rings recycled from the `Goal` model (hidden if none)
+6. **Network nudge** — shown when >65% of confirmed hangouts in the last 30 days involve only 1–2 contacts and there are ≥5 hangouts in that window
+7. **Priority picker** — candidates sorted by health score; tap to select/deselect. When a friend is selected, two action buttons appear: **View suggestions** (saves priority, marks done, switches to Suggestions tab) and **Send check-in** (opens `CheckInSheet`; only shown if contact has a phone number).
+
+Done button saves the selected priority and marks the check-in completed. Swipe-to-dismiss does not save.
+
+### Weekly priority contact
+
+The priority contact is stored as a week-keyed UserDefaults entry (`wcp_<weekStart>_id`) so it auto-resets each new calendar week with no explicit cleanup. `PreferencesService` owns the full API:
+
+- `weeklyPriorityContactID()` / `setWeeklyPriority(_:)` — read/write; setting resets dismiss count and suppression
+- `weeklyDismissCount()` / `incrementWeeklyDismissCount()` — tracks dismissals of the priority friend from suggestions
+- `isWeeklyPrioritySuppressed()` — true if 2nd dismiss was within the last 24 hours
+- `isWeeklyPriorityWaived()` — true if dismiss count ≥ 3 (waived for rest of week)
+- `hasCompletedCheckInThisWeek()` / `markCheckInCompleted()` — drives the badge dot
+- `clearWeeklyData()` — clears priority + dismiss state + done flag; does NOT clear day/time
+
+### Priority propagation to suggestions
+
+`SuggestionService.topContact()` picks the priority contact first when:
+- A priority is set (`weeklyPriorityContactID` is non-nil)
+- Not suppressed (`isWeeklyPrioritySuppressed() == false`)
+- Not waived (`isWeeklyPriorityWaived() == false`)
+- Contact has a non-zero health score (score > 0 means no confirmed upcoming hangout)
+
+Falls back to the highest-scoring contact ≥ 7.0 threshold when no priority is active or the priority contact is ineligible.
+
+### Dismiss escalation
+
+`SuggestionViewModel.dismiss()` calls `preferencesService.incrementWeeklyDismissCount()` when the dismissed suggestion's contact matches the current priority. Escalation:
+- 1st dismiss — priority survives next refresh
+- 2nd dismiss — 24-hour suppression (priority friend not suggested, but count still increments if they appear naturally)
+- 3rd dismiss — waived for the rest of the week
+
+Count resets automatically each new week (week key rolls over) and whenever `setWeeklyPriority` is called (including reselection).
+
+### Priority card in ConnectionsView
+
+When a priority contact is set, a card appears at the top of the friends list showing the contact name and a **Clear** button. Tapping Clear calls `homeViewModel.saveWeeklyGoal(contactID: nil)`, which clears the priority immediately (reactive — no refresh needed). The card does not auto-clear when a hangout is confirmed; it persists until Clear is tapped, the user deselects + Done in check-in, or a new week starts.
 
 ---
 
@@ -579,7 +638,7 @@ Sheet presented when the user taps a nudge notification:
    c. Calls `strategy.suggest(from: healthScores)` — the strategy returns nil if no contact exceeds the recency threshold (score < 7, i.e. seen within the last week). If nil → returns nil.
    d. Attaches `proposedTime` from step (a) to the strategy's result and returns the complete `Suggestion`.
 3. Result (or nil) flows back to `SuggestionViewModel` — view renders the card or the empty inbox state.
-4. User taps **"Maybe Later"** → `SuggestionViewModel.dismiss()` sets `suggestion = nil`. Nothing is persisted; the next `refresh()` recomputes from scratch.
+4. User taps **"Maybe Later"** → `SuggestionViewModel.dismiss()` sets `suggestion = nil`. If the dismissed contact is the weekly priority friend, the weekly dismiss count is incremented (see dismiss escalation in Weekly check-in section). Nothing else is persisted; the next `refresh()` recomputes from scratch.
 
 ---
 
