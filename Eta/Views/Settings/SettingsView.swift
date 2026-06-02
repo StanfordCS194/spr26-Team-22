@@ -92,35 +92,33 @@ struct SettingsView: View {
                 }
             ))
 
-            if viewModel.preferences.weeklyCheckInEnabled {
-                Picker("Day", selection: Binding(
-                    get: { viewModel.preferences.weeklyCheckInDay },
+            Picker("Day", selection: Binding(
+                get: { viewModel.preferences.weeklyCheckInDay },
+                set: { newValue in
+                    viewModel.preferences.weeklyCheckInDay = newValue
+                    Task { await viewModel.rescheduleWeeklyCheckIn() }
+                }
+            )) {
+                Text("Sunday").tag(1)
+                Text("Monday").tag(2)
+                Text("Tuesday").tag(3)
+                Text("Wednesday").tag(4)
+                Text("Thursday").tag(5)
+                Text("Friday").tag(6)
+                Text("Saturday").tag(7)
+            }
+
+            DatePicker(
+                "Time",
+                selection: Binding(
+                    get: { viewModel.preferences.weeklyCheckInTime },
                     set: { newValue in
-                        viewModel.preferences.weeklyCheckInDay = newValue
+                        viewModel.preferences.weeklyCheckInTime = newValue
                         Task { await viewModel.rescheduleWeeklyCheckIn() }
                     }
-                )) {
-                    Text("Sunday").tag(1)
-                    Text("Monday").tag(2)
-                    Text("Tuesday").tag(3)
-                    Text("Wednesday").tag(4)
-                    Text("Thursday").tag(5)
-                    Text("Friday").tag(6)
-                    Text("Saturday").tag(7)
-                }
-
-                DatePicker(
-                    "Time",
-                    selection: Binding(
-                        get: { viewModel.preferences.weeklyCheckInTime },
-                        set: { newValue in
-                            viewModel.preferences.weeklyCheckInTime = newValue
-                            Task { await viewModel.rescheduleWeeklyCheckIn() }
-                        }
-                    ),
-                    displayedComponents: .hourAndMinute
-                )
-            }
+                ),
+                displayedComponents: .hourAndMinute
+            )
         } header: {
             Text("Weekly Check-In")
         } footer: {

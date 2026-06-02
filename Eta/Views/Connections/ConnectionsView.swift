@@ -22,7 +22,7 @@ struct ConnectionsView: View {
                     )
                 } else {
                     List {
-                        if homeViewModel.hasInitiallyLoaded {
+                        if !homeViewModel.contacts.isEmpty {
                             Section {
                                 ForEach(homeViewModel.friendSpotlights) { item in
                                     NavigationLink {
