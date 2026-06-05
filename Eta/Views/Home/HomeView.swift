@@ -157,6 +157,7 @@ struct HomeView: View {
     // MARK: - Action routing
 
     private func handleInsightAction(_ insight: PersonalRelationshipInsight) {
+
         switch insight.primaryAction {
         case .planActivity, .addGoal:
             showingGoalCreation = true

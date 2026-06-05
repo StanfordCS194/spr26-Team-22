@@ -5,6 +5,7 @@ struct ConnectionsView: View {
     let homeViewModel: HomeViewModel
     let settingsViewModel: SettingsViewModel
     let analyticsService: AnalyticsService
+    let weeklyCheckInState: WeeklyCheckInState
 
     @State private var showingAddSheet = false
     @State private var showingSettings = false
@@ -21,7 +22,7 @@ struct ConnectionsView: View {
                     )
                 } else {
                     List {
-                        if !homeViewModel.friendSpotlights.isEmpty {
+                        if !homeViewModel.contacts.isEmpty {
                             Section {
                                 ForEach(homeViewModel.friendSpotlights) { item in
                                     NavigationLink {
@@ -37,6 +38,37 @@ struct ConnectionsView: View {
                                             displayName: homeViewModel.displayName(for: item.contact)
                                         )
                                     }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                }
+                                if settingsViewModel.preferences.weeklyCheckInEnabled {
+                                    Button {
+                                        weeklyCheckInState.trigger()
+                                    } label: {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "checkmark.circle")
+                                                .font(.title3)
+                                                .foregroundStyle(homeViewModel.hasCompletedCheckInThisWeek ? Color.accentColor : .orange)
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(weeklyCheckInCaptionText)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                Text(weeklyCheckInStatusText)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .lineLimit(1)
+                                            }
+                                            Spacer(minLength: 0)
+                                            Image(systemName: "chevron.right")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                        .padding(14)
+                                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                                        .shadow(color: .black.opacity(0.04), radius: 5, y: 1)
+                                        .foregroundStyle(.primary)
+                                    }
+                                    .buttonStyle(.plain)
                                     .listRowBackground(Color.clear)
                                     .listRowSeparator(.hidden)
                                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -135,6 +167,25 @@ struct ConnectionsView: View {
             }
             .trackScreen("ConnectionsView", analytics: analyticsService)
         }
+    }
+}
+
+// MARK: - Helpers
+
+extension ConnectionsView {
+    fileprivate var weeklyCheckInCaptionText: String {
+        guard homeViewModel.hasCompletedCheckInThisWeek else { return "Weekly Check-In" }
+        return "This week's priority"
+    }
+
+    fileprivate var weeklyCheckInStatusText: String {
+        guard homeViewModel.hasCompletedCheckInThisWeek else {
+            return "Do your weekly check-in"
+        }
+        if let contact = homeViewModel.weeklyPriorityContact {
+            return homeViewModel.displayName(for: contact)
+        }
+        return "No priority set this week"
     }
 }
 

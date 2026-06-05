@@ -37,7 +37,8 @@ struct MainTabView: View {
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
                     settingsViewModel: settingsViewModel,
-                    analyticsService: analyticsService
+                    analyticsService: analyticsService,
+                    weeklyCheckInState: weeklyCheckInState
                 )
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
@@ -109,7 +110,12 @@ struct MainTabView: View {
         )) {
             WeeklyCheckInView(
                 connectionsViewModel: connectionsViewModel,
-                onDismiss: { weeklyCheckInState.clear() }
+                homeViewModel: homeViewModel,
+                onDismiss: { weeklyCheckInState.clear() },
+                onViewSuggestions: {
+                    weeklyCheckInState.clear()
+                    selectedTab = .suggestions
+                }
             )
         }
         .sheet(isPresented: Binding(
