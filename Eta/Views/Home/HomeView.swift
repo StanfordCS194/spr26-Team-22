@@ -157,15 +157,20 @@ struct HomeView: View {
     // MARK: - Action routing
 
     private func handleInsightAction(_ insight: PersonalRelationshipInsight) {
+
         switch insight.primaryAction {
         case .planActivity, .addGoal:
             showingGoalCreation = true
         case .sendCheckIn:
             guard let friendID = insight.friendID,
                   let contact = viewModel.contacts.first(where: { $0.id == friendID }),
-                  let phone = contact.phoneNumber,
-                  let encoded = "Hey! How have you been?".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                  let url = URL(string: "sms:\(phone)&body=\(encoded)") else { return }
+                  let phone = contact.phoneNumber else { return }
+            let name = contact.givenName.isEmpty ? contact.name : contact.givenName
+            var components = URLComponents()
+            components.scheme = "sms"
+            components.path = phone
+            components.queryItems = [URLQueryItem(name: "body", value: "Hey \(name)! How have you been?")]
+            guard let url = components.url else { return }
             openURL(url)
         case .snooze:
             viewModel.snoozeInsight()

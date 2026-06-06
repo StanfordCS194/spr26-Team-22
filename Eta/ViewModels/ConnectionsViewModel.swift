@@ -73,6 +73,7 @@ final class ConnectionsViewModel {
     func removeContact(_ contact: TrackedContact) {
         try? repository.remove(contact)
         loadContacts()
+        NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
     }
 
     // MARK: - Relationship health

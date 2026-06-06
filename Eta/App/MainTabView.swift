@@ -9,6 +9,7 @@ struct MainTabView: View {
     let connectionsViewModel: ConnectionsViewModel
     let suggestionViewModel: SuggestionViewModel
     let upcomingEventsViewModel: UpcomingEventsViewModel
+    let settingsViewModel: SettingsViewModel
     let availabilityViewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
     let invitationManager: InvitationManager
@@ -19,6 +20,7 @@ struct MainTabView: View {
     let weeklyCheckInService: WeeklyCheckInService
     let weeklyCheckInState: WeeklyCheckInState
     let nudgeReminderState: NudgeReminderState
+    let receivedInviteState: ReceivedInviteState
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
@@ -29,25 +31,31 @@ struct MainTabView: View {
                 AvailabilityView(
                     viewModel: availabilityViewModel
                 )
+                .walkthrough(key: "availability", steps: TabWalkthroughs.availability)
             }
             Tab("Friends", systemImage: "person.2.fill", value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
-                    analyticsService: analyticsService
+                    settingsViewModel: settingsViewModel,
+                    analyticsService: analyticsService,
+                    weeklyCheckInState: weeklyCheckInState
                 )
+                .walkthrough(key: "friends", steps: TabWalkthroughs.friends)
             }
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
                     photoRepository: photoRepository
                 )
+                .walkthrough(key: "events", steps: TabWalkthroughs.events)
             }
             Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
                     analyticsService: analyticsService
                 )
+                .walkthrough(key: "suggestions", steps: TabWalkthroughs.suggestions)
             }
         }
         .sheet(isPresented: Binding(
@@ -106,8 +114,51 @@ struct MainTabView: View {
         )) {
             WeeklyCheckInView(
                 connectionsViewModel: connectionsViewModel,
-                onDismiss: { weeklyCheckInState.clear() }
+                homeViewModel: homeViewModel,
+                onDismiss: { weeklyCheckInState.clear() },
+                onViewSuggestions: {
+                    weeklyCheckInState.clear()
+                    selectedTab = .suggestions
+                }
             )
+        }
+        .sheet(isPresented: Binding(
+            get: { receivedInviteState.isPresented },
+            set: { if !$0 { receivedInviteState.clear(); Task { await upcomingEventsViewModel.refresh() } } }
+        )) {
+            if let invite = receivedInviteState.pendingInvite {
+                ReceivedInviteSheet(
+                    invite: invite,
+                    onAccept: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: true,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                            await upcomingEventsViewModel.refresh()
+                        }
+                    },
+                    onDecline: {
+                        receivedInviteState.clear()
+                        Task {
+                            await invitationManager.respondToRemoteInvitation(
+                                id: invite.id,
+                                accepted: false,
+                                activity: invite.activity,
+                                startTime: invite.startTime,
+                                endTime: invite.endTime,
+                                fromIdentifier: invite.fromIdentifier
+                            )
+                            await upcomingEventsViewModel.refresh()
+                        }
+                    }
+                )
+            }
         }
         .sheet(isPresented: Binding(
             get: { reminderPhotoState.pendingActivity != nil },

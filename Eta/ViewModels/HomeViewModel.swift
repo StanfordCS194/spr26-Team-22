@@ -26,6 +26,8 @@ final class HomeViewModel {
     private(set) var contacts: [TrackedContact] = []
     private(set) var isLoading: Bool = false
     private(set) var profileVersion: Int = 0
+    private(set) var weeklyPriorityContactID: UUID? = nil
+    private(set) var hasCompletedCheckInThisWeek: Bool = false
 
     private var allHangouts: [ScheduledHangout] = []
 
@@ -37,6 +39,40 @@ final class HomeViewModel {
     let formatter: ContactFormatter
     private let relationshipService: RelationshipService
     private let contactProfileService: ContactProfileService
+    private let preferencesService: PreferencesService
+
+    var checkInTemplate: String? { preferencesService.preferences.checkInTemplate }
+    var hasSetCheckInTemplate: Bool { preferencesService.preferences.hasSetCheckInTemplate }
+
+    var weeklyPriorityContact: TrackedContact? {
+        guard let id = weeklyPriorityContactID else { return nil }
+        return contacts.first { $0.id == id }
+    }
+
+    /// Hangouts scheduled to start from now through end of the current calendar week.
+    var upcomingHangoutsThisWeek: [ScheduledHangout] {
+        guard let weekEnd = Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.end else { return [] }
+        return allHangouts
+            .filter { $0.startDate > .now && $0.startDate < weekEnd && $0.status != .canceled }
+            .sorted { $0.startDate < $1.startDate }
+    }
+
+    /// Non-nil when >65% of confirmed hangouts in the last 30 days involve only 1–2 contacts.
+    var networkConcentrationWarning: String? {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        let recent = allHangouts.filter {
+            $0.startDate >= cutoff && $0.startDate <= .now && $0.inviteeResponse == .confirmed
+        }
+        guard recent.count >= 5 else { return nil }
+        var countByContact: [UUID: Int] = [:]
+        for hangout in recent {
+            guard let id = hangout.contact?.id else { continue }
+            countByContact[id, default: 0] += 1
+        }
+        let top2Sum = countByContact.values.sorted(by: >).prefix(2).reduce(0, +)
+        guard Double(top2Sum) / Double(recent.count) > 0.65 else { return nil }
+        return "Most of your recent hangouts have been with the same 1–2 people. Anyone you've been missing?"
+    }
 
     init(
         goalRepository: GoalRepository,
@@ -46,7 +82,8 @@ final class HomeViewModel {
         hangoutRepository: ScheduledHangoutRepository,
         formatter: ContactFormatter,
         relationshipService: RelationshipService,
-        contactProfileService: ContactProfileService
+        contactProfileService: ContactProfileService,
+        preferencesService: PreferencesService
     ) {
         self.goalRepository = goalRepository
         self.insightGenerationService = insightGenerationService
@@ -56,6 +93,7 @@ final class HomeViewModel {
         self.formatter = formatter
         self.relationshipService = relationshipService
         self.contactProfileService = contactProfileService
+        self.preferencesService = preferencesService
     }
 
     // MARK: - Refresh
@@ -69,6 +107,8 @@ final class HomeViewModel {
         contacts = (try? contactRepository.fetchAll()) ?? []
         allHangouts = (try? hangoutRepository.fetchAll()) ?? []
         activeGoals = (try? goalRepository.fetchActive()) ?? []
+        weeklyPriorityContactID = preferencesService.weeklyPriorityContactID()
+        hasCompletedCheckInThisWeek = preferencesService.hasCompletedCheckInThisWeek()
 
         for contact in contacts {
             contactProfileService.inferPatternIfNeeded(for: contact, from: allHangouts)
@@ -147,6 +187,13 @@ final class HomeViewModel {
             .sorted { $0.startDate > $1.startDate }
     }
 
+    func upcomingHangouts(for contact: TrackedContact) -> [ScheduledHangout] {
+        let all = allHangouts.isEmpty ? ((try? hangoutRepository.fetchAll()) ?? []) : allHangouts
+        return all
+            .filter { $0.contact?.id == contact.id && $0.startDate > .now && $0.inviteeResponse != .declined }
+            .sorted { $0.startDate < $1.startDate }
+    }
+
     func allGoals() -> [Goal] {
         (try? goalRepository.fetchAll()) ?? []
     }
@@ -185,6 +232,48 @@ final class HomeViewModel {
     func updateNotes(_ notes: String, for contact: TrackedContact) {
         contactProfileService.updateNotes(notes, for: contact)
         profileVersion += 1
+    }
+
+    func updateCheckInTemplate(_ template: String) {
+        preferencesService.updateCheckInTemplate(template)
+    }
+
+    func markCheckInTemplateSet() {
+        preferencesService.markCheckInTemplateSet()
+    }
+
+    func saveWeeklyGoal(contactID: UUID?) {
+        preferencesService.setWeeklyPriority(contactID)
+        weeklyPriorityContactID = contactID
+    }
+
+    func markCheckInCompleted() {
+        preferencesService.markCheckInCompleted()
+        hasCompletedCheckInThisWeek = true
+    }
+
+    func friendNames(for goal: Goal) -> [String] {
+        goal.friendIDs.compactMap { id in
+            contacts.first { $0.id == id }.map { formatter.displayName(for: $0) }
+        }
+    }
+
+    func updateCity(_ city: String?, for contact: TrackedContact) {
+        contact.city = city
+        try? contactRepository.save()
+    }
+
+    func updateIsRemote(_ isRemote: Bool, for contact: TrackedContact) {
+        contact.isRemote = isRemote
+        try? contactRepository.save()
+    }
+
+    func logPastHangout(contact: TrackedContact, activity: Activity, date: Date) {
+        let interval = DateInterval(start: date, duration: 3600)
+        let hangout = ScheduledHangout(contact: contact, activity: activity.rawValue, selectedTime: interval)
+        hangout.inviteeResponse = .confirmed
+        try? hangoutRepository.add(hangout)
+        allHangouts = (try? hangoutRepository.fetchAll()) ?? []
     }
 
     // MARK: - Private computation

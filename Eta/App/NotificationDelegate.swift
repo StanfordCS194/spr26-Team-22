@@ -5,40 +5,83 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     private let reminderPhotoState: ReminderPhotoState
     private let weeklyCheckInState: WeeklyCheckInState
     private let nudgeReminderState: NudgeReminderState
+    private let receivedInviteState: ReceivedInviteState
 
     init(
         invitationManager: InvitationManager,
         reminderPhotoState: ReminderPhotoState,
         weeklyCheckInState: WeeklyCheckInState,
-        nudgeReminderState: NudgeReminderState
+        nudgeReminderState: NudgeReminderState,
+        receivedInviteState: ReceivedInviteState
     ) {
         self.invitationManager = invitationManager
         self.reminderPhotoState = reminderPhotoState
         self.weeklyCheckInState = weeklyCheckInState
         self.nudgeReminderState = nudgeReminderState
+        self.receivedInviteState = receivedInviteState
     }
 
     // Called when a notification arrives while the app is in the foreground.
-    // photoCapture and weeklyCheckIn notifications skip auto-handling — they only
-    // open their screens when the user explicitly taps the notification.
+    // receivedInvite, photoCapture, weeklyCheckIn, and nudge only open their
+    // screens when the user explicitly taps — skip auto-handling for all of them.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         let type = notification.request.content.userInfo["notificationType"] as? String
-        let tapOnlyTypes: Set<String> = ["photoCapture", "weeklyCheckIn", "nudge"]
+        let tapOnlyTypes: Set<String> = ["photoCapture", "weeklyCheckIn", "nudge", "receivedInvite"]
         if !tapOnlyTypes.contains(type ?? "") {
             handleResponse(from: notification.request.content.userInfo)
         }
         return [.banner, .sound]
     }
 
-    // Called when the user taps the notification.
+    // Called when the user taps the notification (or an action button on it).
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        handleResponse(from: response.notification.request.content.userInfo)
+        let userInfo = response.notification.request.content.userInfo
+
+        // Received invite — user tapped banner or action button.
+        if let remoteID = userInfo["remoteInvitationID"] as? String {
+            let activity = userInfo["activity"] as? String ?? ""
+            let startTime = Date(timeIntervalSince1970: userInfo["startTime"] as? TimeInterval ?? 0)
+            let endTime   = Date(timeIntervalSince1970: userInfo["endTime"]   as? TimeInterval ?? 0)
+            let fromIdentifier = userInfo["fromIdentifier"] as? String ?? ""
+            let friendName = userInfo["friendName"] as? String ?? ""
+
+            if response.actionIdentifier == "ACCEPT_INVITE" || response.actionIdentifier == "DECLINE_INVITE" {
+                let accepted = response.actionIdentifier == "ACCEPT_INVITE"
+                Task { @MainActor in
+                    await invitationManager.respondToRemoteInvitation(
+                        id: remoteID,
+                        accepted: accepted,
+                        activity: activity,
+                        startTime: startTime,
+                        endTime: endTime,
+                        fromIdentifier: fromIdentifier
+                    )
+                }
+            } else {
+                // Banner tap — show the in-app sheet so user can decide.
+                let invite = RemoteInvitation(
+                    id: remoteID,
+                    fromDevice: "",
+                    fromIdentifier: fromIdentifier,
+                    toIdentifier: "",
+                    friendName: friendName,
+                    activity: activity,
+                    startTime: startTime,
+                    endTime: endTime,
+                    status: "pending"
+                )
+                Task { @MainActor in receivedInviteState.trigger(invite: invite) }
+            }
+            return
+        }
+
+        handleResponse(from: userInfo)
     }
 
     private func handleResponse(from userInfo: [AnyHashable: Any]) {
@@ -78,7 +121,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         }
 
         guard let invitationID = userInfo["invitationID"] as? String else { return }
-        // Simulated for Demo Day 1: always treat as accepted.
+        // Simulated for contacts outside the demo set: always treat as accepted.
         try? invitationManager.handleInvitationResponse(invitationID: invitationID, accepted: true)
     }
 }

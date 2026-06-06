@@ -23,19 +23,22 @@ final class SuggestionViewModel {
     private let invitationManager: InvitationManager
     private let formatter: ContactFormatter
     private let photoRepository: ActivityPhotoRepository
+    private let preferencesService: PreferencesService
 
     init(
         suggestionService: SuggestionService,
         inviteService: InviteService,
         invitationManager: InvitationManager,
         formatter: ContactFormatter,
-        photoRepository: ActivityPhotoRepository
+        photoRepository: ActivityPhotoRepository,
+        preferencesService: PreferencesService
     ) {
         self.suggestionService = suggestionService
         self.inviteService = inviteService
         self.invitationManager = invitationManager
         self.formatter = formatter
         self.photoRepository = photoRepository
+        self.preferencesService = preferencesService
     }
 
     // MARK: - Display
@@ -120,9 +123,13 @@ final class SuggestionViewModel {
         #endif
     }
 
-    /// Clears the current suggestion. The inbox will show its empty state until
-    /// the next refresh() call recomputes from scratch.
+    /// Clears the current suggestion. If the dismissed contact is the weekly priority
+    /// friend, increments the dismiss count (may trigger suppression or waiver).
     func dismiss() {
+        if let contactID = suggestion?.contact.id,
+           contactID == preferencesService.weeklyPriorityContactID() {
+            preferencesService.incrementWeeklyDismissCount()
+        }
         suggestion = nil
     }
 
@@ -148,12 +155,14 @@ final class SuggestionViewModel {
         let activityName = suggestion.activityDescription
         let scheduledTime = suggestion.proposedTime.start
 
+        let contact = suggestion.contact
         let hangoutID = inviteService.book(suggestion: suggestion)
         let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
             scheduleState = .accepted
             _ = try? await invitationManager.acceptSuggestion(
+                contact: contact,
                 activityName: activityName,
                 friendName: name,
                 scheduledTime: scheduledTime,

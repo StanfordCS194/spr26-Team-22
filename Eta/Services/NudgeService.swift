@@ -261,6 +261,7 @@ final class NudgeService {
         case .lunch:        return "How about getting lunch with someone this week?"
         case .workout:      return "Why not work out with a friend today?"
         case .studySession: return "How about setting up a study session with a friend?"
+        case .videoCall:    return "How about catching up over a video call with a friend?"
         }
     }
 }
