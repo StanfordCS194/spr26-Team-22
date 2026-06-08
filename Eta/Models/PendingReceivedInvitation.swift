@@ -6,7 +6,7 @@ import SwiftData
     var fromDevice: String
     var fromIdentifier: String
     var friendName: String
-    var senderName: String
+    var senderName: String = ""
     var activity: String
     var startTime: Date
     var endTime: Date

@@ -247,7 +247,7 @@ final class InvitationManager {
             if !pendingReceivedRepo.exists(id: remote.id) {
                 try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote, senderName: senderName))
             }
-            receivedInviteState?.trigger(invite: remote)
+            receivedInviteState?.trigger(invite: remote, senderName: senderName)
             notified.insert(remote.id)
         }
         notifiedRemoteIDs = notified
