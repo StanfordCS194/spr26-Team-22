@@ -8,7 +8,7 @@ struct ReceivedInviteCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(invite.friendName) invited you")
+                Text("\(invite.senderName) invited you")
                     .font(.headline)
                 Text(invite.activity)
                     .font(.subheadline)

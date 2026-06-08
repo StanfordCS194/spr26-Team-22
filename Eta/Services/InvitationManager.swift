@@ -242,9 +242,10 @@ final class InvitationManager {
             }
             guard !notified.contains(remote.id) else { continue }
             print("[Poll] scheduling notification for invite=\(remote.id)")
-            try? await notificationService.scheduleReceivedInvitationNotification(remote: remote)
+            let senderName = findContact(byIdentifier: remote.fromIdentifier)?.name ?? remote.fromIdentifier
+            try? await notificationService.scheduleReceivedInvitationNotification(remote: remote, senderName: senderName)
             if !pendingReceivedRepo.exists(id: remote.id) {
-                try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote))
+                try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote, senderName: senderName))
             }
             receivedInviteState?.trigger(invite: remote)
             notified.insert(remote.id)

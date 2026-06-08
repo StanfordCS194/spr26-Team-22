@@ -21,7 +21,7 @@ protocol NotificationServiceProtocol {
     func cancelHangoutReminders(for hangoutID: UUID)
 
     /// Schedule a local notification for an incoming remote invitation with Accept/Decline actions.
-    func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws
+    func scheduleReceivedInvitationNotification(remote: RemoteInvitation, senderName: String) async throws
 
     /// Schedule a confirmation notification for the sender after an invite is posted.
     func scheduleInviteSentNotification(friendName: String, activityName: String) async

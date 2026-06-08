@@ -6,16 +6,18 @@ import SwiftData
     var fromDevice: String
     var fromIdentifier: String
     var friendName: String
+    var senderName: String
     var activity: String
     var startTime: Date
     var endTime: Date
     var receivedAt: Date
 
-    init(remote: RemoteInvitation) {
+    init(remote: RemoteInvitation, senderName: String) {
         self.id = remote.id
         self.fromDevice = remote.fromDevice
         self.fromIdentifier = remote.fromIdentifier
         self.friendName = remote.friendName
+        self.senderName = senderName
         self.activity = remote.activity
         self.startTime = remote.startTime
         self.endTime = remote.endTime

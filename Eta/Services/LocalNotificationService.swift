@@ -107,11 +107,11 @@ final class LocalNotificationService: NotificationServiceProtocol {
         ])
     }
 
-    func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws {
+    func scheduleReceivedInvitationNotification(remote: RemoteInvitation, senderName: String) async throws {
         guard preferencesService.preferences.enableNotifications else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "\(remote.friendName) invited you!"
+        content.title = "\(senderName) invited you!"
         content.body = "\(remote.activity) — \(formattedDateTime(remote.startTime))"
         content.sound = .default
         content.categoryIdentifier = "INVITE_RESPONSE"
