@@ -26,6 +26,9 @@ protocol NotificationServiceProtocol {
     /// Schedule a confirmation notification for the sender after an invite is posted.
     func scheduleInviteSentNotification(friendName: String, activityName: String) async
 
+    /// Schedule a notification for the sender when the receiver accepts.
+    func scheduleInviteAcceptedNotification(friendName: String, activityName: String) async
+
     /// Schedule a notification for the sender when the receiver declines.
     func scheduleInviteDeclinedNotification(friendName: String, activityName: String) async
 }

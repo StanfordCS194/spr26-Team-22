@@ -164,6 +164,21 @@ final class LocalNotificationService: NotificationServiceProtocol {
         try? await center.add(request)
     }
 
+    func scheduleInviteAcceptedNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite accepted!"
+        content.body = "\(friendName) is in for \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-accepted-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short

@@ -211,7 +211,12 @@ final class InvitationManager {
                   inv.status == .pending else { continue }
             let accepted = remote.status == "confirmed"
             try? handleInvitationResponse(invitationID: remote.id, accepted: accepted)
-            if !accepted {
+            if accepted {
+                await notificationService.scheduleInviteAcceptedNotification(
+                    friendName: remote.friendName,
+                    activityName: remote.activity
+                )
+            } else {
                 await notificationService.scheduleInviteDeclinedNotification(
                     friendName: remote.friendName,
                     activityName: remote.activity
@@ -256,6 +261,10 @@ final class InvitationManager {
     private func contactIdentifier(for contact: TrackedContact) -> String {
         if let phone = contact.phoneNumber { return PhoneSetupService.normalized(phone) }
         return contact.emailAddress?.lowercased() ?? ""
+    }
+
+    func senderName(for identifier: String) -> String {
+        findContact(byIdentifier: identifier)?.name ?? identifier
     }
 
     private func findContact(byIdentifier identifier: String) -> TrackedContact? {

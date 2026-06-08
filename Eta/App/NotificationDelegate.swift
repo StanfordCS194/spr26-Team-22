@@ -76,7 +76,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                     endTime: endTime,
                     status: "pending"
                 )
-                Task { @MainActor in receivedInviteState.trigger(invite: invite) }
+                let senderName = invitationManager.senderName(for: fromIdentifier)
+                Task { @MainActor in receivedInviteState.trigger(invite: invite, senderName: senderName) }
             }
             return
         }
