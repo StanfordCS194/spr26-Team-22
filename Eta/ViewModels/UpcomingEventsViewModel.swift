@@ -31,6 +31,7 @@ final class UpcomingEventsViewModel {
     private let invitationManager: InvitationManager
     private let inviteService: InviteService
     private let contactRepository: ContactRepository
+    private let activityStrategy: LLMActivityStrategy
     private let formatter: ContactFormatter
 
     init(
@@ -39,6 +40,7 @@ final class UpcomingEventsViewModel {
         invitationManager: InvitationManager,
         inviteService: InviteService,
         contactRepository: ContactRepository,
+        activityStrategy: LLMActivityStrategy,
         formatter: ContactFormatter
     ) {
         self.hangoutRepository = hangoutRepository
@@ -46,6 +48,7 @@ final class UpcomingEventsViewModel {
         self.invitationManager = invitationManager
         self.inviteService = inviteService
         self.contactRepository = contactRepository
+        self.activityStrategy = activityStrategy
         self.formatter = formatter
     }
 
@@ -125,5 +128,30 @@ final class UpcomingEventsViewModel {
         invitationManager.cancelHangoutReminders(for: hangout.id)
         try? hangoutRepository.remove(hangout)
         Task { await refresh() }
+    }
+
+    /// Calls LLMActivityStrategy.propose() for the given contact and proposed time.
+    /// Builds a minimal RelationshipHealth (no history) and a time-enriched PromptContext.
+    /// Throws if the strategy throws — callers should surface a failure indicator, not crash.
+    func suggestActivity(for contact: TrackedContact, proposedTime: DateInterval) async throws -> String? {
+        let health = RelationshipHealth(
+            contact: contact,
+            lastHangoutDate: nil,
+            lastHangoutTitle: nil,
+            hangoutCount: 0,
+            score: 0,
+            upcomingHangout: nil
+        )
+        let timeString = proposedTime.start.formatted(.dateTime.weekday(.wide).hour(.defaultDigits(amPM: .abbreviated)))
+        let context = PromptContext(
+            relationshipFacts: [
+                ContextFact(
+                    description: "The user wants to meet on \(timeString)",
+                    source: .onboardingPreferences
+                )
+            ],
+            userGoals: []
+        )
+        return try await activityStrategy.propose(for: health, context: context)?.activityDescription
     }
 }

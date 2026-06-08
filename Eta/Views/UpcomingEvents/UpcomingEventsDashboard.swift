@@ -78,6 +78,9 @@ struct UpcomingEventsDashboard: View {
                 mode: .add(viewModel.contacts),
                 onSave: { contact, activity, interval in
                     await viewModel.addEvent(contact: contact, activity: activity, interval: interval)
+                },
+                onSuggestActivity: { contact, proposedTime in
+                    try await viewModel.suggestActivity(for: contact, proposedTime: proposedTime)
                 }
             )
         }
@@ -86,6 +89,9 @@ struct UpcomingEventsDashboard: View {
                 mode: .edit(item),
                 onSave: { _, activity, interval in
                     await viewModel.editEvent(item.hangout, activity: activity, interval: interval)
+                },
+                onSuggestActivity: { contact, proposedTime in
+                    try await viewModel.suggestActivity(for: contact, proposedTime: proposedTime)
                 }
             )
         }
