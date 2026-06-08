@@ -3,6 +3,7 @@ import SwiftUI
 struct ReceivedInviteSheet: View {
     let invite: RemoteInvitation
     let senderName: String
+    let isEdit: Bool
     let onAccept: () -> Void
     let onDecline: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -12,7 +13,7 @@ struct ReceivedInviteSheet: View {
             Spacer()
 
             VStack(spacing: 8) {
-                Text("\(senderName) invited you!")
+                Text(isEdit ? "\(senderName) updated the event!" : "\(senderName) invited you!")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)

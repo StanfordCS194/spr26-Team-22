@@ -3,17 +3,25 @@
 import Foundation
 import Observation
 
+struct HangoutSlot {
+    let startDate: Date
+    let endDate: Date
+    let status: HangoutStatus
+    let activity: String
+    let contactFirstName: String?
+}
+
 /// Drives the Availability tab by combining saved free time, scheduled hangouts, and duration settings.
 @Observable
 final class AvailabilityViewModel {
 
     /// All saved free-time blocks, sorted by start time after loading or mutation.
     var blocks: [AvailabilityBlock] = []
-    /// Upcoming or in-progress hangouts that should appear as scheduled time.
-    var scheduledHangouts: [ScheduledHangout] = []
+    /// Upcoming hangouts as value-type snapshots — never holds live SwiftData references.
+    var scheduledHangouts: [HangoutSlot] = []
     /// User-selected hangout length in minutes, constrained to 15-minute increments.
     var activityDurationMinutes: Int
-    
+
     private let repository: AvailabilityRepository
     private let hangoutRepository: ScheduledHangoutRepository
     private let activityDurationSettings: ActivityDurationSettings
@@ -67,6 +75,21 @@ final class AvailabilityViewModel {
         do {
             scheduledHangouts = try hangoutRepository.fetchUpcoming()
                 .sorted { $0.startDate < $1.startDate }
+                .map { h in
+                    let firstName: String?
+                    if let contact = h.contact {
+                        firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
+                    } else {
+                        firstName = nil
+                    }
+                    return HangoutSlot(
+                        startDate: h.startDate,
+                        endDate: h.endDate,
+                        status: h.status,
+                        activity: h.activity,
+                        contactFirstName: firstName
+                    )
+                }
         } catch {
             scheduledHangouts = []
         }
@@ -123,7 +146,7 @@ final class AvailabilityViewModel {
         blocks.removeAll { $0.id == id }
         saveBlocks()
     }
-    
+
     /// Returns whether the daily availability prompt should still be shown.
     func shouldShowPrompt(for date: Date) -> Bool {
         !tracker.hasProvidedAvailability(for: date)
@@ -142,23 +165,19 @@ final class AvailabilityViewModel {
     }
 
     /// Returns scheduled hangouts whose start date falls on the requested day.
-    func scheduledHangouts(on date: Date) -> [ScheduledHangout] {
+    func scheduledHangouts(on date: Date) -> [HangoutSlot] {
         scheduledHangouts.filter {
             Calendar.current.isDate($0.startDate, inSameDayAs: date)
         }
     }
 
     /// Returns true when a free-time block overlaps any scheduled hangout in the supplied list.
-    func isBlocked(
-            _ block: AvailabilityBlock,
-            scheduled: [ScheduledHangout]
-        ) -> Bool {
-
-            scheduled.contains {
-                $0.startDate < block.endTime &&
-                $0.endDate > block.startTime
-            }
+    func isBlocked(_ block: AvailabilityBlock, scheduled: [HangoutSlot]) -> Bool {
+        scheduled.contains {
+            $0.startDate < block.endTime &&
+            $0.endDate > block.startTime
         }
+    }
 
     /// Returns true when any saved free-time block overlaps the interval.
     func isFree(during interval: DateInterval) -> Bool {
@@ -185,19 +204,11 @@ final class AvailabilityViewModel {
                 $0.startDate < interval.end &&
                 $0.endDate > interval.start
             }
-            .map { hangout in
-                let firstName: String?
-                if let contact = hangout.contact {
-                    firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
-                } else {
-                    firstName = nil
+            .map { slot in
+                if let firstName = slot.contactFirstName, !firstName.isEmpty {
+                    return "\(slot.activity) with \(firstName)"
                 }
-
-                if let firstName, !firstName.isEmpty {
-                    return "\(hangout.activity) with \(firstName)"
-                }
-
-                return hangout.activity
+                return slot.activity
             }
     }
 

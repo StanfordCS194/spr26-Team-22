@@ -36,7 +36,7 @@ struct UpcomingEventCardView: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .contextMenu {
-            if let onEdit {
+            if let onEdit, item.hangout.status != .canceled {
                 Button { onEdit() } label: {
                     Label("Edit", systemImage: "pencil")
                 }

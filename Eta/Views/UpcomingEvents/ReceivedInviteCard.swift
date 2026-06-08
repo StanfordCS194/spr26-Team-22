@@ -8,7 +8,7 @@ struct ReceivedInviteCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(invite.senderName) invited you")
+                Text(invite.isEdit ? "\(invite.senderName) updated the event" : "\(invite.senderName) invited you")
                     .font(.headline)
                 Text(invite.activity)
                     .font(.subheadline)

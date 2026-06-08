@@ -232,9 +232,9 @@ struct AddEditEventSheet: View {
             }
         case .edit(let item):
             guard let contact = item.hangout.contact else { return }
+            dismiss()
             Task {
                 await onSave(contact, activityValue, interval)
-                dismiss()
             }
         }
     }

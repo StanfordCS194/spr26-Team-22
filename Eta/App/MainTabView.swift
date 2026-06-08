@@ -130,6 +130,7 @@ struct MainTabView: View {
                 ReceivedInviteSheet(
                     invite: invite,
                     senderName: receivedInviteState.senderName,
+                    isEdit: receivedInviteState.isEdit,
                     onAccept: {
                         receivedInviteState.clear()
                         Task {

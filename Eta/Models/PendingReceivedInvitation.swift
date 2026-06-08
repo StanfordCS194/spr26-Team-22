@@ -7,17 +7,19 @@ import SwiftData
     var fromIdentifier: String
     var friendName: String
     var senderName: String = ""
+    var isEdit: Bool = false
     var activity: String
     var startTime: Date
     var endTime: Date
     var receivedAt: Date
 
-    init(remote: RemoteInvitation, senderName: String) {
+    init(remote: RemoteInvitation, senderName: String, isEdit: Bool = false) {
         self.id = remote.id
         self.fromDevice = remote.fromDevice
         self.fromIdentifier = remote.fromIdentifier
         self.friendName = remote.friendName
         self.senderName = senderName
+        self.isEdit = isEdit
         self.activity = remote.activity
         self.startTime = remote.startTime
         self.endTime = remote.endTime
@@ -34,7 +36,8 @@ import SwiftData
             activity: activity,
             startTime: startTime,
             endTime: endTime,
-            status: "pending"
+            status: "pending",
+            previousInvitationID: nil
         )
     }
 }
