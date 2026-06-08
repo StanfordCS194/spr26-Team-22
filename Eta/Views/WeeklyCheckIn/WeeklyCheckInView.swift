@@ -46,7 +46,7 @@ struct WeeklyCheckInView: View {
             CheckInSheet(
                 displayName: homeViewModel.displayName(for: contact),
                 givenName: contact.givenName,
-                phoneNumber: contact.phoneNumber ?? "",
+                phoneNumber: contact.phoneNumber ?? contact.emailAddress ?? "",
                 initialTemplate: homeViewModel.checkInTemplate ?? "How have you been?",
                 onSend: { message, saveAsDefault in
                     if saveAsDefault { homeViewModel.updateCheckInTemplate(message) }
@@ -219,7 +219,7 @@ struct WeeklyCheckInView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
-            if contact.phoneNumber != nil {
+            if !(contact.phoneNumber ?? "").isEmpty || !(contact.emailAddress ?? "").isEmpty {
                 Button {
                     checkInSheetContact = contact
                 } label: {
