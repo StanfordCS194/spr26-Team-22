@@ -32,6 +32,11 @@ final class InvitationManager {
         self.pendingReceivedRepo = pendingReceivedRepo
     }
 
+    /// Cancels the heads-up and photo-capture notifications scheduled for a hangout.
+    func cancelHangoutReminders(for hangoutID: UUID) {
+        notificationService.cancelHangoutReminders(for: hangoutID)
+    }
+
     func fetchHangout(id: UUID) -> ScheduledHangout? {
         let descriptor = FetchDescriptor<ScheduledHangout>(
             predicate: #Predicate { $0.id == id }

@@ -5,6 +5,9 @@ struct UpcomingEventsDashboard: View {
     let photoRepository: ActivityPhotoRepository
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var showingAddSheet = false
+    @State private var editingItem: HangoutDisplayItem? = nil
+
     var body: some View {
         NavigationStack {
             Group {
@@ -26,8 +29,13 @@ struct UpcomingEventsDashboard: View {
                                 .padding(.horizontal)
                             }
                             ForEach(viewModel.upcomingItems) { item in
-                                UpcomingEventCardView(item: item, photoRepository: photoRepository)
-                                    .padding(.horizontal)
+                                UpcomingEventCardView(
+                                    item: item,
+                                    photoRepository: photoRepository,
+                                    onEdit: { editingItem = item },
+                                    onDelete: { viewModel.deleteEvent(item.hangout) }
+                                )
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical, 12)
@@ -37,12 +45,19 @@ struct UpcomingEventsDashboard: View {
             }
             .navigationTitle("Events")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
                         EventHistoryView(items: viewModel.allItems, photoRepository: photoRepository)
                     } label: {
                         Text("See All")
                             .font(.subheadline)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAddSheet = true
+                    } label: {
+                        Image(systemName: "plus")
                     }
                 }
             }
@@ -57,6 +72,22 @@ struct UpcomingEventsDashboard: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .scheduledHangoutsDidChange)) { _ in
             Task { await viewModel.refresh() }
+        }
+        .sheet(isPresented: $showingAddSheet) {
+            AddEditEventSheet(
+                mode: .add(viewModel.contacts),
+                onSave: { contact, activity, interval in
+                    await viewModel.addEvent(contact: contact, activity: activity, interval: interval)
+                }
+            )
+        }
+        .sheet(item: $editingItem) { item in
+            AddEditEventSheet(
+                mode: .edit(item),
+                onSave: { _, activity, interval in
+                    await viewModel.editEvent(item.hangout, activity: activity, interval: interval)
+                }
+            )
         }
     }
 }
