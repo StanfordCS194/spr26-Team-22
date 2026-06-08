@@ -76,7 +76,7 @@ final class InvitationManager {
         try modelContext.save()
 
         if supabaseService.isConfigured,
-           let receiverDeviceID = await supabaseService.lookupDeviceID(for: contactIdentifier(for: contact)),
+           let receiverDeviceID = await contactDeviceID(for: contact),
            !receiverDeviceID.isEmpty {
             let remote = RemoteInvitation(
                 id: invitation.id,
@@ -247,9 +247,14 @@ final class InvitationManager {
         notifiedRemoteIDs = notified
     }
 
-    private func contactIdentifier(for contact: TrackedContact) -> String {
-        if let phone = contact.phoneNumber { return PhoneSetupService.normalized(phone) }
-        return contact.emailAddress?.lowercased() ?? ""
+    private func contactDeviceID(for contact: TrackedContact) async -> String? {
+        if let phone = contact.phoneNumber,
+           let id = await supabaseService.lookupDeviceID(for: PhoneSetupService.normalized(phone)),
+           !id.isEmpty { return id }
+        if let email = contact.emailAddress?.lowercased(),
+           let id = await supabaseService.lookupDeviceID(for: email),
+           !id.isEmpty { return id }
+        return nil
     }
 
     private func findContact(byIdentifier identifier: String) -> TrackedContact? {
