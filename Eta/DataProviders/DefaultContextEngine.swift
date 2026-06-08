@@ -32,6 +32,6 @@ final class DefaultContextEngine: ContextEngine {
             }
         }
 
-        return PromptContext(relationshipFacts: relationshipFacts, userGoals: userGoals)
+        return PromptContext(relationshipFacts: relationshipFacts, userGoals: userGoals, previouslySuggestedActivities: [])
     }
 }
