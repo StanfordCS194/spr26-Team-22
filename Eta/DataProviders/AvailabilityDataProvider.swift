@@ -37,9 +37,9 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         let all = try await repository.fetch()
 
         let calendar = Calendar.current
-        return all.filter {
-            calendar.isDate($0.startTime, inSameDayAs: date)
-        }
+        return all
+            .compactMap { $0.occurrence(on: date, calendar: calendar) }
+            .sorted { $0.startTime < $1.startTime }
     }
 
     /// Returns the earliest schedulable intervals in the near-term window.
@@ -56,8 +56,9 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         let now = Date()
         let searchEnd = calendar.date(byAdding: .day, value: lookAheadDays, to: now) ?? now
         let activityDuration = activityDurationSettings.duration
+        let availableBlocks = expandAvailability(all, from: now, through: searchEnd, calendar: calendar)
 
-        return all
+        return availableBlocks
             .flatMap { block -> [DateInterval] in
                 guard block.endTime > now, block.startTime < searchEnd else { return [] }
                 let interval = DateInterval(start: max(block.startTime, now), end: block.endTime)
@@ -68,6 +69,26 @@ final class AvailabilityDataProvider: AvailabilityProvider {
             .sorted { $0.start < $1.start }
             .prefix(maximumCount)
             .map { $0 }
+    }
+
+    /// Expands saved one-time and weekly recurring blocks into concrete blocks for the search window.
+    private func expandAvailability(
+        _ blocks: [AvailabilityBlock],
+        from start: Date,
+        through end: Date,
+        calendar: Calendar
+    ) -> [AvailabilityBlock] {
+        var date = calendar.startOfDay(for: start)
+        let finalDate = calendar.startOfDay(for: end)
+        var expanded: [AvailabilityBlock] = []
+
+        while date <= finalDate {
+            expanded.append(contentsOf: blocks.compactMap { $0.occurrence(on: date, calendar: calendar) })
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: date) else { break }
+            date = nextDate
+        }
+
+        return expanded.sorted { $0.startTime < $1.startTime }
     }
 
     /// Removes already scheduled hangouts from a candidate free interval.

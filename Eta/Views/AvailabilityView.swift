@@ -11,6 +11,12 @@ struct AvailabilityView: View {
     @State private var selectedDate = Date()
     /// Controls whether schedule blocks can be selected and deselected.
     @State private var isEditingAvailability = false
+    /// Controls whether newly selected availability is one-time or recurring.
+    @State private var entryMode: AvailabilityEntryMode = .oneTime
+    /// Whether newly selected recurring availability has an end date.
+    @State private var hasRepeatEndDate = false
+    /// End date used for newly selected recurring availability.
+    @State private var repeatEndDate = Date()
     
     var body: some View {
         NavigationStack {
@@ -19,15 +25,20 @@ struct AvailabilityView: View {
                     DatePicker(
                         "Day",
                         selection: $selectedDate,
+                        in: today...,
                         displayedComponents: [.date]
                     )
                     .datePickerStyle(.compact)
 
                     activityDurationEditor
 
-                    if viewModel.blocks(on: selectedDate).isEmpty && !isEditingAvailability {
+                    if !viewModel.hasDisplayableAvailability(on: selectedDate) && !isEditingAvailability {
                         EmptyAvailabilityState()
                     } else {
+                        if isEditingAvailability {
+                            availabilityEntryModeControl
+                        }
+
                         legend
 
                         VStack(spacing: 0) {
@@ -40,7 +51,25 @@ struct AvailabilityView: View {
                                         isEditing: isEditingAvailability,
                                         onToggle: {
                                             withAnimation {
-                                                viewModel.toggleAvailability(during: interval)
+                                                if viewModel.isRecurringFree(during: interval) {
+                                                    viewModel.stopRecurringAvailability(during: interval)
+                                                } else {
+                                                    viewModel.toggleAvailability(
+                                                        during: interval,
+                                                        repeatsWeekly: entryMode == .repeatWeekly,
+                                                        repeatEndDate: selectedRepeatEndDate
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onSkip: {
+                                            withAnimation {
+                                                viewModel.skipRecurringAvailability(during: interval)
+                                            }
+                                        },
+                                        onUnskip: {
+                                            withAnimation {
+                                                viewModel.unskipRecurringAvailability(during: interval)
                                             }
                                         }
                                     )
@@ -71,6 +100,7 @@ struct AvailabilityView: View {
             }
             .navigationTitle("Availability")
             .task {
+                moveSelectionToTodayIfNeeded()
                 await viewModel.loadAvailability()
             }
             .onReceive(NotificationCenter.default.publisher(for: .scheduledHangoutsDidChange)) { _ in
@@ -86,12 +116,29 @@ struct AvailabilityView: View {
         Array(5..<24)
     }
 
+    /// Earliest date users can choose for availability entry.
+    private var today: Date {
+        Calendar.current.startOfDay(for: Date())
+    }
+
+    /// End repeat date passed to new recurring blocks.
+    private var selectedRepeatEndDate: Date? {
+        entryMode == .repeatWeekly && hasRepeatEndDate ? repeatEndDate : nil
+    }
+
     /// Color legend for the availability grid.
     private var legend: some View {
-        HStack(spacing: 16) {
-            LegendItem(color: .green, label: "Free")
-            LegendItem(color: .pink, label: "Scheduled")
-            LegendItem(color: Color(.systemBackground), label: "Unavailable", bordered: true)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16) {
+                LegendItem(color: .green, label: "Free")
+                LegendItem(color: .teal.opacity(0.75), label: "Free (recurring)")
+            }
+
+            HStack(spacing: 16) {
+                LegendItem(color: .gray.opacity(0.45), label: "Skipped (recurring)")
+                LegendItem(color: .pink, label: "Scheduled")
+                LegendItem(color: Color(.systemBackground), label: "Unavailable", bordered: true)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -127,6 +174,40 @@ struct AvailabilityView: View {
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
     }
 
+    /// Controls whether newly selected free blocks are one-time or recurring.
+    private var availabilityEntryModeControl: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Availability type", selection: $entryMode) {
+                ForEach(AvailabilityEntryMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if entryMode == .repeatWeekly {
+                Toggle("Repeat end date (optional)", isOn: $hasRepeatEndDate)
+                    .toggleStyle(.switch)
+
+                if hasRepeatEndDate {
+                    DatePicker(
+                        "Repeat until",
+                        selection: $repeatEndDate,
+                        in: selectedDate...,
+                        displayedComponents: [.date]
+                    )
+                    .datePickerStyle(.compact)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+        .onChange(of: selectedDate) { newDate in
+            if repeatEndDate < newDate {
+                repeatEndDate = newDate
+            }
+        }
+    }
+
     /// Bridge between the view model's integer-minute setting and SwiftUI's `Slider` API.
     private var durationSliderBinding: Binding<Double> {
         Binding(
@@ -145,10 +226,24 @@ struct AvailabilityView: View {
         return DateInterval(start: start, end: end)
     }
 
+    /// Keeps the selected day inside the visible date range.
+    private func moveSelectionToTodayIfNeeded() {
+        guard selectedDate < today else { return }
+        selectedDate = today
+    }
+
     /// Resolves the visual state for a grid row.
     private func status(for interval: DateInterval) -> HourAvailabilityRow.Status {
         if viewModel.isScheduled(during: interval) {
             return .scheduled
+        }
+
+        if viewModel.isSkippedRecurring(during: interval) {
+            return .skippedRecurring
+        }
+
+        if viewModel.isRecurringFree(during: interval) {
+            return .recurringFree
         }
 
         if viewModel.isFree(during: interval) {
@@ -166,7 +261,11 @@ struct AvailabilityView: View {
         }
 
         if viewModel.isFree(during: interval) {
-            return "Free"
+            return viewModel.isRecurringFree(during: interval) ? recurringDetail(for: interval) : "Free"
+        }
+
+        if viewModel.isSkippedRecurring(during: interval) {
+            return "Skipped"
         }
 
         return ""
@@ -179,6 +278,22 @@ struct AvailabilityView: View {
         return formatter.string(from: date).lowercased()
     }
 
+    /// Label shown inside recurring availability blocks.
+    private func recurringDetail(for interval: DateInterval) -> String {
+        guard let endDate = viewModel.recurringEndDate(during: interval) else {
+            return "Free (recurring)"
+        }
+
+        return "Free (recurring until \(shortDateFormatter.string(from: endDate)))"
+    }
+
+    /// Short date formatter for recurring labels.
+    private var shortDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d/yy"
+        return formatter
+    }
+
 }
 
 /// One row in the hour-by-hour availability grid.
@@ -186,6 +301,8 @@ private struct HourAvailabilityRow: View {
     /// Display states supported by an hourly availability row.
     enum Status: Equatable {
         case free
+        case recurringFree
+        case skippedRecurring
         case scheduled
         case unavailable
     }
@@ -200,6 +317,10 @@ private struct HourAvailabilityRow: View {
     let isEditing: Bool
     /// Called when the row is selected in edit mode.
     let onToggle: () -> Void
+    /// Called when a recurring row should be skipped only for the displayed day.
+    let onSkip: () -> Void
+    /// Called when a skipped recurring row should be restored.
+    let onUnskip: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -218,7 +339,8 @@ private struct HourAvailabilityRow: View {
                             .fontWeight(.medium)
                             .foregroundStyle(textColor)
                             .lineLimit(1)
-                            .padding(.horizontal, 10)
+                            .padding(.leading, 10)
+                            .padding(.trailing, detailTrailingPadding)
                     }
                 }
                 .overlay(
@@ -227,8 +349,7 @@ private struct HourAvailabilityRow: View {
                 )
                 .overlay(alignment: .trailing) {
                     if isEditing && status != .scheduled {
-                        Image(systemName: status == .free ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(status == .free ? .green : .secondary)
+                        rowControls
                             .padding(.trailing, 10)
                     }
                 }
@@ -238,8 +359,53 @@ private struct HourAvailabilityRow: View {
         .background(Color(.secondarySystemBackground))
         .contentShape(Rectangle())
         .onTapGesture {
-            guard isEditing, status != .scheduled else { return }
+            guard isEditing, status != .scheduled, status != .skippedRecurring else { return }
             onToggle()
+        }
+    }
+
+    /// Editing controls shown inside the row.
+    @ViewBuilder
+    private var rowControls: some View {
+        if status == .recurringFree {
+            HStack(spacing: 8) {
+                Button("Skip") {
+                    onSkip()
+                }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+
+                Button {
+                    onToggle()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.teal)
+            }
+        } else if status == .skippedRecurring {
+            Button("Unskip") {
+                onUnskip()
+            }
+            .font(.caption.weight(.semibold))
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+        } else {
+            Image(systemName: status.isAvailable ? "xmark.circle.fill" : "circle")
+                .foregroundStyle(status.isAvailable ? .green : .secondary)
+        }
+    }
+
+    /// Space reserved so row text does not run underneath edit controls.
+    private var detailTrailingPadding: CGFloat {
+        guard isEditing else { return 10 }
+
+        switch status {
+        case .recurringFree: return 96
+        case .skippedRecurring: return 74
+        case .free, .unavailable: return 38
+        case .scheduled: return 10
         }
     }
 
@@ -247,6 +413,8 @@ private struct HourAvailabilityRow: View {
     private var fillColor: Color {
         switch status {
         case .free: return .green.opacity(0.65)
+        case .recurringFree: return .teal.opacity(0.75)
+        case .skippedRecurring: return .gray.opacity(0.45)
         case .scheduled: return .pink.opacity(0.55)
         case .unavailable: return Color(.systemBackground)
         }
@@ -263,8 +431,28 @@ private struct HourAvailabilityRow: View {
     /// Text color used inside the row block.
     private var textColor: Color {
         switch status {
-        case .free, .scheduled: return .primary
+        case .free, .recurringFree, .skippedRecurring, .scheduled: return .primary
         case .unavailable: return .secondary
+        }
+    }
+}
+
+private extension HourAvailabilityRow.Status {
+    var isAvailable: Bool {
+        self == .free || self == .recurringFree
+    }
+}
+
+private enum AvailabilityEntryMode: String, CaseIterable, Identifiable {
+    case oneTime
+    case repeatWeekly
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .oneTime: return "One Time"
+        case .repeatWeekly: return "Repeat Weekly"
         }
     }
 }
