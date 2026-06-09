@@ -218,14 +218,12 @@ final class AvailabilityViewModel {
 
     /// Returns true when a free-time block overlaps any scheduled hangout in the supplied list.
     func isBlocked(
-            _ block: AvailabilityBlock,
-            scheduled: [HangoutSlot]
-        ) -> Bool {
-
-            scheduled.contains {
-                $0.startDate < block.endTime &&
-                $0.endDate > block.startTime
-            }
+        _ block: AvailabilityBlock,
+        scheduled: [HangoutSlot]
+    ) -> Bool {
+        scheduled.contains {
+            $0.startDate < block.endTime &&
+            $0.endDate > block.startTime
         }
     }
 
