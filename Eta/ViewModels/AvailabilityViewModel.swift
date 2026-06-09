@@ -11,14 +11,24 @@ struct ScheduledAvailabilityDisplayBlock: Identifiable {
     let endDate: Date
 }
 
+/// Value-type snapshot of a scheduled hangout for availability display.
+struct HangoutSlot {
+    let id: UUID
+    let startDate: Date
+    let endDate: Date
+    let status: HangoutStatus
+    let activity: String
+    let contactFirstName: String?
+}
+
 /// Drives the Availability tab by combining saved free time, scheduled hangouts, and duration settings.
 @Observable
 final class AvailabilityViewModel {
 
     /// All saved free-time blocks, sorted by start time after loading or mutation.
     var blocks: [AvailabilityBlock] = []
-    /// Upcoming or in-progress hangouts that should appear as scheduled time.
-    var scheduledHangouts: [ScheduledHangout] = []
+    /// Upcoming hangouts as value-type snapshots — never holds live SwiftData references.
+    var scheduledHangouts: [HangoutSlot] = []
     /// User-selected hangout length in minutes, constrained to 15-minute increments.
     var activityDurationMinutes: Int
     
@@ -75,6 +85,23 @@ final class AvailabilityViewModel {
         do {
             scheduledHangouts = try hangoutRepository.fetchUpcoming()
                 .sorted { $0.startDate < $1.startDate }
+                .map { hangout in
+                    let firstName: String?
+                    if let contact = hangout.contact {
+                        firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
+                    } else {
+                        firstName = nil
+                    }
+
+                    return HangoutSlot(
+                        id: hangout.id,
+                        startDate: hangout.startDate,
+                        endDate: hangout.endDate,
+                        status: hangout.status,
+                        activity: hangout.activity,
+                        contactFirstName: firstName
+                    )
+                }
         } catch {
             scheduledHangouts = []
         }
@@ -177,7 +204,7 @@ final class AvailabilityViewModel {
     }
 
     /// Returns scheduled hangouts that overlap the requested day.
-    func scheduledHangouts(on date: Date) -> [ScheduledHangout] {
+    func scheduledHangouts(on date: Date) -> [HangoutSlot] {
         guard let dayInterval = Calendar.current.dateInterval(of: .day, for: date) else {
             return []
         }
@@ -192,7 +219,7 @@ final class AvailabilityViewModel {
     /// Returns true when a free-time block overlaps any scheduled hangout in the supplied list.
     func isBlocked(
             _ block: AvailabilityBlock,
-            scheduled: [ScheduledHangout]
+            scheduled: [HangoutSlot]
         ) -> Bool {
 
             scheduled.contains {
@@ -301,23 +328,16 @@ final class AvailabilityViewModel {
             }
     }
 
-    private func scheduledLabel(for hangout: ScheduledHangout) -> String {
-        let firstName: String?
-        if let contact = hangout.contact {
-            firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
-        } else {
-            firstName = nil
-        }
-
+    private func scheduledLabel(for hangout: HangoutSlot) -> String {
         let timeRange = scheduledTimeRange(for: hangout)
-        if let firstName, !firstName.isEmpty {
+        if let firstName = hangout.contactFirstName, !firstName.isEmpty {
             return "\(hangout.activity) with \(firstName) (\(timeRange))"
         }
 
         return "\(hangout.activity) (\(timeRange))"
     }
 
-    private func scheduledTimeRange(for hangout: ScheduledHangout) -> String {
+    private func scheduledTimeRange(for hangout: HangoutSlot) -> String {
         "\(timeFormatter.string(from: hangout.startDate))-\(timeFormatter.string(from: hangout.endDate))"
     }
 
