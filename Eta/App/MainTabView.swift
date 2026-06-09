@@ -129,6 +129,8 @@ struct MainTabView: View {
             if let invite = receivedInviteState.pendingInvite {
                 ReceivedInviteSheet(
                     invite: invite,
+                    senderName: receivedInviteState.senderName,
+                    isEdit: receivedInviteState.isEdit,
                     onAccept: {
                         receivedInviteState.clear()
                         Task {

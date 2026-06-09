@@ -11,24 +11,36 @@ import Foundation
 // );
 //
 // CREATE TABLE invitations (
-//   id              TEXT PRIMARY KEY,
-//   from_device     TEXT NOT NULL,
-//   from_identifier TEXT NOT NULL,      -- sender's normalized phone or email
-//   to_identifier   TEXT NOT NULL,      -- matches devices.identifier on receiver's side
+//   id                    TEXT PRIMARY KEY,
+//   from_device           TEXT NOT NULL,
+//   from_identifier       TEXT NOT NULL,      -- sender's normalized phone or email
+//   to_identifier         TEXT NOT NULL,      -- matches devices.identifier on receiver's side
+//   friend_name           TEXT NOT NULL,
+//   activity              TEXT NOT NULL,
+//   start_time            TIMESTAMPTZ NOT NULL,
+//   end_time              TIMESTAMPTZ NOT NULL,
+//   status                TEXT NOT NULL DEFAULT 'pending',
+//   previous_invitation_id TEXT,              -- set when editing an existing event
+//   created_at            TIMESTAMPTZ DEFAULT now()
+// );
+//
+// CREATE TABLE cancellations (
+//   id              TEXT PRIMARY KEY,         -- invitation ID of the original invite
+//   from_identifier TEXT NOT NULL,
+//   to_identifier   TEXT NOT NULL,
 //   friend_name     TEXT NOT NULL,
 //   activity        TEXT NOT NULL,
-//   start_time      TIMESTAMPTZ NOT NULL,
-//   end_time        TIMESTAMPTZ NOT NULL,
-//   status          TEXT NOT NULL DEFAULT 'pending',
 //   created_at      TIMESTAMPTZ DEFAULT now()
 // );
 //
-// Enable Row Level Security and add permissive policies for both tables:
+// Enable Row Level Security and add permissive policies for all tables:
 //
-//   ALTER TABLE devices    ENABLE ROW LEVEL SECURITY;
-//   ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
-//   CREATE POLICY "allow all" ON devices    FOR ALL USING (true) WITH CHECK (true);
-//   CREATE POLICY "allow all" ON invitations FOR ALL USING (true) WITH CHECK (true);
+//   ALTER TABLE devices       ENABLE ROW LEVEL SECURITY;
+//   ALTER TABLE invitations   ENABLE ROW LEVEL SECURITY;
+//   ALTER TABLE cancellations ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "allow all" ON devices       FOR ALL USING (true) WITH CHECK (true);
+//   CREATE POLICY "allow all" ON invitations   FOR ALL USING (true) WITH CHECK (true);
+//   CREATE POLICY "allow all" ON cancellations FOR ALL USING (true) WITH CHECK (true);
 
 final class SupabaseService {
     private let baseURL: String
@@ -99,7 +111,7 @@ final class SupabaseService {
     // MARK: - Invitations
 
     func postInvitation(_ inv: RemoteInvitation) async throws {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "id": inv.id,
             "from_device": inv.fromDevice,
             "from_identifier": inv.fromIdentifier,
@@ -110,7 +122,32 @@ final class SupabaseService {
             "end_time": iso(inv.endTime),
             "status": "pending"
         ]
+        if let prev = inv.previousInvitationID { body["previous_invitation_id"] = prev }
         try await request(path: "/rest/v1/invitations", method: "POST", body: body)
+    }
+
+    // MARK: - Cancellations
+
+    func postCancellation(_ c: RemoteCancellation) async throws {
+        let body: [String: Any] = [
+            "id": c.id,
+            "from_identifier": c.fromIdentifier,
+            "to_identifier": c.toIdentifier,
+            "friend_name": c.friendName,
+            "activity": c.activity
+        ]
+        try await request(path: "/rest/v1/cancellations", method: "POST", body: body)
+    }
+
+    func fetchCancellations() async throws -> [RemoteCancellation] {
+        let encoded = urlEncoded(deviceID)
+        let path = "/rest/v1/cancellations?to_identifier=eq.\(encoded)&select=*"
+        let data = try await request(path: path, method: "GET")
+        return (try? Self.decoder.decode([RemoteCancellation].self, from: data)) ?? []
+    }
+
+    func deleteCancellation(id: String) async {
+        try? await request(path: "/rest/v1/cancellations?id=eq.\(id)", method: "DELETE")
     }
 
     /// Returns invitations sent to this device that are still pending.

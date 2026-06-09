@@ -3,6 +3,8 @@ import SwiftUI
 struct UpcomingEventCardView: View {
     let item: HangoutDisplayItem
     let photoRepository: ActivityPhotoRepository
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
 
     @State private var showingPhotoSheet = false
 
@@ -33,6 +35,18 @@ struct UpcomingEventCardView: View {
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .contextMenu {
+            if let onEdit, item.hangout.status != .canceled {
+                Button { onEdit() } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
+            if let onDelete {
+                Button(role: .destructive) { onDelete() } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
         .sheet(isPresented: $showingPhotoSheet) {
             let activity = item.hangout.resolvedActivity ?? .walk
             let hangoutID = item.hangout.id

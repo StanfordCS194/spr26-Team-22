@@ -74,9 +74,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                     activity: activity,
                     startTime: startTime,
                     endTime: endTime,
-                    status: "pending"
+                    status: "pending",
+                    previousInvitationID: userInfo["previousInvitationID"] as? String
                 )
-                Task { @MainActor in receivedInviteState.trigger(invite: invite) }
+                let senderName = invitationManager.senderName(for: fromIdentifier)
+                Task { @MainActor in receivedInviteState.trigger(invite: invite, senderName: senderName, isEdit: invite.previousInvitationID != nil) }
             }
             return
         }

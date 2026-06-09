@@ -107,15 +107,15 @@ final class LocalNotificationService: NotificationServiceProtocol {
         ])
     }
 
-    func scheduleReceivedInvitationNotification(remote: RemoteInvitation) async throws {
+    func scheduleReceivedInvitationNotification(remote: RemoteInvitation, senderName: String, isEdit: Bool) async throws {
         guard preferencesService.preferences.enableNotifications else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "\(remote.friendName) invited you!"
+        content.title = isEdit ? "\(senderName) updated the event!" : "\(senderName) invited you!"
         content.body = "\(remote.activity) — \(formattedDateTime(remote.startTime))"
         content.sound = .default
         content.categoryIdentifier = "INVITE_RESPONSE"
-        content.userInfo = [
+        var userInfo: [String: Any] = [
             "notificationType": "receivedInvite",
             "remoteInvitationID": remote.id,
             "activity": remote.activity,
@@ -124,6 +124,8 @@ final class LocalNotificationService: NotificationServiceProtocol {
             "fromIdentifier": remote.fromIdentifier,
             "friendName": remote.friendName
         ]
+        if let prev = remote.previousInvitationID { userInfo["previousInvitationID"] = prev }
+        content.userInfo = userInfo
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(
@@ -158,6 +160,36 @@ final class LocalNotificationService: NotificationServiceProtocol {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(
             identifier: "invite-declined-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
+    func scheduleInviteAcceptedNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Invite accepted!"
+        content.body = "\(friendName) is in for \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "invite-accepted-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
+    func scheduleEventCanceledNotification(friendName: String, activityName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Event canceled"
+        content.body = "\(friendName) canceled \(activityName)."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "event-canceled-\(UUID().uuidString)",
             content: content,
             trigger: trigger
         )
