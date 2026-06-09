@@ -17,6 +17,13 @@ struct AvailabilityView: View {
     @State private var hasRepeatEndDate = false
     /// End date used for newly selected recurring availability.
     @State private var repeatEndDate = Date()
+    /// First hour touched during a drag selection in edit mode.
+    @State private var dragStartHour: Int?
+    /// Current hour under the user's drag in edit mode.
+    @State private var dragCurrentHour: Int?
+
+    /// Height of one availability row, including its vertical padding.
+    private let availabilityRowHeight: CGFloat = 42
     
     var body: some View {
         NavigationStack {
@@ -49,17 +56,10 @@ struct AvailabilityView: View {
                                         status: status(for: interval),
                                         detail: detail(for: interval),
                                         isEditing: isEditingAvailability,
+                                        isDragSelected: dragSelectedHours.contains(hour),
                                         onToggle: {
                                             withAnimation {
-                                                if viewModel.isRecurringFree(during: interval) {
-                                                    viewModel.stopRecurringAvailability(during: interval)
-                                                } else {
-                                                    viewModel.toggleAvailability(
-                                                        during: interval,
-                                                        repeatsWeekly: entryMode == .repeatWeekly,
-                                                        repeatEndDate: selectedRepeatEndDate
-                                                    )
-                                                }
+                                                toggleAvailability(during: interval)
                                             }
                                         },
                                         onSkip: {
@@ -76,6 +76,16 @@ struct AvailabilityView: View {
                                 }
                             }
                         }
+                        .coordinateSpace(name: "availability-grid")
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 8, coordinateSpace: .named("availability-grid"))
+                                .onChanged { value in
+                                    updateDragSelection(from: value.startLocation, to: value.location)
+                                }
+                                .onEnded { _ in
+                                    applyDragSelection()
+                                }
+                        )
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
@@ -124,6 +134,14 @@ struct AvailabilityView: View {
     /// End repeat date passed to new recurring blocks.
     private var selectedRepeatEndDate: Date? {
         entryMode == .repeatWeekly && hasRepeatEndDate ? repeatEndDate : nil
+    }
+
+    /// Hours currently included in the drag preview.
+    private var dragSelectedHours: Set<Int> {
+        guard let dragStartHour, let dragCurrentHour else { return [] }
+        let lower = min(dragStartHour, dragCurrentHour)
+        let upper = max(dragStartHour, dragCurrentHour)
+        return Set(displayedHours.filter { lower <= $0 && $0 <= upper })
     }
 
     /// Color legend for the availability grid.
@@ -232,6 +250,62 @@ struct AvailabilityView: View {
         selectedDate = today
     }
 
+    /// Updates the highlighted hour range while the user drags through the grid.
+    private func updateDragSelection(from startLocation: CGPoint, to currentLocation: CGPoint) {
+        guard isEditingAvailability,
+              let startHour = hour(atYPosition: startLocation.y),
+              let currentHour = hour(atYPosition: currentLocation.y)
+        else { return }
+
+        if dragStartHour == nil {
+            dragStartHour = startHour
+        }
+        dragCurrentHour = currentHour
+    }
+
+    /// Applies the selected drag range using the same recurrence settings as tap entry.
+    private func applyDragSelection() {
+        defer {
+            dragStartHour = nil
+            dragCurrentHour = nil
+        }
+
+        let hours = dragSelectedHours.sorted()
+        guard !hours.isEmpty else { return }
+
+        withAnimation {
+            for hour in hours {
+                guard let interval = hourInterval(for: hour),
+                      !viewModel.isScheduled(during: interval),
+                      !viewModel.isSkippedRecurring(during: interval)
+                else { continue }
+
+                toggleAvailability(during: interval)
+            }
+        }
+    }
+
+    /// Converts a drag y-coordinate into the corresponding displayed hour.
+    private func hour(atYPosition yPosition: CGFloat) -> Int? {
+        guard yPosition >= 0 else { return nil }
+        let index = Int(yPosition / availabilityRowHeight)
+        guard displayedHours.indices.contains(index) else { return nil }
+        return displayedHours[index]
+    }
+
+    /// Applies the availability toggle for one grid interval.
+    private func toggleAvailability(during interval: DateInterval) {
+        if viewModel.isRecurringFree(during: interval) {
+            viewModel.stopRecurringAvailability(during: interval)
+        } else {
+            viewModel.toggleAvailability(
+                during: interval,
+                repeatsWeekly: entryMode == .repeatWeekly,
+                repeatEndDate: selectedRepeatEndDate
+            )
+        }
+    }
+
     /// Resolves the visual state for a grid row.
     private func status(for interval: DateInterval) -> HourAvailabilityRow.Status {
         if viewModel.isScheduled(during: interval) {
@@ -315,6 +389,8 @@ private struct HourAvailabilityRow: View {
     let detail: String
     /// Whether the row should visually indicate it can be toggled.
     let isEditing: Bool
+    /// Whether this row is included in the current drag preview.
+    let isDragSelected: Bool
     /// Called when the row is selected in edit mode.
     let onToggle: () -> Void
     /// Called when a recurring row should be skipped only for the displayed day.
@@ -345,7 +421,7 @@ private struct HourAvailabilityRow: View {
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(borderColor, lineWidth: 1)
+                        .stroke(isDragSelected ? Color.accentColor : borderColor, lineWidth: isDragSelected ? 2 : 1)
                 )
                 .overlay(alignment: .trailing) {
                     if isEditing && status != .scheduled {
