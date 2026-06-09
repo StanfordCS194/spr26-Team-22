@@ -60,14 +60,45 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         return all
             .flatMap { block -> [DateInterval] in
                 guard block.endTime > now, block.startTime < searchEnd else { return [] }
-                let interval = DateInterval(start: max(block.startTime, now), end: block.endTime)
+                let start = roundedSlotStart(for: max(block.startTime, now), calendar: calendar)
+                let interval = DateInterval(start: start, end: block.endTime)
                 return subtractScheduledHangouts(from: interval, scheduled: scheduled)
-                    .filter { $0.duration >= activityDuration }
-                    .map { DateInterval(start: $0.start, duration: activityDuration) }
+                    .compactMap { freeInterval -> DateInterval? in
+                        let roundedStart = roundedSlotStart(for: freeInterval.start, calendar: calendar)
+                        guard freeInterval.end.timeIntervalSince(roundedStart) >= activityDuration else {
+                            return nil
+                        }
+                        return DateInterval(start: roundedStart, duration: activityDuration)
+                    }
             }
             .sorted { $0.start < $1.start }
             .prefix(maximumCount)
             .map { $0 }
+    }
+
+    /// Rounds availability starts up to the next 15-minute boundary for cleaner suggestions.
+    private func roundedSlotStart(for date: Date, calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.minute, .second, .nanosecond], from: date)
+        let minute = components.minute ?? 0
+        let second = components.second ?? 0
+        let nanosecond = components.nanosecond ?? 0
+        let remainder = minute % 15
+
+        guard remainder != 0 || second != 0 || nanosecond != 0 else {
+            return date
+        }
+
+        let minutesToAdd = remainder == 0 ? 15 : 15 - remainder
+        guard let rounded = calendar.date(byAdding: .minute, value: minutesToAdd, to: date) else {
+            return date
+        }
+
+        return calendar.date(
+            bySettingHour: calendar.component(.hour, from: rounded),
+            minute: calendar.component(.minute, from: rounded),
+            second: 0,
+            of: rounded
+        ) ?? rounded
     }
 
     /// Removes already scheduled hangouts from a candidate free interval.

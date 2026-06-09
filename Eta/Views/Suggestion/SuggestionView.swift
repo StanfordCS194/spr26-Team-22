@@ -7,6 +7,7 @@ struct SuggestionView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
     @State private var showingCustomize = false
+    @State private var diffSuggestions: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -70,6 +71,23 @@ struct SuggestionView: View {
             }
             .navigationTitle("For You")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await refreshWithDifferentSuggestion()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.accentColor, in: Circle())
+                    }
+                    .disabled(viewModel.isLoading)
+                    .accessibilityLabel("Refresh suggestion")
+                }
+            }
             .refreshable {
                 await viewModel.refresh()
             }
@@ -89,6 +107,9 @@ struct SuggestionView: View {
                 Task { await viewModel.refresh() }
             }
         }
+        .onDisappear {
+            diffSuggestions = []
+        }
         .trackScreen("SuggestionView", analytics: analyticsService)
         .sheet(isPresented: $showingCustomize) {
             if let suggestion = viewModel.suggestion {
@@ -105,6 +126,20 @@ struct SuggestionView: View {
                 )
             }
         }
+    }
+
+    private func refreshWithDifferentSuggestion() async {
+        let previousSuggestion = viewModel.suggestion
+        if let previousActivity = previousSuggestion?.activityDescription {
+            diffSuggestions.append(previousActivity)
+            diffSuggestions = Array(diffSuggestions.suffix(10))
+        }
+
+        await viewModel.refresh(
+            diffContact: previousSuggestion?.contact,
+            diffTime: previousSuggestion?.proposedTime,
+            diffSuggestion: diffSuggestions
+        )
     }
 }
 

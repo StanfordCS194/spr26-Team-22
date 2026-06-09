@@ -97,11 +97,19 @@ final class SuggestionViewModel {
 
     // MARK: - Actions
 
-    func refresh() async {
+    func refresh(
+        diffContact: TrackedContact? = nil,
+        diffTime: DateInterval? = nil,
+        diffSuggestion: [String] = []
+    ) async {
         guard case .idle = scheduleState else { return }
         isLoading = true
         defer { isLoading = false }
-        suggestion = await suggestionService.generateSuggestion()
+        suggestion = await suggestionService.generateSuggestion(
+            diffContact: diffContact,
+            diffTime: diffTime,
+            diffSuggestion: diffSuggestion
+        )
 
         #if DEBUG
         if suggestion == nil {

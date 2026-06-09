@@ -44,11 +44,16 @@ final class SuggestionService {
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
     /// nil otherwise. Uses saved availability, activity filtering,
     /// and relationship health thresholds.
-    func generateSuggestion() async -> Suggestion? {
+    func generateSuggestion(
+        diffContact: TrackedContact? = nil,
+        diffTime: DateInterval? = nil,
+        diffSuggestion: [String] = []
+    ) async -> Suggestion? {
         // Signal 1: opportunity. Check first so an empty availability inbox stays quiet.
         let freeSlots: [DateInterval]
         do {
             freeSlots = try await availabilityProvider.findAvailableSlots()
+                .filter { !isSameAvailabilityBlock($0, as: diffTime) }
         } catch {
             print(error.localizedDescription)
             return nil
@@ -57,13 +62,22 @@ final class SuggestionService {
 
         // Signal 2: need. Rank contacts by health score.
         let healthScores = await relationshipService.computeHealth()
-        guard let topHealth = topContact(from: healthScores) else {
+        guard let topHealth = topContact(from: healthScores, excluding: diffContact) else {
             return nil
         }
 
         // Fetch context for the chosen contact. Failures produce empty context rather
         // than aborting — a suggestion without context is better than no suggestion.
-        let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
+        let baseContext: PromptContext
+        do {
+            baseContext = try await contextEngine.query(for: topHealth.contact)
+        } catch {
+            if isCancellation(error) {
+                return nil
+            }
+            baseContext = .empty
+        }
+        let context = contextByAddingAvoidance(to: baseContext, avoiding: diffSuggestion)
 
         // Delegate activity and reason selection to the strategy.
         // On LLM failure, fall back to the rules-based strategy so the inbox isn't left empty.
@@ -77,6 +91,10 @@ final class SuggestionService {
                 return nil
             }
         } catch {
+            if isCancellation(error) {
+                return nil
+            }
+
             print(error.localizedDescription)
             guard let fallback = try? await fallbackStrategy.propose(for: topHealth, context: context) else {
                 return nil
@@ -99,8 +117,15 @@ final class SuggestionService {
     /// If a weekly priority is active (not suppressed, not waived), picks that contact
     /// as long as they have a non-zero score (no confirmed upcoming hangout).
     /// Otherwise falls back to the highest-scoring contact above the recency threshold.
-    private func topContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
-        let eligible = healthScores.filter { $0.contact.isActive }
+    private func topContact(
+        from healthScores: [RelationshipHealth],
+        excluding diffContact: TrackedContact?
+    ) -> RelationshipHealth? {
+        let eligible = healthScores.filter { health in
+            guard health.contact.isActive else { return false }
+            guard let diffContact else { return true }
+            return health.contact.id != diffContact.id
+        }
 
         if let priorityID = preferencesService.weeklyPriorityContactID(),
            !preferencesService.isWeeklyPrioritySuppressed(),
@@ -113,5 +138,33 @@ final class SuggestionService {
         return eligible
             .filter { $0.score >= minimumScoreThreshold }
             .max(by: { $0.score < $1.score })
+    }
+
+    private func isSameAvailabilityBlock(_ slot: DateInterval, as diffTime: DateInterval?) -> Bool {
+        guard let diffTime else { return false }
+        return abs(slot.start.timeIntervalSince(diffTime.start)) < 1
+            && abs(slot.end.timeIntervalSince(diffTime.end)) < 1
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return true
+        }
+        return false
+    }
+
+    private func contextByAddingAvoidance(
+        to context: PromptContext,
+        avoiding diffSuggestion: [String]
+    ) -> PromptContext {
+        var updatedContext = context
+        let avoidanceFacts = diffSuggestion.map {
+            ContextFact(description: "Avoid suggestions like \($0)", source: .userGoal)
+        }
+        updatedContext.userGoals.append(contentsOf: avoidanceFacts)
+        return updatedContext
     }
 }
