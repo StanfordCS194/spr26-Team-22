@@ -44,9 +44,28 @@ final class LLMActivityStrategy: ActivityStrategy {
             ? "No context available."
             : allFacts.map { "- \($0.description)" }.joined(separator: "\n")
 
+        let timeContext: String
+        if let slot = context.proposedTime {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+            let timeString = formatter.string(from: slot.start)
+            timeContext = "\nThe hangout is proposed for \(timeString). Suggest an activity that is plausible at that time of day (e.g. no dinner at 10am, no coffee at 9pm)."
+        } else {
+            timeContext = ""
+        }
+
+        let exclusionLines: String
+        if context.previouslySuggestedActivities.isEmpty {
+            exclusionLines = ""
+        } else {
+            let list = context.previouslySuggestedActivities.map { "- \($0)" }.joined(separator: "\n")
+            exclusionLines = "\n\nActivities already suggested — do NOT repeat these:\n\(list)"
+        }
+
         let userPrompt = """
         Context about the user's relationship with \(contactName):
-        \(factLines)
+        \(factLines)\(timeContext)\(exclusionLines)
 
         Suggest one new activity for them to do together not previously seen.
         """
