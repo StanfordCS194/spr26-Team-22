@@ -189,6 +189,9 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             pendingInviteRepository: pendingReceivedInviteRepo,
             invitationManager: invitationManager,
+            inviteService: inviteService,
+            contactRepository: repository,
+            activityStrategy: activityStrategy,
             formatter: formatter
         )
         self.homeViewModel = HomeViewModel(

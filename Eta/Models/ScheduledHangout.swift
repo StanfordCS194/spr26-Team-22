@@ -11,6 +11,7 @@ enum InviteeResponse: String, Codable {
 @Model
 final class ScheduledHangout {
     var id: UUID
+    var invitationID: String?
     var contact: TrackedContact?
     var activity: String       // Activity.rawValue — stored as String; use resolvedActivity to get the enum
     

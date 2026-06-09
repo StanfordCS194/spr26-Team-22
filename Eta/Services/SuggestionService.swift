@@ -25,6 +25,10 @@ final class SuggestionService {
     /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
     private let minimumScoreThreshold: Double = 7
 
+    /// Runtime-only log of activities suggested per contact this session.
+    /// Cleared when the app is relaunched. Keyed by TrackedContact.id.
+    private var suggestedActivities: [UUID: [String]] = [:]
+
     init(
         availabilityProvider: AvailabilityDataProvider,
         relationshipService: RelationshipService,
@@ -77,7 +81,9 @@ final class SuggestionService {
             }
             baseContext = .empty
         }
-        let context = contextByAddingAvoidance(to: baseContext, avoiding: diffSuggestion)
+        var context = contextByAddingAvoidance(to: baseContext, avoiding: diffSuggestion)
+        context.proposedTime = freeSlots.first
+        context.previouslySuggestedActivities = suggestedActivities[topHealth.contact.id] ?? []
 
         // Delegate activity and reason selection to the strategy.
         // On LLM failure, fall back to the rules-based strategy so the inbox isn't left empty.
@@ -102,13 +108,15 @@ final class SuggestionService {
             proposal = fallback
         }
 
-        return Suggestion(
+        let suggestion = Suggestion(
             contact: topHealth.contact,
             activityDescription: proposal.activityDescription,
             reason: proposal.reason,
             proposedTimes: freeSlots,
             generatedAt: .now
         )
+        suggestedActivities[topHealth.contact.id, default: []].append(proposal.activityDescription)
+        return suggestion
     }
 
     // MARK: - Private

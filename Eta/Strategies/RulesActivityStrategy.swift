@@ -23,7 +23,15 @@ final class RulesActivityStrategy: ActivityStrategy {
     ) async throws -> ActivityProposal? {
         let isRemote = health.contact.isRemote
         let disliked = profileService.profile(for: health.contact).dislikedActivities
-        var candidates = Activity.allCases.filter { !disliked.contains($0) && $0.isRemote == isRemote }
+        let previouslyShown = Set(context.previouslySuggestedActivities)
+        var candidates = Activity.allCases.filter {
+            !disliked.contains($0) && $0.isRemote == isRemote && !previouslyShown.contains($0.description)
+        }
+        // Relax previously-shown constraint before the disliked constraint so the inbox never empties
+        // simply because all unseen activities have been exhausted in a single session.
+        if candidates.isEmpty {
+            candidates = Activity.allCases.filter { !disliked.contains($0) && $0.isRemote == isRemote }
+        }
         if candidates.isEmpty {
             candidates = Activity.allCases.filter { $0.isRemote == isRemote }
         }
