@@ -19,23 +19,30 @@ final class SuggestionService {
     private let contextEngine: any ContextEngine
     private let activityStrategy: any ActivityStrategy
     private let fallbackStrategy: RulesActivityStrategy
+    private let preferencesService: PreferencesService
 
     /// Contacts with a health score below this threshold are considered "recently seen"
     /// and do not qualify for a suggestion. 7.0 corresponds to roughly one week.
     private let minimumScoreThreshold: Double = 7
+
+    /// Runtime-only log of activities suggested per contact this session.
+    /// Cleared when the app is relaunched. Keyed by TrackedContact.id.
+    private var suggestedActivities: [UUID: [String]] = [:]
 
     init(
         availabilityProvider: AvailabilityDataProvider,
         relationshipService: RelationshipService,
         contextEngine: any ContextEngine,
         activityStrategy: any ActivityStrategy,
-        fallbackStrategy: RulesActivityStrategy
+        fallbackStrategy: RulesActivityStrategy,
+        preferencesService: PreferencesService
     ) {
         self.availabilityProvider = availabilityProvider
         self.relationshipService = relationshipService
         self.contextEngine = contextEngine
         self.activityStrategy = activityStrategy
         self.fallbackStrategy = fallbackStrategy
+        self.preferencesService = preferencesService
     }
 
     /// Returns a Suggestion when both a free slot and an overdue contact exist,
@@ -60,7 +67,9 @@ final class SuggestionService {
 
         // Fetch context for the chosen contact. Failures produce empty context rather
         // than aborting — a suggestion without context is better than no suggestion.
-        let context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
+        var context = (try? await contextEngine.query(for: topHealth.contact)) ?? .empty
+        context.proposedTime = freeSlots.first
+        context.previouslySuggestedActivities = suggestedActivities[topHealth.contact.id] ?? []
 
         // Delegate activity and reason selection to the strategy.
         // On LLM failure, fall back to the rules-based strategy so the inbox isn't left empty.
@@ -81,21 +90,36 @@ final class SuggestionService {
             proposal = fallback
         }
 
-        return Suggestion(
+        let suggestion = Suggestion(
             contact: topHealth.contact,
             activityDescription: proposal.activityDescription,
             reason: proposal.reason,
             proposedTimes: freeSlots,
             generatedAt: .now
         )
+        suggestedActivities[topHealth.contact.id, default: []].append(proposal.activityDescription)
+        return suggestion
     }
 
     // MARK: - Private
 
-    /// Returns the most overdue active contact above the score threshold, or nil if none qualifies.
+    /// Returns the contact to suggest.
+    /// If a weekly priority is active (not suppressed, not waived), picks that contact
+    /// as long as they have a non-zero score (no confirmed upcoming hangout).
+    /// Otherwise falls back to the highest-scoring contact above the recency threshold.
     private func topContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
-        healthScores
-            .filter { $0.contact.isActive && $0.score >= minimumScoreThreshold }
+        let eligible = healthScores.filter { $0.contact.isActive }
+
+        if let priorityID = preferencesService.weeklyPriorityContactID(),
+           !preferencesService.isWeeklyPrioritySuppressed(),
+           !preferencesService.isWeeklyPriorityWaived(),
+           let priorityHealth = eligible.first(where: { $0.contact.id == priorityID }),
+           priorityHealth.score > 0 {
+            return priorityHealth
+        }
+
+        return eligible
+            .filter { $0.score >= minimumScoreThreshold }
             .max(by: { $0.score < $1.score })
     }
 }

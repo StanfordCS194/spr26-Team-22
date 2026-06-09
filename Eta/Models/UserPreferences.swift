@@ -11,6 +11,12 @@ struct UserPreferences: Codable {
     var userCity: String?
     var userLatitude: Double?
     var userLongitude: Double?
+    /// Whether the weekly check-in notification is enabled. Independent of enableNotifications.
+    var weeklyCheckInEnabled: Bool
+    /// Weekday for the weekly check-in notification: 1 = Sunday … 7 = Saturday.
+    var weeklyCheckInDay: Int
+    /// Time of day for the weekly check-in notification. Only hour/minute components are used.
+    var weeklyCheckInTime: Date
 
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
@@ -27,7 +33,15 @@ struct UserPreferences: Codable {
         hasSetCheckInTemplate: Bool = false,
         userCity: String? = nil,
         userLatitude: Double? = nil,
-        userLongitude: Double? = nil
+        userLongitude: Double? = nil,
+        weeklyCheckInEnabled: Bool = true,
+        weeklyCheckInDay: Int = 1,
+        weeklyCheckInTime: Date = {
+            var components = DateComponents()
+            components.hour = 18
+            components.minute = 0
+            return Calendar.current.date(from: components) ?? Date()
+        }()
     ) {
         self.preferredActivities = preferredActivities
         self.relationshipHealthThreshold = relationshipHealthThreshold
@@ -39,6 +53,9 @@ struct UserPreferences: Codable {
         self.userCity = userCity
         self.userLatitude = userLatitude
         self.userLongitude = userLongitude
+        self.weeklyCheckInEnabled = weeklyCheckInEnabled
+        self.weeklyCheckInDay = weeklyCheckInDay
+        self.weeklyCheckInTime = weeklyCheckInTime
     }
 
     func encode(to encoder: Encoder) throws {
@@ -53,6 +70,9 @@ struct UserPreferences: Codable {
         try container.encodeIfPresent(userCity, forKey: .userCity)
         try container.encodeIfPresent(userLatitude, forKey: .userLatitude)
         try container.encodeIfPresent(userLongitude, forKey: .userLongitude)
+        try container.encode(weeklyCheckInEnabled, forKey: .weeklyCheckInEnabled)
+        try container.encode(weeklyCheckInDay, forKey: .weeklyCheckInDay)
+        try container.encode(weeklyCheckInTime.timeIntervalSince1970, forKey: .weeklyCheckInTimeInterval)
     }
 
     init(from decoder: Decoder) throws {
@@ -68,6 +88,15 @@ struct UserPreferences: Codable {
         userCity = try container.decodeIfPresent(String.self, forKey: .userCity)
         userLatitude = try container.decodeIfPresent(Double.self, forKey: .userLatitude)
         userLongitude = try container.decodeIfPresent(Double.self, forKey: .userLongitude)
+        weeklyCheckInEnabled = try container.decodeIfPresent(Bool.self, forKey: .weeklyCheckInEnabled) ?? true
+        weeklyCheckInDay = try container.decodeIfPresent(Int.self, forKey: .weeklyCheckInDay) ?? 1
+        let checkInTimeInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .weeklyCheckInTimeInterval)
+        if let t = checkInTimeInterval {
+            weeklyCheckInTime = Date(timeIntervalSince1970: t)
+        } else {
+            var c = DateComponents(); c.hour = 18; c.minute = 0
+            weeklyCheckInTime = Calendar.current.date(from: c) ?? Date()
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -81,5 +110,8 @@ struct UserPreferences: Codable {
         case userCity
         case userLatitude
         case userLongitude
+        case weeklyCheckInEnabled
+        case weeklyCheckInDay
+        case weeklyCheckInTimeInterval
     }
 }

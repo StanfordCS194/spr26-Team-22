@@ -3,7 +3,9 @@ import SwiftUI
 struct ConnectionsView: View {
     let viewModel: ConnectionsViewModel
     let homeViewModel: HomeViewModel
+    let settingsViewModel: SettingsViewModel
     let analyticsService: AnalyticsService
+    let weeklyCheckInState: WeeklyCheckInState
     let onShowSettings: () -> Void
 
     @State private var searchText = ""
@@ -54,7 +56,7 @@ struct ConnectionsView: View {
 
     @ViewBuilder
     private var forYouSection: some View {
-        if !homeViewModel.friendSpotlights.isEmpty && !isSelecting && searchText.isEmpty {
+        if shouldShowForYouSection {
             Section {
                 ForEach(homeViewModel.friendSpotlights) { item in
                     NavigationLink {
@@ -74,6 +76,38 @@ struct ConnectionsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
+
+                if settingsViewModel.preferences.weeklyCheckInEnabled {
+                    Button {
+                        weeklyCheckInState.trigger()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.title3)
+                                .foregroundStyle(homeViewModel.hasCompletedCheckInThisWeek ? Color.accentColor : .orange)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(weeklyCheckInCaptionText)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(weeklyCheckInStatusText)
+                                    .font(.subheadline.weight(.semibold))
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(14)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.04), radius: 5, y: 1)
+                        .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
             } header: {
                 Text("For You")
                     .font(.title3.weight(.semibold))
@@ -82,6 +116,12 @@ struct ConnectionsView: View {
                     .padding(.top, 4)
             }
         }
+    }
+
+    private var shouldShowForYouSection: Bool {
+        !isSelecting
+            && searchText.isEmpty
+            && (!homeViewModel.friendSpotlights.isEmpty || settingsViewModel.preferences.weeklyCheckInEnabled)
     }
 
     @ViewBuilder
@@ -338,6 +378,24 @@ struct ConnectionsView: View {
     }
 }
 
+// MARK: - Helpers
+
+extension ConnectionsView {
+    fileprivate var weeklyCheckInCaptionText: String {
+        guard homeViewModel.hasCompletedCheckInThisWeek else { return "Weekly Check-In" }
+        return "This week's priority"
+    }
+
+    fileprivate var weeklyCheckInStatusText: String {
+        guard homeViewModel.hasCompletedCheckInThisWeek else {
+            return "Do your weekly check-in"
+        }
+        if let contact = homeViewModel.weeklyPriorityContact {
+            return homeViewModel.displayName(for: contact)
+        }
+        return "No priority set this week"
+    }
+}
 
 // MARK: - Contact row
 

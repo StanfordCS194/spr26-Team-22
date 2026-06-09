@@ -32,6 +32,11 @@ final class InvitationManager {
         self.pendingReceivedRepo = pendingReceivedRepo
     }
 
+    /// Cancels the heads-up and photo-capture notifications scheduled for a hangout.
+    func cancelHangoutReminders(for hangoutID: UUID) {
+        notificationService.cancelHangoutReminders(for: hangoutID)
+    }
+
     func fetchHangout(id: UUID) -> ScheduledHangout? {
         let descriptor = FetchDescriptor<ScheduledHangout>(
             predicate: #Predicate { $0.id == id }
@@ -62,7 +67,8 @@ final class InvitationManager {
         friendName: String,
         scheduledTime: Date,
         endDate: Date,
-        hangoutID: UUID
+        hangoutID: UUID,
+        previousInvitationID: String? = nil
     ) async throws -> Invitation {
         try? await notificationService.requestAuthorization()
 
@@ -76,7 +82,7 @@ final class InvitationManager {
         try modelContext.save()
 
         if supabaseService.isConfigured,
-           let receiverDeviceID = await supabaseService.lookupDeviceID(for: contactIdentifier(for: contact)),
+           let receiverDeviceID = await contactDeviceID(for: contact),
            !receiverDeviceID.isEmpty {
             let remote = RemoteInvitation(
                 id: invitation.id,
@@ -87,9 +93,15 @@ final class InvitationManager {
                 activity: activityName,
                 startTime: scheduledTime,
                 endTime: endDate,
-                status: "pending"
+                status: "pending",
+                previousInvitationID: previousInvitationID
             )
             try await supabaseService.postInvitation(remote)
+            let hangoutDescriptor = FetchDescriptor<ScheduledHangout>(predicate: #Predicate { $0.id == hangoutID })
+            if let hangout = try? modelContext.fetch(hangoutDescriptor).first {
+                hangout.invitationID = invitation.id
+                try? modelContext.save()
+            }
             await notificationService.scheduleInviteSentNotification(
                 friendName: friendName,
                 activityName: activityName
@@ -164,6 +176,7 @@ final class InvitationManager {
             selectedTime: DateInterval(start: startTime, end: endTime)
         )
         hangout.inviteeResponse = .confirmed
+        hangout.invitationID = id
         modelContext.insert(hangout)
         try? modelContext.save()
         NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
@@ -175,8 +188,22 @@ final class InvitationManager {
     func pollForUpdates() async {
         async let sent: () = pollSentInvitations()
         async let received: () = pollReceivedInvitations()
-        _ = await (sent, received)
+        async let cancellations: () = pollCancellations()
+        _ = await (sent, received, cancellations)
         expireStaleHangouts()
+    }
+
+    func cancelEventByValues(contact: TrackedContact, invitationID: String, activity: String) async {
+        guard supabaseService.isConfigured,
+              let toIdentifier = await contactDeviceID(for: contact) else { return }
+        let cancellation = RemoteCancellation(
+            id: invitationID,
+            fromIdentifier: phoneSetupService.myIdentifier ?? "",
+            toIdentifier: toIdentifier,
+            friendName: contact.name,
+            activity: activity
+        )
+        try? await supabaseService.postCancellation(cancellation)
     }
 
     // MARK: - Private
@@ -206,7 +233,12 @@ final class InvitationManager {
                   inv.status == .pending else { continue }
             let accepted = remote.status == "confirmed"
             try? handleInvitationResponse(invitationID: remote.id, accepted: accepted)
-            if !accepted {
+            if accepted {
+                await notificationService.scheduleInviteAcceptedNotification(
+                    friendName: remote.friendName,
+                    activityName: remote.activity
+                )
+            } else {
                 await notificationService.scheduleInviteDeclinedNotification(
                     friendName: remote.friendName,
                     activityName: remote.activity
@@ -237,19 +269,57 @@ final class InvitationManager {
             }
             guard !notified.contains(remote.id) else { continue }
             print("[Poll] scheduling notification for invite=\(remote.id)")
-            try? await notificationService.scheduleReceivedInvitationNotification(remote: remote)
-            if !pendingReceivedRepo.exists(id: remote.id) {
-                try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote))
+            if let prevID = remote.previousInvitationID {
+                let all = (try? modelContext.fetch(FetchDescriptor<ScheduledHangout>())) ?? []
+                if let old = all.first(where: { $0.invitationID == prevID }) {
+                    notificationService.cancelHangoutReminders(for: old.id)
+                    modelContext.delete(old)
+                    try? modelContext.save()
+                }
             }
-            receivedInviteState?.trigger(invite: remote)
+            let senderName = findContact(byIdentifier: remote.fromIdentifier)?.name ?? remote.fromIdentifier
+            let isEdit = remote.previousInvitationID != nil
+            try? await notificationService.scheduleReceivedInvitationNotification(remote: remote, senderName: senderName, isEdit: isEdit)
+            if !pendingReceivedRepo.exists(id: remote.id) {
+                try? pendingReceivedRepo.add(PendingReceivedInvitation(remote: remote, senderName: senderName, isEdit: isEdit))
+            }
+            receivedInviteState?.trigger(invite: remote, senderName: senderName, isEdit: isEdit)
             notified.insert(remote.id)
         }
         notifiedRemoteIDs = notified
     }
 
-    private func contactIdentifier(for contact: TrackedContact) -> String {
-        if let phone = contact.phoneNumber { return PhoneSetupService.normalized(phone) }
-        return contact.emailAddress?.lowercased() ?? ""
+    private func pollCancellations() async {
+        guard supabaseService.isConfigured else { return }
+        guard let cancellations = try? await supabaseService.fetchCancellations() else { return }
+        for cancellation in cancellations {
+            let all = (try? modelContext.fetch(FetchDescriptor<ScheduledHangout>())) ?? []
+            if let hangout = all.first(where: { $0.invitationID == cancellation.id }) {
+                hangout.inviteeResponse = .declined
+                try? modelContext.save()
+                NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
+                let friendName = findContact(byIdentifier: cancellation.fromIdentifier)?.name ?? cancellation.fromIdentifier
+                await notificationService.scheduleEventCanceledNotification(
+                    friendName: friendName,
+                    activityName: cancellation.activity
+                )
+            }
+            await supabaseService.deleteCancellation(id: cancellation.id)
+        }
+    }
+
+    private func contactDeviceID(for contact: TrackedContact) async -> String? {
+        if let phone = contact.phoneNumber,
+           let id = await supabaseService.lookupDeviceID(for: PhoneSetupService.normalized(phone)),
+           !id.isEmpty { return id }
+        if let email = contact.emailAddress?.lowercased(),
+           let id = await supabaseService.lookupDeviceID(for: email),
+           !id.isEmpty { return id }
+        return nil
+    }
+
+    func senderName(for identifier: String) -> String {
+        findContact(byIdentifier: identifier)?.name ?? identifier
     }
 
     private func findContact(byIdentifier identifier: String) -> TrackedContact? {

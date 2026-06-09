@@ -3,6 +3,7 @@ import Foundation
 @Observable
 final class SettingsViewModel {
     private let preferencesService: PreferencesService
+    private let weeklyCheckInService: WeeklyCheckInService
     private let onClearAll: () -> Void
 
     var preferences: UserPreferences {
@@ -10,8 +11,13 @@ final class SettingsViewModel {
         set { preferencesService.updatePreferences(newValue) }
     }
 
-    init(preferencesService: PreferencesService, onClearAll: @escaping () -> Void) {
+    init(
+        preferencesService: PreferencesService,
+        weeklyCheckInService: WeeklyCheckInService,
+        onClearAll: @escaping () -> Void
+    ) {
         self.preferencesService = preferencesService
+        self.weeklyCheckInService = weeklyCheckInService
         self.onClearAll = onClearAll
     }
 
@@ -23,7 +29,12 @@ final class SettingsViewModel {
         preferencesService.updateUserCoordinates(latitude, longitude)
     }
 
+    func rescheduleWeeklyCheckIn() async {
+        await weeklyCheckInService.reschedule()
+    }
+
     func clearAllData() {
+        preferencesService.clearWeeklyData()
         onClearAll()
     }
 }

@@ -95,7 +95,7 @@ struct EtaApp: App {
             runner: GitHubModelsLLMRunner()
         )
         self.nudgeService = nudgeService
-        self.weeklyCheckInService = WeeklyCheckInService()
+        self.weeklyCheckInService = WeeklyCheckInService(preferencesService: preferencesService)
         let weeklyCheckInState = WeeklyCheckInState()
         self.weeklyCheckInState = weeklyCheckInState
         let nudgeReminderState = NudgeReminderState()
@@ -123,7 +123,8 @@ struct EtaApp: App {
             relationshipService: relationshipService,
             contextEngine: contextEngine,
             activityStrategy: activityStrategy,
-            fallbackStrategy: fallbackStrategy
+            fallbackStrategy: fallbackStrategy,
+            preferencesService: preferencesService
         )
         let inviteProvider = iMessageInviteProvider()
         let inviteService = InviteService(
@@ -181,12 +182,16 @@ struct EtaApp: App {
             inviteService: inviteService,
             invitationManager: invitationManager,
             formatter: formatter,
-            photoRepository: photoRepository
+            photoRepository: photoRepository,
+            preferencesService: preferencesService
         )
         self.upcomingEventsViewModel = UpcomingEventsViewModel(
             hangoutRepository: hangoutRepository,
             pendingInviteRepository: pendingReceivedInviteRepo,
             invitationManager: invitationManager,
+            inviteService: inviteService,
+            contactRepository: repository,
+            activityStrategy: activityStrategy,
             formatter: formatter
         )
         self.homeViewModel = HomeViewModel(
@@ -203,6 +208,7 @@ struct EtaApp: App {
 
         self.settingsViewModel = SettingsViewModel(
             preferencesService: preferencesService,
+            weeklyCheckInService: weeklyCheckInService,
             onClearAll: {
                 try? ctx.delete(model: TrackedContact.self)
                 try? ctx.delete(model: ScheduledHangout.self)

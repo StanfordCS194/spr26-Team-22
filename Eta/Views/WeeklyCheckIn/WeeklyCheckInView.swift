@@ -1,18 +1,13 @@
 import SwiftUI
 
-/// Full-screen sheet summarising the user's friendship activity for the current calendar week.
-///
-/// Health scores are always recomputed on appearance — no stale-cache guard — so counts
-/// reflect the calendar state at the moment the sheet opens.
-///
-/// "Seen this week" and "overdue" both use the calendar-week boundary (Sunday/Monday midnight
-/// per locale), not a rolling 7-day window, so they reset together on the same day each week.
-/// Contacts with a confirmed upcoming hangout are excluded from the overdue list.
 struct WeeklyCheckInView: View {
     let connectionsViewModel: ConnectionsViewModel
+    let homeViewModel: HomeViewModel
     let onDismiss: () -> Void
+    let onViewSuggestions: () -> Void
 
-    @State private var goalContactID: UUID? = WeeklyCheckInView.loadSavedGoal()
+    @State private var goalContactID: UUID?
+    @State private var checkInSheetContact: TrackedContact?
 
     var body: some View {
         NavigationStack {
@@ -20,10 +15,11 @@ struct WeeklyCheckInView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     headerSection
                     statsSection
+                    if !upcomingThisWeek.isEmpty { upcomingSection }
                     insightsSection
-                    goalSection
-                    // Placeholder for features not yet merged (e.g. suggested activities, mood tracking)
-                    placeholderSection
+                    if !homeViewModel.activeGoals.isEmpty { goalsSection }
+                    if let warning = homeViewModel.networkConcentrationWarning { networkNudgeSection(warning) }
+                    prioritySection
                 }
                 .padding(20)
             }
@@ -33,6 +29,7 @@ struct WeeklyCheckInView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         saveGoal()
+                        homeViewModel.markCheckInCompleted()
                         onDismiss()
                     }
                     .fontWeight(.semibold)
@@ -42,6 +39,20 @@ struct WeeklyCheckInView: View {
         .task {
             connectionsViewModel.loadContacts()
             await connectionsViewModel.loadHealthScores()
+            await homeViewModel.refresh()
+            goalContactID = homeViewModel.weeklyPriorityContactID
+        }
+        .sheet(item: $checkInSheetContact) { contact in
+            CheckInSheet(
+                displayName: homeViewModel.displayName(for: contact),
+                givenName: contact.givenName,
+                phoneNumber: contact.phoneNumber ?? contact.emailAddress ?? "",
+                initialTemplate: homeViewModel.checkInTemplate ?? "How have you been?",
+                onSend: { message, saveAsDefault in
+                    if saveAsDefault { homeViewModel.updateCheckInTemplate(message) }
+                },
+                onDismiss: { checkInSheetContact = nil }
+            )
         }
     }
 
@@ -73,11 +84,36 @@ struct WeeklyCheckInView: View {
         }
     }
 
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Planned this week")
+                .font(.headline)
+            ForEach(upcomingThisWeek, id: \.id) { hangout in
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .foregroundStyle(.green)
+                        .frame(width: 20)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(hangout.contact?.givenName ?? hangout.activity)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("\(hangout.activity) · \(hangout.startDate.formatted(.dateTime.weekday(.wide).hour().minute()))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
     private var insightsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Who needs your attention?")
                 .font(.headline)
-
             if overdueFriends.isEmpty {
                 Text("You're all caught up! Great week.")
                     .font(.subheadline)
@@ -94,7 +130,34 @@ struct WeeklyCheckInView: View {
         }
     }
 
-    private var goalSection: some View {
+    private var goalsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your goals")
+                .font(.headline)
+            ForEach(homeViewModel.activeGoals) { goal in
+                CheckInGoalRow(
+                    goal: goal,
+                    friendNames: homeViewModel.friendNames(for: goal)
+                )
+            }
+        }
+    }
+
+    private func networkNudgeSection(_ warning: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.3")
+                .foregroundStyle(.purple)
+                .font(.title3)
+            Text(warning)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var prioritySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("This week's priority")
                 .font(.headline)
@@ -103,7 +166,7 @@ struct WeeklyCheckInView: View {
                 .foregroundStyle(.secondary)
 
             if connectionsViewModel.contacts.isEmpty {
-                Text("Add friends in the Friends tab to set a goal.")
+                Text("Add friends in the Friends tab to set a priority.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -130,22 +193,46 @@ struct WeeklyCheckInView: View {
                         }
                     }
                 }
+
+                if let selectedID = goalContactID,
+                   let contact = connectionsViewModel.contacts.first(where: { $0.id == selectedID }) {
+                    priorityActions(for: contact)
+                        .padding(.top, 4)
+                }
             }
         }
     }
 
-    private var placeholderSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("More insights coming soon")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Suggested activities, shared memories, and mood tracking will appear here as features roll out.")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+    private func priorityActions(for contact: TrackedContact) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                saveGoal()
+                homeViewModel.markCheckInCompleted()
+                onViewSuggestions()
+            } label: {
+                Label("View suggestions", systemImage: "sparkles")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(Color.accentColor.opacity(0.12))
+                    .foregroundStyle(Color.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            if !(contact.phoneNumber ?? "").isEmpty || !(contact.emailAddress ?? "").isEmpty {
+                Button {
+                    checkInSheetContact = contact
+                } label: {
+                    Label("Send check-in", systemImage: "message")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Color(.secondarySystemBackground))
+                        .foregroundStyle(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Helpers
@@ -201,27 +288,18 @@ struct WeeklyCheckInView: View {
         connectionsViewModel.healthScores.values.sorted { $0.score > $1.score }
     }
 
+    private var upcomingThisWeek: [ScheduledHangout] {
+        homeViewModel.upcomingHangoutsThisWeek
+    }
+
     // MARK: - Goal persistence
 
     private func saveGoal() {
-        guard let id = goalContactID else {
-            UserDefaults.standard.removeObject(forKey: "weeklyGoalContactID")
-            return
-        }
-        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start.timeIntervalSince1970 ?? 0
-        UserDefaults.standard.set(id.uuidString, forKey: "weeklyGoalContactID")
-        UserDefaults.standard.set(weekStart, forKey: "weeklyGoalWeekStart")
-    }
-
-    static func loadSavedGoal() -> UUID? {
-        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start.timeIntervalSince1970 ?? 0
-        let saved = UserDefaults.standard.double(forKey: "weeklyGoalWeekStart")
-        guard abs(weekStart - saved) < 1 else { return nil }
-        return UserDefaults.standard.string(forKey: "weeklyGoalContactID").flatMap { UUID(uuidString: $0) }
+        homeViewModel.saveWeeklyGoal(contactID: goalContactID)
     }
 }
 
-// MARK: - Friend row
+// MARK: - Friend insight row
 
 private struct FriendInsightRow: View {
     let health: RelationshipHealth
@@ -259,5 +337,81 @@ private struct FriendInsightRow: View {
         if days <= 14 { return .green }
         if days <= 30 { return .yellow }
         return .red
+    }
+}
+
+// MARK: - Goal row (full-width, reuses Goal model data)
+
+private struct CheckInGoalRow: View {
+    let goal: Goal
+    let friendNames: [String]
+
+    var body: some View {
+        HStack(spacing: 14) {
+            progressRing
+            VStack(alignment: .leading, spacing: 3) {
+                Text(goal.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                if !friendNames.isEmpty {
+                    Text(friendNames.joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(goal.progress) of \(goal.target) this \(goal.cadence.displayName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 7, height: 7)
+                Text(statusLabel)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(statusColor)
+            }
+        }
+        .padding(14)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(statusColor.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private var progressRing: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.18), lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: goal.progressFraction)
+                .stroke(statusColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.4), value: goal.progressFraction)
+            Text("\(goal.progress)/\(goal.target)")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: 38, height: 38)
+    }
+
+    private var statusColor: Color {
+        switch goal.status {
+        case .onTrack:  return Color(red: 0.2,  green: 0.7,  blue: 0.45)
+        case .atRisk:   return Color(red: 0.9,  green: 0.65, blue: 0.1)
+        case .behind:   return Color(red: 0.85, green: 0.35, blue: 0.28)
+        case .achieved: return Color(red: 0.3,  green: 0.55, blue: 0.9)
+        }
+    }
+
+    private var statusLabel: String {
+        switch goal.status {
+        case .onTrack:  return "On track"
+        case .atRisk:   return "At risk"
+        case .behind:   return "Behind"
+        case .achieved: return "Achieved"
+        }
     }
 }

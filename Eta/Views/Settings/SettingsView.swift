@@ -13,6 +13,7 @@ struct SettingsView: View {
                 locationSection
                 activitiesSection
                 notificationsSection
+                weeklyCheckInSection
                 dataSection
             }
             .onAppear {
@@ -95,6 +96,50 @@ struct SettingsView: View {
                     displayedComponents: .hourAndMinute
                 )
             }
+        }
+    }
+
+    private var weeklyCheckInSection: some View {
+        Section {
+            Toggle("Enable Weekly Check-In", isOn: Binding(
+                get: { viewModel.preferences.weeklyCheckInEnabled },
+                set: { newValue in
+                    viewModel.preferences.weeklyCheckInEnabled = newValue
+                    Task { await viewModel.rescheduleWeeklyCheckIn() }
+                }
+            ))
+
+            Picker("Day", selection: Binding(
+                get: { viewModel.preferences.weeklyCheckInDay },
+                set: { newValue in
+                    viewModel.preferences.weeklyCheckInDay = newValue
+                    Task { await viewModel.rescheduleWeeklyCheckIn() }
+                }
+            )) {
+                Text("Sunday").tag(1)
+                Text("Monday").tag(2)
+                Text("Tuesday").tag(3)
+                Text("Wednesday").tag(4)
+                Text("Thursday").tag(5)
+                Text("Friday").tag(6)
+                Text("Saturday").tag(7)
+            }
+
+            DatePicker(
+                "Time",
+                selection: Binding(
+                    get: { viewModel.preferences.weeklyCheckInTime },
+                    set: { newValue in
+                        viewModel.preferences.weeklyCheckInTime = newValue
+                        Task { await viewModel.rescheduleWeeklyCheckIn() }
+                    }
+                ),
+                displayedComponents: .hourAndMinute
+            )
+        } header: {
+            Text("Weekly Check-In")
+        } footer: {
+            Text("A notification reminds you to review your friendships and set a weekly priority.")
         }
     }
 
