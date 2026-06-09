@@ -362,6 +362,8 @@ struct GoalCreationSheet: View {
             windowEnd = cal.date(byAdding: .month, value: 1, to: windowStart) ?? now
         case .quarterly:
             windowEnd = cal.date(byAdding: .month, value: 3, to: windowStart) ?? now
+        case .yearly:
+            windowEnd = cal.date(byAdding: .year, value: 1, to: windowStart) ?? now
         }
 
         return Goal(

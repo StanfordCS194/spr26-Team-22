@@ -49,18 +49,28 @@ final class RelationshipService {
             }
         }
 
+        // Window-filtered: used for hangout count and scoring only.
         let completedHangouts = allHangouts.filter {
             $0.endDate >= since &&
             $0.endDate <= .now &&
             $0.status != .canceled
         }
 
-        // Build a lookup of manually logged past hangouts per contact.
+        // All-time: used for lastHangoutDate display (so old hangouts still show).
+        let allCompletedHangouts = allHangouts.filter {
+            $0.endDate <= .now && $0.status != .canceled
+        }
+
+        // Build per-contact lookups for manually logged hangouts.
         var manualLastByContactID: [UUID: (date: Date, title: String?)] = [:]
         var manualCountByContactID: [UUID: Int] = [:]
-        for hangout in allHangouts where hangout.startDate <= .now && hangout.startDate >= since {
+        for hangout in allHangouts where hangout.startDate <= .now {
             guard let contactID = hangout.contact?.id else { continue }
-            manualCountByContactID[contactID, default: 0] += 1
+            // Count only within the look-back window.
+            if hangout.startDate >= since {
+                manualCountByContactID[contactID, default: 0] += 1
+            }
+            // Track all-time most recent for display.
             if let existing = manualLastByContactID[contactID] {
                 if hangout.startDate > existing.date {
                     manualLastByContactID[contactID] = (hangout.startDate, hangout.activity)
@@ -74,7 +84,10 @@ final class RelationshipService {
             let matching = completedHangouts.filter { hangout in
                 hangout.contact?.id == contact.id
             }
-            let lastCalEvent = matching.max(by: { $0.startDate < $1.startDate })
+            let allTimeMatching = allCompletedHangouts.filter { hangout in
+                hangout.contact?.id == contact.id
+            }
+            let lastCalEvent = allTimeMatching.max(by: { $0.startDate < $1.startDate })
             let manualLast = manualLastByContactID[contact.id]
 
             // Merge: use whichever source recorded a more recent hangout.

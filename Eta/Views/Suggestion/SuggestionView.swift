@@ -70,7 +70,7 @@ struct SuggestionView: View {
                 }
             }
             .navigationTitle("For You")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

@@ -34,7 +34,7 @@ struct PromptContext {
     var proposedTime: DateInterval? = nil
     /// Activities already suggested for this contact during the current app session.
     /// Strategies should avoid repeating these.
-    var previouslySuggestedActivities: [String]
+    var previouslySuggestedActivities: [String] = []
 
     static let empty = PromptContext(relationshipFacts: [], userGoals: [], previouslySuggestedActivities: [])
 }

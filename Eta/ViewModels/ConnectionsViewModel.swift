@@ -18,6 +18,16 @@ struct ContactPickerItem: Identifiable {
 @Observable
 final class ConnectionsViewModel {
     private(set) var contacts: [TrackedContact] = []
+    var selectedTagFilter: TagCategory? = nil
+
+    var filteredContacts: [TrackedContact] {
+        let base = selectedTagFilter.map { filter in
+            contacts.filter { $0.contextTags.contains { $0.parentCategory == filter } }
+        } ?? contacts
+        return base.sorted {
+            (healthScores[$0.id]?.score ?? 0) > (healthScores[$1.id]?.score ?? 0)
+        }
+    }
     /// Filtered slice of the address book — updated synchronously as the search query changes.
     private(set) var searchResults: [ContactPickerItem] = []
     private(set) var isPermissionDenied: Bool = false
@@ -100,18 +110,13 @@ final class ConnectionsViewModel {
             return "No hangouts on record"
         }
 
-        let titleSuffix: String
-        if let title = health.lastHangoutTitle, !title.isEmpty {
-            let downcased = title.prefix(1).lowercased() + title.dropFirst()
-            titleSuffix = " at \(downcased)"
-        } else {
-            titleSuffix = ""
-        }
-
         switch days {
-        case 0:  return "Seen today\(titleSuffix)"
-        case 1:  return "Seen yesterday\(titleSuffix)"
-        default: return "Last seen \(days) days ago\(titleSuffix)"
+        case 0:        return "Seen today"
+        case 1:        return "Seen yesterday"
+        case 2..<7:    return "Last seen \(days) days ago"
+        case 7..<30:   return "Last seen \(days / 7) week\(days / 7 == 1 ? "" : "s") ago"
+        case 30..<365: return "Last seen \(days / 30) month\(days / 30 == 1 ? "" : "s") ago"
+        default:       return "Last seen \(days / 365) year\(days / 365 == 1 ? "" : "s") ago"
         }
     }
 
@@ -204,7 +209,7 @@ final class ConnectionsViewModel {
 
     /// Resolves the given picker items back to CNContacts, persists them as
     /// TrackedContacts, then removes them from the picker pool.
-    func addContacts(_ items: [ContactPickerItem]) {
+    func addContacts(_ items: [ContactPickerItem], tags: [ContactTag] = []) {
         let cnContacts = items.compactMap { cnContactIndex[$0.id] }
 
         for cnContact in cnContacts {
@@ -216,6 +221,9 @@ final class ConnectionsViewModel {
                 phoneNumber: cnContact.phoneNumbers.first?.value.stringValue,
                 emailAddress: cnContact.emailAddresses.first?.value as String?
             )
+            if !tags.isEmpty {
+                contact.contextTags = tags
+            }
             try? repository.add(contact)
         }
 
