@@ -21,6 +21,14 @@ final class SettingsViewModel {
         self.onClearAll = onClearAll
     }
 
+    func updateUserCity(_ city: String?) {
+        preferencesService.updateUserCity(city)
+    }
+
+    func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
+        preferencesService.updateUserCoordinates(latitude, longitude)
+    }
+
     func rescheduleWeeklyCheckIn() async {
         await weeklyCheckInService.reschedule()
     }

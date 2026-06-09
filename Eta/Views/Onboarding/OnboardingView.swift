@@ -360,6 +360,7 @@ struct OnboardingPagePreferences: View {
         return Calendar.current.date(from: components) ?? Date()
     }()
     @State private var preferredActivities: [String] = []
+    @State private var cityText: String = ""
 
     var body: some View {
         VStack(spacing: 24) {
@@ -370,6 +371,28 @@ struct OnboardingPagePreferences: View {
             
             ScrollView {
                 VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Your Location")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black.opacity(0.9))
+
+                        CitySearchField(city: $cityText, onCommit: { value in
+                            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            viewModel.userPreferences.userCity = trimmed.isEmpty ? nil : trimmed
+                        })
+                        .onChange(of: cityText) { _, value in
+                            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            viewModel.userPreferences.userCity = trimmed.isEmpty ? nil : trimmed
+                        }
+
+                        Text("Used to suggest in-person vs. online hangouts.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.black.opacity(0.5))
+                    }
+                    .padding(16)
+                    .background(Color.white.opacity(0.6))
+                    .cornerRadius(12)
+
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Favorite Activities")
                             .font(.system(size: 15, weight: .semibold))
@@ -438,6 +461,7 @@ struct OnboardingPagePreferences: View {
             enableNotifications = viewModel.userPreferences.enableNotifications
             notificationTime = viewModel.userPreferences.notificationTime
             preferredActivities = viewModel.userPreferences.preferredActivities
+            cityText = viewModel.userPreferences.userCity ?? ""
         }
         .onChange(of: enableNotifications) { _, newValue in
             viewModel.userPreferences.enableNotifications = newValue
