@@ -3,6 +3,14 @@
 import Foundation
 import Observation
 
+/// Display-ready scheduled block for the availability grid.
+struct ScheduledAvailabilityDisplayBlock: Identifiable {
+    let id: UUID
+    let label: String
+    let startDate: Date
+    let endDate: Date
+}
+
 /// Drives the Availability tab by combining saved free time, scheduled hangouts, and duration settings.
 @Observable
 final class AvailabilityViewModel {
@@ -163,10 +171,21 @@ final class AvailabilityViewModel {
         }
     }
 
-    /// Returns scheduled hangouts whose start date falls on the requested day.
+    /// Returns true when the day has scheduled hangouts to display on the availability grid.
+    func hasScheduledHangout(on date: Date) -> Bool {
+        !scheduledHangouts(on: date).isEmpty
+    }
+
+    /// Returns scheduled hangouts that overlap the requested day.
     func scheduledHangouts(on date: Date) -> [ScheduledHangout] {
-        scheduledHangouts.filter {
-            Calendar.current.isDate($0.startDate, inSameDayAs: date)
+        guard let dayInterval = Calendar.current.dateInterval(of: .day, for: date) else {
+            return []
+        }
+
+        return scheduledHangouts.filter {
+            $0.status != .canceled &&
+            $0.startDate < dayInterval.end &&
+            $0.endDate > dayInterval.start
         }
     }
 
@@ -253,20 +272,61 @@ final class AvailabilityViewModel {
                 $0.startDate < interval.end &&
                 $0.endDate > interval.start
             }
-            .map { hangout in
-                let firstName: String?
-                if let contact = hangout.contact {
-                    firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
-                } else {
-                    firstName = nil
-                }
+            .map { scheduledLabel(for: $0) }
+    }
 
-                if let firstName, !firstName.isEmpty {
-                    return "\(hangout.activity) with \(firstName)"
-                }
+    /// Returns scheduled hangouts clipped to the selected day for display as single blocks.
+    func scheduledDisplayBlocks(on date: Date) -> [ScheduledAvailabilityDisplayBlock] {
+        guard let dayInterval = Calendar.current.dateInterval(of: .day, for: date) else {
+            return []
+        }
 
-                return hangout.activity
+        return scheduledHangouts
+            .compactMap { hangout in
+                guard hangout.status != .canceled,
+                      hangout.startDate < dayInterval.end,
+                      hangout.endDate > dayInterval.start
+                else { return nil }
+
+                let visibleStart = max(hangout.startDate, dayInterval.start)
+                let visibleEnd = min(hangout.endDate, dayInterval.end)
+                guard visibleEnd > visibleStart else { return nil }
+
+                return ScheduledAvailabilityDisplayBlock(
+                    id: hangout.id,
+                    label: scheduledLabel(for: hangout),
+                    startDate: visibleStart,
+                    endDate: visibleEnd
+                )
             }
+    }
+
+    private func scheduledLabel(for hangout: ScheduledHangout) -> String {
+        let firstName: String?
+        if let contact = hangout.contact {
+            firstName = contact.givenName.isEmpty ? contact.name : contact.givenName
+        } else {
+            firstName = nil
+        }
+
+        let timeRange = scheduledTimeRange(for: hangout)
+        if let firstName, !firstName.isEmpty {
+            return "\(hangout.activity) with \(firstName) (\(timeRange))"
+        }
+
+        return "\(hangout.activity) (\(timeRange))"
+    }
+
+    private func scheduledTimeRange(for hangout: ScheduledHangout) -> String {
+        "\(timeFormatter.string(from: hangout.startDate))-\(timeFormatter.string(from: hangout.endDate))"
+    }
+
+    private var timeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mma"
+        formatter.amSymbol = "am"
+        formatter.pmSymbol = "pm"
+        return formatter
     }
 
     /// Returns true when adding `newBlock` would overlap existing saved free time.

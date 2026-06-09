@@ -153,6 +153,12 @@ final class InvitationManager {
         endTime: Date,
         fromIdentifier: String
     ) async {
+        if accepted && hasOverlappingScheduledHangout(start: startTime, end: endTime) {
+            try? await supabaseService.respondToInvitation(id: id, accepted: false)
+            try? pendingReceivedRepo.delete(id: id)
+            return
+        }
+
         try? await supabaseService.respondToInvitation(id: id, accepted: accepted)
         try? pendingReceivedRepo.delete(id: id)
 
@@ -195,6 +201,19 @@ final class InvitationManager {
             NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
         }
         try? pendingReceivedRepo.deleteExpired()
+    }
+
+    private func hasOverlappingScheduledHangout(start: Date, end: Date) -> Bool {
+        guard end > start else { return false }
+
+        let descriptor = FetchDescriptor<ScheduledHangout>()
+        let hangouts = (try? modelContext.fetch(descriptor)) ?? []
+        return hangouts.contains {
+            $0.status != .canceled &&
+            $0.endDate > .now &&
+            $0.startDate < end &&
+            $0.endDate > start
+        }
     }
 
     private func pollSentInvitations() async {

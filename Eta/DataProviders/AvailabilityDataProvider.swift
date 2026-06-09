@@ -57,15 +57,17 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         let searchEnd = calendar.date(byAdding: .day, value: lookAheadDays, to: now) ?? now
         let activityDuration = activityDurationSettings.duration
         let availableBlocks = expandAvailability(all, from: now, through: searchEnd, calendar: calendar)
+        let busyIntervals = scheduledBusyIntervals(from: scheduled)
 
         return availableBlocks
             .flatMap { block -> [DateInterval] in
                 guard block.endTime > now, block.startTime < searchEnd else { return [] }
                 let interval = DateInterval(start: max(block.startTime, now), end: block.endTime)
-                return subtractScheduledHangouts(from: interval, scheduled: scheduled)
+                return subtractBusyIntervals(from: interval, busyIntervals: busyIntervals)
                     .filter { $0.duration >= activityDuration }
                     .map { DateInterval(start: $0.start, duration: activityDuration) }
             }
+            .filter { !overlapsScheduledHangout($0, busyIntervals: busyIntervals) }
             .sorted { $0.start < $1.start }
             .prefix(maximumCount)
             .map { $0 }
@@ -91,21 +93,24 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         return expanded.sorted { $0.startTime < $1.startTime }
     }
 
-    /// Removes already scheduled hangouts from a candidate free interval.
-    private func subtractScheduledHangouts(
-        from interval: DateInterval,
-        scheduled: [ScheduledHangout]
-    ) -> [DateInterval] {
-        let busyIntervals = scheduled
+    /// Converts scheduled hangouts into busy intervals that should be unavailable for suggestions.
+    private func scheduledBusyIntervals(from scheduled: [ScheduledHangout]) -> [DateInterval] {
+        scheduled
             .filter { $0.status != .canceled }
             .map { DateInterval(start: $0.startDate, end: $0.endDate) }
-            .filter { $0.intersects(interval) }
             .sorted { $0.start < $1.start }
+    }
 
+    /// Removes already scheduled hangouts from a candidate free interval.
+    private func subtractBusyIntervals(
+        from interval: DateInterval,
+        busyIntervals: [DateInterval]
+    ) -> [DateInterval] {
         var free: [DateInterval] = []
         var cursor = interval.start
 
         for busy in busyIntervals {
+            guard overlaps(busy, interval) else { continue }
             let busyStart = max(busy.start, interval.start)
             let busyEnd = min(busy.end, interval.end)
 
@@ -123,5 +128,17 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         }
 
         return free
+    }
+
+    /// Final guard for candidate slots: no suggested time may overlap scheduled time.
+    private func overlapsScheduledHangout(
+        _ interval: DateInterval,
+        busyIntervals: [DateInterval]
+    ) -> Bool {
+        busyIntervals.contains { overlaps($0, interval) }
+    }
+
+    private func overlaps(_ lhs: DateInterval, _ rhs: DateInterval) -> Bool {
+        lhs.start < rhs.end && lhs.end > rhs.start
     }
 }
