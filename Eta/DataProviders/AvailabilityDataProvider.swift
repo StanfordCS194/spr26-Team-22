@@ -61,6 +61,7 @@ final class AvailabilityDataProvider: AvailabilityProvider {
             .flatMap { block -> [DateInterval] in
                 guard block.endTime > now, block.startTime < searchEnd else { return [] }
                 let start = roundedSlotStart(for: max(block.startTime, now), calendar: calendar)
+                guard start < block.endTime else { return [] }
                 let interval = DateInterval(start: start, end: block.endTime)
                 return subtractScheduledHangouts(from: interval, scheduled: scheduled)
                     .compactMap { freeInterval -> DateInterval? in
@@ -74,6 +75,31 @@ final class AvailabilityDataProvider: AvailabilityProvider {
             .sorted { $0.start < $1.start }
             .prefix(maximumCount)
             .map { $0 }
+    }
+
+    /// Rounds availability starts up to the next 15-minute boundary for cleaner suggestions.
+    private func roundedSlotStart(for date: Date, calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.minute, .second, .nanosecond], from: date)
+        let minute = components.minute ?? 0
+        let second = components.second ?? 0
+        let nanosecond = components.nanosecond ?? 0
+        let remainder = minute % 15
+
+        guard remainder != 0 || second != 0 || nanosecond != 0 else {
+            return date
+        }
+
+        let minutesToAdd = remainder == 0 ? 15 : 15 - remainder
+        guard let rounded = calendar.date(byAdding: .minute, value: minutesToAdd, to: date) else {
+            return date
+        }
+
+        return calendar.date(
+            bySettingHour: calendar.component(.hour, from: rounded),
+            minute: calendar.component(.minute, from: rounded),
+            second: 0,
+            of: rounded
+        ) ?? rounded
     }
 
     /// Rounds availability starts up to the next 15-minute boundary for cleaner suggestions.
