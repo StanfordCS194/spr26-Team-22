@@ -5,14 +5,19 @@ struct SettingsView: View {
     let onDismiss: () -> Void
 
     @State private var showingClearConfirmation = false
+    @State private var cityText: String = ""
 
     var body: some View {
         NavigationStack {
             Form {
+                locationSection
                 activitiesSection
                 notificationsSection
                 weeklyCheckInSection
                 dataSection
+            }
+            .onAppear {
+                cityText = viewModel.preferences.userCity ?? ""
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -38,6 +43,18 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    private var locationSection: some View {
+        Section {
+            CitySearchField(city: $cityText,
+                onCommit: { viewModel.updateUserCity($0) },
+                onCoordinates: { viewModel.updateUserCoordinates($0, $1) })
+        } header: {
+            Text("Your Location")
+        } footer: {
+            Text("Contacts in the same city are shown as in-person. Others are shown as online.")
+        }
+    }
 
     private var activitiesSection: some View {
         Section {

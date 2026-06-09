@@ -5,12 +5,14 @@ enum GoalCadence: String, Codable, CaseIterable {
     case weekly
     case monthly
     case quarterly
+    case yearly
 
     var displayName: String {
         switch self {
         case .weekly:    return "week"
         case .monthly:   return "month"
         case .quarterly: return "quarter"
+        case .yearly:    return "year"
         }
     }
 
@@ -19,6 +21,7 @@ enum GoalCadence: String, Codable, CaseIterable {
         case .weekly:    return 7
         case .monthly:   return 30
         case .quarterly: return 90
+        case .yearly:    return 365
         }
     }
 }

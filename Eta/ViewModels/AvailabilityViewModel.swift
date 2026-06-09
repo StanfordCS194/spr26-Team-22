@@ -31,7 +31,7 @@ final class AvailabilityViewModel {
     var scheduledHangouts: [HangoutSlot] = []
     /// User-selected hangout length in minutes, constrained to 15-minute increments.
     var activityDurationMinutes: Int
-    
+
     private let repository: AvailabilityRepository
     private let hangoutRepository: ScheduledHangoutRepository
     private let activityDurationSettings: ActivityDurationSettings
@@ -171,7 +171,7 @@ final class AvailabilityViewModel {
         blocks.removeAll { $0.id == id }
         saveBlocks()
     }
-    
+
     /// Returns whether the daily availability prompt should still be shown.
     func shouldShowPrompt(for date: Date) -> Bool {
         !tracker.hasProvidedAvailability(for: date)
@@ -227,6 +227,7 @@ final class AvailabilityViewModel {
                 $0.endDate > block.startTime
             }
         }
+    }
 
     /// Returns true when any saved free-time block overlaps the interval.
     func isFree(during interval: DateInterval) -> Bool {

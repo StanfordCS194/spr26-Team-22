@@ -69,7 +69,7 @@ struct SuggestionView: View {
                 }
             }
             .navigationTitle("For You")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await viewModel.refresh()
             }

@@ -24,6 +24,7 @@ struct MainTabView: View {
     let chatViewModel: ChatViewModel
 
     @State private var selectedTab: TabChoice = .events
+    @State private var showingSettings = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -39,7 +40,8 @@ struct MainTabView: View {
                     homeViewModel: homeViewModel,
                     settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService,
-                    weeklyCheckInState: weeklyCheckInState
+                    weeklyCheckInState: weeklyCheckInState,
+                    onShowSettings: { showingSettings = true }
                 )
                 .walkthrough(key: "friends", steps: TabWalkthroughs.friends)
             }
@@ -57,6 +59,13 @@ struct MainTabView: View {
                 )
                 .walkthrough(key: "suggestions", steps: TabWalkthroughs.suggestions)
             }
+        }
+        .sheet(isPresented: $showingSettings, onDismiss: {
+            connectionsViewModel.loadContacts()
+            homeViewModel.recomputeAllIsRemote()
+            Task { await homeViewModel.refresh() }
+        }) {
+            SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false })
         }
         .sheet(isPresented: Binding(
             get: { invitationManager.pendingFeedbackHangoutID != nil },
@@ -129,6 +138,8 @@ struct MainTabView: View {
             if let invite = receivedInviteState.pendingInvite {
                 ReceivedInviteSheet(
                     invite: invite,
+                    senderName: receivedInviteState.senderName,
+                    isEdit: receivedInviteState.isEdit,
                     onAccept: {
                         receivedInviteState.clear()
                         Task {

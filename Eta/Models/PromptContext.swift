@@ -29,6 +29,12 @@ struct PromptContext {
     var relationshipFacts: [ContextFact]
     /// User-level goals and preferences that apply regardless of the contact.
     var userGoals: [ContextFact]
+    /// The free slot that triggered this suggestion. Strategies may use it to filter
+    /// activities that are implausible at the proposed time (e.g. no dinner at 10 am).
+    var proposedTime: DateInterval? = nil
+    /// Activities already suggested for this contact during the current app session.
+    /// Strategies should avoid repeating these.
+    var previouslySuggestedActivities: [String] = []
 
-    static let empty = PromptContext(relationshipFacts: [], userGoals: [])
+    static let empty = PromptContext(relationshipFacts: [], userGoals: [], previouslySuggestedActivities: [])
 }
