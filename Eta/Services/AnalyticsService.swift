@@ -306,4 +306,8 @@ final class AnalyticsService {
         logEvent(type: "UserLocationSet", category: .lifecycle)
     }
 
+    func logTutorialCompleted(tab: String) {
+        logEvent(type: "TutorialCompleted", category: .lifecycle, value: tab)
+    }
+
 }

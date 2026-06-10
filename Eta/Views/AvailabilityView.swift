@@ -645,6 +645,7 @@ struct AvailabilityView: View {
 
     /// Marks the Availability tutorial complete and notifies the parent tab coordinator.
     private func completeAvailabilityTutorial() {
+        if tutorialPhase == .completeSlide { analyticsService.logTutorialCompleted(tab: "availability") }
         UserDefaults.standard.set(true, forKey: "walkthrough_availability")
         tutorialPhase = .none
         onTutorialDone()

@@ -5,9 +5,9 @@ import SwiftUI
 /// Pin this above the tab bar using `.overlay(alignment: .bottomTrailing)` on the TabView.
 struct FloatingChatButton: View {
     let viewModel: ChatViewModel
-    var analyticsService: AnalyticsService?
     var onPresented: () -> Void = {}
     var onDismissed: () -> Void = {}
+    var analyticsService: AnalyticsService?
     @State private var isPresented = false
 
     var body: some View {

@@ -242,6 +242,7 @@ struct SuggestionView: View {
 
     /// Marks the Suggestions tutorial complete and notifies the parent tab coordinator.
     private func finishSuggestionsTutorial() {
+        if tutorialPhase == .completeSlide { analyticsService.logTutorialCompleted(tab: "suggestions") }
         UserDefaults.standard.set(true, forKey: "walkthrough_suggestions")
         tutorialPhase = .none
         onTutorialDone()

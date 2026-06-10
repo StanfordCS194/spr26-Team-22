@@ -391,6 +391,7 @@ struct MainTabView: View {
 
     /// Marks the Events tutorial complete and clears active tutorial state.
     private func finishEventsTutorial() {
+        if eventsTutorialPhase == .completeSlide { analyticsService.logTutorialCompleted(tab: "events") }
         UserDefaults.standard.set(true, forKey: "walkthrough_events")
         eventsTutorialPhase = .none
         activeTutorial = nil

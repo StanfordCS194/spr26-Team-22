@@ -184,10 +184,10 @@ struct ConnectionsView: View {
                             ),
                             displayName: viewModel.displayName(for: contact),
                             homeViewModel: homeViewModel,
+                            analyticsService: analyticsService,
                             onTutorialProfileOpened: handleTutorialProfileOpened,
                             onTutorialProfileDismissed: handleTutorialProfileDismissed,
-                            onTutorialGoalCreated: handleTutorialGoalCreated,
-                            analyticsService: analyticsService
+                            onTutorialGoalCreated: handleTutorialGoalCreated
                         )
                     } label: {
                         ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)
@@ -251,10 +251,10 @@ struct ConnectionsView: View {
                         health: selectedSpotlight.health,
                         displayName: homeViewModel.displayName(for: selectedSpotlight.contact),
                         homeViewModel: homeViewModel,
+                        analyticsService: analyticsService,
                         onTutorialProfileOpened: handleTutorialProfileOpened,
                         onTutorialProfileDismissed: handleTutorialProfileDismissed,
-                        onTutorialGoalCreated: handleTutorialGoalCreated,
-                        analyticsService: analyticsService
+                        onTutorialGoalCreated: handleTutorialGoalCreated
                     )
                 }
             }
@@ -527,6 +527,7 @@ struct ConnectionsView: View {
 
     /// Marks the Friends tutorial complete and notifies the parent tab coordinator.
     private func finishFriendsTutorial() {
+        if tutorialPhase == .completeSlide { analyticsService.logTutorialCompleted(tab: "friends") }
         UserDefaults.standard.set(true, forKey: "walkthrough_friends")
         tutorialPhase = .none
         startedTutorialRequestID = nil
