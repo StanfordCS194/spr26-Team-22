@@ -36,6 +36,17 @@ private struct ExtSupabase {
         return "\(baseURL)/functions/v1/invite-rsvp?id=\(invitationID)"
     }
 
+    static func updateStatus(id: String, to status: String) async {
+        guard isConfigured, let url = URL(string: "\(baseURL)/rest/v1/invitations?id=eq.\(id)") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["status": status])
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
     static func postInvitation(
         id: String, activity: String, startTime: Date, endTime: Date
     ) async {
@@ -175,7 +186,7 @@ class MessagesViewController: MSMessagesAppViewController {
 
         // If the sender opens an already-accepted bubble, offer "Add to Eta".
         let onAddToEta: (() -> Void)? = (isSender && status == .accepted) ? { [weak self] in
-            self?.openEtaApp(activity: activityName, startDate: startDate, endDate: endDate)
+            self?.openEtaApp(activity: activityName, startDate: startDate, endDate: endDate, invitationID: invitationID)
         } : nil
 
         let view = EnvelopeDetailView(
@@ -193,15 +204,19 @@ class MessagesViewController: MSMessagesAppViewController {
         embed(UIHostingController(rootView: view))
     }
 
-    private func openEtaApp(activity: String, startDate: Date, endDate: Date) {
+    private func openEtaApp(activity: String, startDate: Date, endDate: Date, invitationID: String = "") {
         var c = URLComponents()
         c.scheme = "eta"
         c.host   = "invite-accepted"
-        c.queryItems = [
+        var items: [URLQueryItem] = [
             URLQueryItem(name: "activity", value: activity),
             URLQueryItem(name: "start",    value: "\(startDate.timeIntervalSince1970)"),
             URLQueryItem(name: "end",      value: "\(endDate.timeIntervalSince1970)"),
         ]
+        if !invitationID.isEmpty {
+            items.append(URLQueryItem(name: "invitationID", value: invitationID))
+        }
+        c.queryItems = items
         guard let url = c.url else { return }
         extensionContext?.open(url, completionHandler: nil)
     }
@@ -288,9 +303,11 @@ class MessagesViewController: MSMessagesAppViewController {
             }
         }
 
-        // If the receiver accepted, open Eta to create the ScheduledHangout locally.
+        // If the receiver accepted, update Supabase so the sender's app detects the confirmation,
+        // then open Eta to create a confirmed ScheduledHangout on the receiver's device.
         if status == .accepted {
-            openEtaApp(activity: activityName, startDate: date, endDate: endDate)
+            Task { await ExtSupabase.updateStatus(id: invitationID, to: "confirmed") }
+            openEtaApp(activity: activityName, startDate: date, endDate: endDate, invitationID: invitationID)
         }
     }
 

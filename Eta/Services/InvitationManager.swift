@@ -213,17 +213,37 @@ final class InvitationManager {
         guard let updates = try? await supabaseService.fetchSentUpdates() else { return }
         for remote in updates {
             let descriptor = FetchDescriptor<Invitation>(predicate: #Predicate { $0.id == remote.id })
-            guard let inv = try? modelContext.fetch(descriptor).first,
-                  inv.status == .pending else { continue }
-            let accepted = remote.status == "confirmed"
-            try? handleInvitationResponse(invitationID: remote.id, accepted: accepted)
-            if !accepted {
-                await notificationService.scheduleInviteDeclinedNotification(
-                    friendName: remote.friendName,
-                    activityName: remote.activity
-                )
+            if let inv = try? modelContext.fetch(descriptor).first {
+                // App-originated invite: update the existing Invitation and its ScheduledHangout.
+                guard inv.status == .pending else { continue }
+                let accepted = remote.status == "confirmed"
+                try? handleInvitationResponse(invitationID: remote.id, accepted: accepted)
+                if !accepted {
+                    await notificationService.scheduleInviteDeclinedNotification(
+                        friendName: remote.friendName,
+                        activityName: remote.activity
+                    )
+                }
+                await supabaseService.deleteInvitation(id: remote.id)
+            } else if remote.status == "confirmed" {
+                // Extension-originated invite: no local Invitation exists.
+                // Create a confirmed ScheduledHangout so the sender sees the accepted event.
+                let name = remote.friendName.isEmpty ? nil : remote.friendName
+                let contact = name.flatMap { findContact(byName: $0) }
+                let interval = DateInterval(start: remote.startTime, end: remote.endTime)
+                let hangout: ScheduledHangout
+                if let contact {
+                    hangout = ScheduledHangout(contact: contact, activity: remote.activity, selectedTime: interval)
+                } else {
+                    hangout = ScheduledHangout(contactName: name ?? "via iMessage", activity: remote.activity, selectedTime: interval)
+                }
+                hangout.inviteeResponse = .confirmed
+                modelContext.insert(hangout)
+                try? modelContext.save()
+                NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
+                await supabaseService.deleteInvitation(id: remote.id)
             }
-            await supabaseService.deleteInvitation(id: remote.id)
+            // Extension-originated declined invites have no local record to update; let them expire.
         }
         await supabaseService.deleteExpiredSentInvitations()
     }
@@ -260,8 +280,11 @@ final class InvitationManager {
 
     // MARK: - Web RSVP / iMessage deeplink
 
-    /// Handles `eta://invite-accepted?activity=<act>&start=<ts>&end=<ts>&senderName=<name>`.
-    /// Creates a confirmed ScheduledHangout on the local device (receiver or sender side).
+    /// Handles `eta://invite-accepted?activity=<act>&start=<ts>&end=<ts>[&invitationID=<id>][&senderName=<name>]`.
+    ///
+    /// - Sender path (invitationID matches a local Invitation): confirms the existing Invitation and
+    ///   its linked ScheduledHangout rather than creating a duplicate record.
+    /// - Receiver path (no matching Invitation): creates a new confirmed ScheduledHangout.
     func handleInviteURL(_ url: URL) {
         guard url.scheme == "eta", url.host == "invite-accepted",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
@@ -278,6 +301,17 @@ final class InvitationManager {
         let endDate   = endTs > 0 ? Date(timeIntervalSince1970: endTs) : startDate.addingTimeInterval(3600)
         let interval  = DateInterval(start: startDate, end: endDate)
 
+        // Sender path: if an invitationID is present and a local Invitation exists, just confirm it.
+        if let invitationID = items.first(where: { $0.name == "invitationID" })?.value,
+           !invitationID.isEmpty {
+            let descriptor = FetchDescriptor<Invitation>(predicate: #Predicate { $0.id == invitationID })
+            if (try? modelContext.fetch(descriptor).first) != nil {
+                try? handleInvitationResponse(invitationID: invitationID, accepted: true)
+                return
+            }
+        }
+
+        // Receiver path: create a new confirmed hangout.
         let senderName = items.first { $0.name == "senderName" }?.value
         let contact    = senderName.flatMap { findContact(byName: $0) }
 

@@ -66,10 +66,17 @@ final class SupabaseService {
         self.baseURL = host.isEmpty ? "" : "https://\(host)"
         self.anonKey = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String) ?? ""
 
-        if let saved = UserDefaults.standard.string(forKey: "supabaseDeviceID") {
+        // Use the App Group suite so the device ID matches what the iMessage extension writes.
+        // App Groups must be enabled on both targets (group.me.Eta) in Signing & Capabilities.
+        let sharedDefaults = UserDefaults(suiteName: "group.me.Eta") ?? .standard
+        if let saved = sharedDefaults.string(forKey: "supabaseDeviceID") {
             self.deviceID = saved
+        } else if let migrated = UserDefaults.standard.string(forKey: "supabaseDeviceID") {
+            sharedDefaults.set(migrated, forKey: "supabaseDeviceID")
+            self.deviceID = migrated
         } else {
             let id = UUID().uuidString
+            sharedDefaults.set(id, forKey: "supabaseDeviceID")
             UserDefaults.standard.set(id, forKey: "supabaseDeviceID")
             self.deviceID = id
         }
