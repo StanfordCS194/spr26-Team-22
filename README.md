@@ -1,5 +1,29 @@
 # Eta
 
+Eta is a lightweight iOS app that helps you maintain friendships by reducing friction around scheduling in-person hangouts. It monitors your calendar for open time slots, identifies friends you haven't seen recently, and surfaces a time-specific suggestion — making it easy to send an invite with one tap.
+
+The core loop: **detect a free slot + identify an overdue friend → surface a time-specific suggestion → send an invite via iMessage.**
+
+> [!NOTE]
+> For detailed documentation of Eta's development, please see our [wiki](https://github.com/StanfordCS194/spr26-Team-22/wiki).
+
+### Features
+
+- **Smart suggestions** — combines calendar availability and relationship health scores to recommend who to hang out with and when
+- **LLM-powered activity ideas** — uses GitHub Models (llama-3.1-8b-instruct) to suggest personalized activity ideas; falls back to a curated activity list when no API key is configured
+- **Invite system** — send hangout invites to other Eta users via Supabase, or fall back to pre-filled iMessage for contacts not on the app
+- **Weekly check-in** — a weekly summary of friendship activity, overdue friends, and a priority contact picker
+- **Activity photos** — capture and surface photos from past hangouts on future suggestion cards
+- **Nudge notifications** — daily nudge encouraging you to reach out to the friend who needs the most attention
+
+### Tech stack
+
+- iOS 26+, Swift 5.0, SwiftUI, SwiftData
+- EventKit for calendar access, Contacts framework for contact picker
+- Supabase (raw URLSession REST) for backend invite routing
+- GitHub Models API for LLM inference
+
+---
 
 ## Setting up LLM Suggestions
 
