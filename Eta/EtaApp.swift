@@ -25,6 +25,7 @@ struct EtaApp: App {
     private let photoRepository: ActivityPhotoRepository
     private let reminderPhotoState: ReminderPhotoState
     private let supabaseService: SupabaseService
+    private let sharedPhotoSyncService: SharedPhotoSyncService
     private let phoneSetupService: PhoneSetupService
     @State private var hasPhoneSetup: Bool
     private let nudgeService: NudgeService
@@ -65,6 +66,10 @@ struct EtaApp: App {
 
         let supabaseService = SupabaseService()
         self.supabaseService = supabaseService
+        self.sharedPhotoSyncService = SharedPhotoSyncService(
+            supabaseService: supabaseService,
+            photoRepository: photoRepository
+        )
 
         let analyticsService = AnalyticsService(supabaseService: supabaseService)
         self.analyticsService = analyticsService
@@ -305,6 +310,7 @@ struct EtaApp: App {
             Task { await nudgeService.scheduleNudge() }
             Task { await weeklyCheckInService.scheduleIfNeeded() }
             Task { await invitationManager.pollForUpdates() }
+            Task { await sharedPhotoSyncService.sync() }
             if let id = phoneSetupService.myIdentifier {
                 Task { await supabaseService.registerDevice(identifier: id) }
             }

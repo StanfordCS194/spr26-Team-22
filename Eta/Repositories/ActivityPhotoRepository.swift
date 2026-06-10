@@ -53,6 +53,16 @@ final class ActivityPhotoRepository {
         }
     }
 
+    /// All photos captured within the last `days` days. Used by SharedPhotoSyncService for upload.
+    func recentPhotos(withinDays days: Int) -> [ActivityPhoto] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: .now) ?? .distantPast
+        let descriptor = FetchDescriptor<ActivityPhoto>(
+            predicate: #Predicate { $0.capturedAt >= cutoff },
+            sortBy: [SortDescriptor(\.capturedAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
     func add(_ photo: ActivityPhoto) throws {
         modelContext.insert(photo)
         try modelContext.save()

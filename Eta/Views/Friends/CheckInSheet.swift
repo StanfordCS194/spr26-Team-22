@@ -10,6 +10,8 @@ struct CheckInSheet: View {
     let onSend: (String, Bool) -> Void
     let onDismiss: () -> Void
     var analyticsService: AnalyticsService?
+    /// A photo of the contact to include in the nudge card, if available.
+    var contactPhotoData: Data?
 
     enum AttachmentMode: String, CaseIterable {
         case none  = "None"
@@ -33,7 +35,8 @@ struct CheckInSheet: View {
         initialTemplate: String,
         onSend: @escaping (String, Bool) -> Void,
         onDismiss: @escaping () -> Void,
-        analyticsService: AnalyticsService? = nil
+        analyticsService: AnalyticsService? = nil,
+        contactPhotoData: Data? = nil
     ) {
         self.displayName = displayName
         self.givenName = givenName
@@ -42,6 +45,7 @@ struct CheckInSheet: View {
         self.onSend = onSend
         self.onDismiss = onDismiss
         self.analyticsService = analyticsService
+        self.contactPhotoData = contactPhotoData
         let personalized = initialTemplate.localizedCaseInsensitiveContains(givenName)
             ? initialTemplate
             : "Hey \(givenName)! \(initialTemplate)"
@@ -83,7 +87,7 @@ struct CheckInSheet: View {
                     }
 
                     if attachmentMode == .nudge {
-                        NudgeCardPreview()
+                        NudgeCardPreview(photoData: contactPhotoData)
                             .frame(maxWidth: .infinity)
                             .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
                     }
@@ -153,7 +157,7 @@ struct CheckInSheet: View {
 
         case .nudge:
             if MFMessageComposeViewController.canSendText(),
-               let data = renderNudgeCard() {
+               let data = renderNudgeCard(photoData: contactPhotoData) {
                 pendingAttachment = (data, "public.jpeg", "nudge.jpg")
                 showingComposer = true
             } else {
@@ -175,8 +179,8 @@ struct CheckInSheet: View {
     }
 
     @MainActor
-    private func renderNudgeCard() -> Data? {
-        let renderer = ImageRenderer(content: NudgeCardView())
+    private func renderNudgeCard(photoData: Data?) -> Data? {
+        let renderer = ImageRenderer(content: NudgeCardView(photoData: photoData))
         renderer.scale = 3.0
         return renderer.uiImage?.jpegData(compressionQuality: 0.9)
     }
@@ -185,36 +189,57 @@ struct CheckInSheet: View {
 // MARK: - Nudge card
 
 private struct NudgeCardView: View {
+    var photoData: Data?
     private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(etaTeal)
-                .frame(width: 260, height: 140)
+        ZStack(alignment: .bottom) {
+            if let data = photoData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 260, height: 160)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(
+                            colors: [.clear, etaTeal.opacity(0.85)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            } else {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(etaTeal)
+                    .frame(width: 260, height: 160)
+            }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 4) {
                 Image(systemName: "hand.wave.fill")
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                 Text("Thinking of you")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 Text("sent with Eta")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(.white.opacity(0.7))
             }
+            .padding(.bottom, 16)
         }
+        .frame(width: 260, height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
 private struct NudgeCardPreview: View {
+    var photoData: Data?
+
     var body: some View {
         HStack {
             Spacer()
-            NudgeCardView()
+            NudgeCardView(photoData: photoData)
                 .scaleEffect(0.75)
-                .frame(height: 105)
+                .frame(height: 120)
             Spacer()
         }
     }

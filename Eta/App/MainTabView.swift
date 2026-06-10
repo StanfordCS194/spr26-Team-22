@@ -73,6 +73,7 @@ struct MainTabView: View {
                     analyticsService: analyticsService,
                     weeklyCheckInState: weeklyCheckInState,
                     onShowSettings: { showingSettings = true },
+                    photoRepository: photoRepository,
                     isTutorialActive: activeTutorial == .friends,
                     tutorialRequestID: tutorialRequestID,
                     settingsDismissCount: settingsDismissCount,

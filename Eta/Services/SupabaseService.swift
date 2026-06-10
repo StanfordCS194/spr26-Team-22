@@ -247,6 +247,42 @@ final class SupabaseService {
         try? await request(path: path, method: "DELETE")
     }
 
+    // MARK: - Shared photos
+    //
+    // Requires a shared_photos table in Supabase (see SharedPhotoSyncService.swift for SQL).
+
+    struct SharedPhotoRow {
+        let activity: String
+        let imageData: Data
+    }
+
+    func uploadSharedPhoto(activity: String, imageData: Data) async {
+        guard isConfigured else { return }
+        let body: [String: Any] = [
+            "id": UUID().uuidString,
+            "uploader_id": deviceID,
+            "activity": activity,
+            "image_data": imageData.base64EncodedString()
+        ]
+        try? await request(path: "/rest/v1/shared_photos", method: "POST", body: body)
+    }
+
+    func fetchNewSharedPhotos(since date: Date) async -> [SharedPhotoRow] {
+        guard isConfigured else { return [] }
+        let since = urlEncoded(iso(date))
+        let path = "/rest/v1/shared_photos?uploader_id=neq.\(deviceID)&created_at=gt.\(since)&select=activity,image_data&limit=50"
+        guard let data = try? await request(path: path, method: "GET"),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return [] }
+        return rows.compactMap { row in
+            guard let activity = row["activity"] as? String,
+                  let base64 = row["image_data"] as? String,
+                  let imageData = Data(base64Encoded: base64)
+            else { return nil }
+            return SharedPhotoRow(activity: activity, imageData: imageData)
+        }
+    }
+
     // MARK: - Analytics
 
     func postAnalyticsEvent(
