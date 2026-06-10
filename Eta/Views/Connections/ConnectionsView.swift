@@ -23,6 +23,7 @@ struct ConnectionsView: View {
     @State private var showingDeleteConfirmation = false
     @State private var tutorialPhase: FriendsTutorialPhase = .none
     @State private var tutorialContactCount = 0
+    @State private var startedTutorialRequestID: Int?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.isSearching) private var isSearching
 
@@ -73,7 +74,10 @@ struct ConnectionsView: View {
                             contact: item.contact,
                             health: item.health,
                             displayName: homeViewModel.displayName(for: item.contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            onTutorialProfileOpened: handleTutorialProfileOpened,
+                            onTutorialProfileDismissed: handleTutorialProfileDismissed,
+                            onTutorialGoalCreated: handleTutorialGoalCreated
                         )
                     } label: {
                         FriendSpotlightCard(
@@ -169,10 +173,14 @@ struct ConnectionsView: View {
                                 upcomingHangout: nil
                             ),
                             displayName: viewModel.displayName(for: contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            onTutorialProfileOpened: handleTutorialProfileOpened,
+                            onTutorialProfileDismissed: handleTutorialProfileDismissed,
+                            onTutorialGoalCreated: handleTutorialGoalCreated
                         )
                     } label: {
                         ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)
+                            .tutorialTarget(FriendsTutorialTarget.friendRow)
                     }
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
@@ -344,21 +352,19 @@ struct ConnectionsView: View {
                 await viewModel.loadHealthScores()
                 await homeViewModel.refresh()
                 await homeViewModel.geocodeMissingCities()
-                if isTutorialActive {
-                    startFriendsTutorial()
-                }
+                startFriendsTutorialIfNeeded()
             }
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
             .onChange(of: isTutorialActive) { _, isActive in
-                if isActive {
-                    startFriendsTutorial()
-                } else {
+                if !isActive {
                     tutorialPhase = .none
+                    startedTutorialRequestID = nil
+                } else {
+                    startFriendsTutorialIfNeeded()
                 }
             }
             .onChange(of: tutorialRequestID) { _, _ in
-                guard isTutorialActive else { return }
-                startFriendsTutorial()
+                startFriendsTutorialIfNeeded()
             }
             .onChange(of: viewModel.contacts.count) { _, count in
                 // The add-friend pointer stays up until the contact list actually grows.
@@ -397,10 +403,10 @@ struct ConnectionsView: View {
                         handleFriendsTutorialPrimaryAction()
                         return true
                     },
-                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    primaryButtonTitleOverride: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Done" : nil,
                     onSecondaryAction: tutorialPhase == .completeSlide ? {
                         finishFriendsTutorial()
-                        onTutorialNext()
                     } : nil,
                     showsBackButton: tutorialPhase.hasPreviousSlide,
                     onBackAction: {
@@ -437,6 +443,23 @@ struct ConnectionsView: View {
                 arrowType: .upperLeft,
                 description: "Indicate your preferences."
             )
+        case .goalListPointer:
+            friendsPointer(
+                target: .friendRow,
+                in: targets,
+                proxy: proxy,
+                arrowType: .down,
+                description: "Tap here and add a goal!",
+                showsArrow: false
+            )
+        case .goalButtonPointer:
+            friendsPointer(
+                target: .addGoalButton,
+                in: targets,
+                proxy: proxy,
+                arrowType: .down,
+                description: "Set a relationship goal."
+            )
         case .none, .introSlide, .addSlide, .healthSlide, .preferencesSlide, .completeSlide:
             EmptyView()
         }
@@ -449,14 +472,16 @@ struct ConnectionsView: View {
         in targets: [FriendsTutorialTarget: Anchor<CGRect>],
         proxy: GeometryProxy,
         arrowType: TutorialPointerArrowType,
-        description: String
+        description: String,
+        showsArrow: Bool = true
     ) -> some View {
         if let anchor = targets[target] {
             TutorialPointer(
                 arrowType: arrowType,
                 targetFrame: proxy[anchor],
                 containerSize: proxy.size,
-                description: description
+                description: description,
+                showsArrow: showsArrow
             )
         }
     }
@@ -467,11 +492,38 @@ struct ConnectionsView: View {
         tutorialPhase = .introSlide
     }
 
+    /// Starts the Friends tutorial once for the active parent request.
+    private func startFriendsTutorialIfNeeded() {
+        guard isTutorialActive, tutorialRequestID > 0 else { return }
+        guard startedTutorialRequestID != tutorialRequestID else { return }
+        startedTutorialRequestID = tutorialRequestID
+        startFriendsTutorial()
+    }
+
     /// Marks the Friends tutorial complete and notifies the parent tab coordinator.
     private func finishFriendsTutorial() {
         UserDefaults.standard.set(true, forKey: "walkthrough_friends")
         tutorialPhase = .none
+        startedTutorialRequestID = nil
         onTutorialDone()
+    }
+
+    /// Advances after the user opens a friend profile from the relationship-goals pointer.
+    private func handleTutorialProfileOpened() {
+        guard tutorialPhase == .goalListPointer else { return }
+        tutorialPhase = .goalButtonPointer
+    }
+
+    /// Advances if the user leaves the profile before creating a goal.
+    private func handleTutorialProfileDismissed() {
+        guard tutorialPhase == .goalButtonPointer else { return }
+        tutorialPhase = .preferencesSlide
+    }
+
+    /// Advances after the user creates a relationship goal.
+    private func handleTutorialGoalCreated() {
+        guard tutorialPhase == .goalButtonPointer else { return }
+        tutorialPhase = .preferencesSlide
     }
 
     /// Advances the Friends tutorial through slides and interactive pointer phases.
@@ -483,12 +535,13 @@ struct ConnectionsView: View {
             tutorialContactCount = viewModel.contacts.count
             tutorialPhase = .addPointer
         case .healthSlide:
-            tutorialPhase = .preferencesSlide
+            tutorialPhase = .goalListPointer
         case .preferencesSlide:
             tutorialPhase = .settingsPointer
         case .completeSlide:
             finishFriendsTutorial()
-        case .none, .addPointer, .settingsPointer:
+            onTutorialNext()
+        case .none, .addPointer, .goalListPointer, .goalButtonPointer, .settingsPointer:
             break
         }
     }
@@ -504,7 +557,7 @@ struct ConnectionsView: View {
             tutorialPhase = .healthSlide
         case .completeSlide:
             tutorialPhase = .preferencesSlide
-        case .none, .introSlide, .addPointer, .settingsPointer:
+        case .none, .introSlide, .addPointer, .goalListPointer, .goalButtonPointer, .settingsPointer:
             break
         }
     }
@@ -649,9 +702,11 @@ private struct WarmthBar: View {
 }
 
 /// Controls in FriendsView that can receive tutorial pointers.
-private enum FriendsTutorialTarget: Hashable {
+enum FriendsTutorialTarget: Hashable {
     case moreButton
     case settingsButton
+    case friendRow
+    case addGoalButton
 }
 
 /// Step state for the Friends tab's interactive tutorial.
@@ -661,6 +716,8 @@ private enum FriendsTutorialPhase: Equatable {
     case addSlide
     case addPointer
     case healthSlide
+    case goalListPointer
+    case goalButtonPointer
     case preferencesSlide
     case settingsPointer
     case completeSlide
@@ -677,7 +734,7 @@ private enum FriendsTutorialPhase: Equatable {
             return TabWalkthroughs.friends[3]
         case .completeSlide:
             return TabWalkthroughs.friends[4]
-        case .none, .addPointer, .settingsPointer:
+        case .none, .addPointer, .goalListPointer, .goalButtonPointer, .settingsPointer:
             return nil
         }
     }
@@ -686,7 +743,7 @@ private enum FriendsTutorialPhase: Equatable {
         switch self {
         case .addSlide, .healthSlide, .preferencesSlide, .completeSlide:
             return true
-        case .none, .introSlide, .addPointer, .settingsPointer:
+        case .none, .introSlide, .addPointer, .goalListPointer, .goalButtonPointer, .settingsPointer:
             return false
         }
     }

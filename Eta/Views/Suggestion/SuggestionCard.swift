@@ -86,6 +86,7 @@ struct SuggestionCard: View {
 
 /// Buttons on a suggestion card that can receive tutorial pointers.
 enum SuggestionTutorialTarget: Hashable {
+    case refreshButton
     case scheduleButton
     case detailsButton
     case maybeLaterButton

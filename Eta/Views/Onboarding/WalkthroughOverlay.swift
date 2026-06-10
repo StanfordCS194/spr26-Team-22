@@ -29,6 +29,7 @@ struct WalkthroughStep {
 struct WalkthroughOverlay: View {
     let steps: [WalkthroughStep]
     let onPrimaryAction: ((Int) -> Bool)?
+    let primaryButtonTitleOverride: String?
     let secondaryButtonTitle: String?
     let onSecondaryAction: (() -> Void)?
     let showsBackButton: Bool
@@ -41,6 +42,7 @@ struct WalkthroughOverlay: View {
     init(
         steps: [WalkthroughStep],
         onPrimaryAction: ((Int) -> Bool)? = nil,
+        primaryButtonTitleOverride: String? = nil,
         secondaryButtonTitle: String? = nil,
         onSecondaryAction: (() -> Void)? = nil,
         showsBackButton: Bool = false,
@@ -49,6 +51,7 @@ struct WalkthroughOverlay: View {
     ) {
         self.steps = steps
         self.onPrimaryAction = onPrimaryAction
+        self.primaryButtonTitleOverride = primaryButtonTitleOverride
         self.secondaryButtonTitle = secondaryButtonTitle
         self.onSecondaryAction = onSecondaryAction
         self.showsBackButton = showsBackButton
@@ -129,7 +132,7 @@ struct WalkthroughOverlay: View {
                             dismiss()
                         }
                     } label: {
-                        Text(step.primaryButtonTitle ?? (currentStep < steps.count - 1 ? "Next" : "Got it!"))
+                        Text(primaryButtonTitleOverride ?? step.primaryButtonTitle ?? (currentStep < steps.count - 1 ? "Next" : "Got it!"))
                             .font(.system(size: 15, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)

@@ -20,52 +20,24 @@ struct TutorialPointer: View {
     let targetFrame: CGRect
     let containerSize: CGSize
     let description: String
+    var showsArrow = true
 
     @State private var isPulsing = false
 
     var body: some View {
-        pointerContent
-            .scaleEffect(isPulsing ? 1.03 : 0.98)
-            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
-            .onAppear { isPulsing = true }
-            .position(calloutPosition)
-    }
+        ZStack {
+            if showsArrow {
+                arrowImage
+                    .position(clamped(arrowPosition, horizontalMargin: 24, verticalMargin: 24))
+            }
 
-    /// Lays out the arrow between the target and the text box.
-    @ViewBuilder
-    private var pointerContent: some View {
-        switch arrowType {
-        case .up:
-            VStack(spacing: 6) {
-                arrowImage
-                textBox
-            }
-        case .down:
-            VStack(spacing: 6) {
-                textBox
-                arrowImage
-            }
-        case .left:
-            HStack(spacing: 8) {
-                arrowImage
-                textBox
-            }
-        case .right:
-            HStack(spacing: 8) {
-                textBox
-                arrowImage
-            }
-        case .upperLeft, .upperRight:
-            VStack(spacing: 6) {
-                arrowImage
-                textBox
-            }
-        case .lowerLeft, .lowerRight:
-            VStack(spacing: 6) {
-                textBox
-                arrowImage
-            }
+            textBox
+                .scaleEffect(isPulsing ? 1.03 : 0.98)
+                .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+                .position(clamped(textPosition, horizontalMargin: 118, verticalMargin: 40))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { isPulsing = true }
     }
 
     /// Builds the bright green tutorial label.
@@ -89,32 +61,62 @@ struct TutorialPointer: View {
             .foregroundStyle(tutorialPointerGreen)
     }
 
-    /// Computes a clamped position for the pointer near its target.
-    private var calloutPosition: CGPoint {
-        let spacing: CGFloat = 70
-        let proposed: CGPoint
+    /// Places the arrow directly beside the target edge it points at.
+    private var arrowPosition: CGPoint {
+        let edgeSpacing: CGFloat = 18
         switch arrowType {
         case .up:
-            proposed = CGPoint(x: targetFrame.midX, y: targetFrame.maxY + spacing)
+            return CGPoint(x: targetFrame.midX, y: targetFrame.maxY + edgeSpacing)
         case .down:
-            proposed = CGPoint(x: targetFrame.midX, y: targetFrame.minY - spacing)
+            return CGPoint(x: targetFrame.midX, y: targetFrame.minY - edgeSpacing)
         case .left:
-            proposed = CGPoint(x: targetFrame.maxX + 130, y: targetFrame.midY)
+            return CGPoint(x: targetFrame.maxX + edgeSpacing, y: targetFrame.midY)
         case .right:
-            proposed = CGPoint(x: targetFrame.minX - 130, y: targetFrame.midY)
+            return CGPoint(x: targetFrame.minX - edgeSpacing, y: targetFrame.midY)
         case .upperLeft:
-            proposed = CGPoint(x: targetFrame.maxX + 130, y: targetFrame.maxY + spacing)
+            return CGPoint(x: targetFrame.maxX + edgeSpacing, y: targetFrame.maxY + edgeSpacing)
         case .lowerLeft:
-            proposed = CGPoint(x: targetFrame.maxX + 130, y: targetFrame.minY - spacing)
+            return CGPoint(x: targetFrame.maxX + edgeSpacing, y: targetFrame.minY - edgeSpacing)
         case .upperRight:
-            proposed = CGPoint(x: targetFrame.minX - 130, y: targetFrame.maxY + spacing)
+            return CGPoint(x: targetFrame.minX - edgeSpacing, y: targetFrame.maxY + edgeSpacing)
         case .lowerRight:
-            proposed = CGPoint(x: targetFrame.minX - 130, y: targetFrame.minY - spacing)
+            return CGPoint(x: targetFrame.minX - edgeSpacing, y: targetFrame.minY - edgeSpacing)
         }
+    }
 
+    /// Places the text box on the opposite side of the arrow from the target.
+    private var textPosition: CGPoint {
+        let horizontalSpacing: CGFloat = 138
+        let verticalSpacing: CGFloat = 56
+        switch arrowType {
+        case .up:
+            return CGPoint(x: arrowPosition.x, y: arrowPosition.y + verticalSpacing)
+        case .down:
+            return CGPoint(x: arrowPosition.x, y: arrowPosition.y - verticalSpacing)
+        case .left:
+            return CGPoint(x: arrowPosition.x + horizontalSpacing, y: arrowPosition.y)
+        case .right:
+            return CGPoint(x: arrowPosition.x - horizontalSpacing, y: arrowPosition.y)
+        case .upperLeft:
+            return CGPoint(x: arrowPosition.x + horizontalSpacing, y: arrowPosition.y + verticalSpacing)
+        case .lowerLeft:
+            return CGPoint(x: arrowPosition.x + horizontalSpacing, y: arrowPosition.y - verticalSpacing)
+        case .upperRight:
+            return CGPoint(x: arrowPosition.x - horizontalSpacing, y: arrowPosition.y + verticalSpacing)
+        case .lowerRight:
+            return CGPoint(x: arrowPosition.x - horizontalSpacing, y: arrowPosition.y - verticalSpacing)
+        }
+    }
+
+    /// Keeps pointer content inside the visible overlay area.
+    private func clamped(
+        _ point: CGPoint,
+        horizontalMargin: CGFloat,
+        verticalMargin: CGFloat
+    ) -> CGPoint {
         return CGPoint(
-            x: min(max(proposed.x, 120), max(120, containerSize.width - 120)),
-            y: min(max(proposed.y, 70), max(70, containerSize.height - 70))
+            x: min(max(point.x, horizontalMargin), max(horizontalMargin, containerSize.width - horizontalMargin)),
+            y: min(max(point.y, verticalMargin), max(verticalMargin, containerSize.height - verticalMargin))
         )
     }
 }

@@ -40,7 +40,7 @@ enum TabWalkthroughs {
             description: "This is where you manage the friends you want to stay connected with."
         ),
         WalkthroughStep(
-            icon: "plus.circle.fill",
+            icon: "ellipsis.circle",
             iconColor: .green,
             title: "Add Friends",
             description: "Tap the ••• button to add friends from your contacts and tag your relationships. Eta will track how often you hang out.",
@@ -49,12 +49,13 @@ enum TabWalkthroughs {
         WalkthroughStep(
             icon: "heart.text.clipboard",
             iconColor: .pink,
-            title: "Relationship Health",
-            description: "Each friend shows a health score based on how recently you've spent time together."
+            title: "Relationship Goals",
+            description: "Set relationship goals you want to meet. Each friend shows a health score based on how recently you've spent time together.",
+            primaryButtonTitle: "Try it"
         ),
         WalkthroughStep(
             icon: "gearshape",
-            iconColor: .gray,
+            iconColor: .white,
             title: "Preferences",
             description: "Set your own preferences in Settings!",
             primaryButtonTitle: "Try it"

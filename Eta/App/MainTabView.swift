@@ -39,10 +39,14 @@ struct MainTabView: View {
     // The first-run walkthrough starts on Friends, then advances tab-by-tab.
     @State private var activeTutorial: ActiveTabTutorial? = MainTabView.initialTutorial
     @State private var eventsTutorialPhase: EventsTutorialPhase = .none
-    @State private var tutorialRequestID = 0
+    @State private var tutorialRequestID = MainTabView.initialTutorialRequestID
 
     private static var initialTutorial: ActiveTabTutorial? {
         UserDefaults.standard.bool(forKey: "walkthrough_friends") ? nil : .friends
+    }
+
+    private static var initialTutorialRequestID: Int {
+        initialTutorial == nil ? 0 : 1
     }
 
     var body: some View {

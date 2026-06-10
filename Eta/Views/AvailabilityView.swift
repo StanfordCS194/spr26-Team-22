@@ -514,10 +514,10 @@ struct AvailabilityView: View {
                         handleTutorialPrimaryAction()
                         return true
                     },
-                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    primaryButtonTitleOverride: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Done" : nil,
                     onSecondaryAction: tutorialPhase == .completeSlide ? {
                         completeAvailabilityTutorial()
-                        onTutorialNext()
                     } : nil,
                     showsBackButton: tutorialPhase.hasPreviousSlide,
                     onBackAction: {
@@ -661,6 +661,7 @@ struct AvailabilityView: View {
             tutorialPhase = .planPointers
         case .completeSlide:
             completeAvailabilityTutorial()
+            onTutorialNext()
         case .none, .pointToEditButton, .editPointers, .planPointers:
             break
         }

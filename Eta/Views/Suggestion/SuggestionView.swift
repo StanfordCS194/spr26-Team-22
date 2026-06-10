@@ -97,6 +97,7 @@ struct SuggestionView: View {
                     }
                     .disabled(viewModel.isLoading)
                     .accessibilityLabel("Refresh suggestion")
+                    .tutorialTarget(SuggestionTutorialTarget.refreshButton)
                 }
             }
             .refreshable {
@@ -135,7 +136,7 @@ struct SuggestionView: View {
                 suggestionsTutorialOverlay(targets: targets, proxy: proxy)
             }
             .allowsHitTesting(tutorialPhase != .none)
-            }
+        }
         .onDisappear {
             diffSuggestions = []
         }
@@ -181,10 +182,10 @@ struct SuggestionView: View {
                         handleSuggestionsTutorialPrimaryAction()
                         return true
                     },
-                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    primaryButtonTitleOverride: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Done" : nil,
                     onSecondaryAction: tutorialPhase == .completeSlide ? {
                         finishSuggestionsTutorial()
-                        onTutorialNext()
                     } : nil,
                     showsBackButton: tutorialPhase.hasPreviousSlide,
                     onBackAction: {
@@ -205,8 +206,12 @@ struct SuggestionView: View {
         proxy: GeometryProxy
     ) -> some View {
         if tutorialPhase == .actionPointers {
+            suggestionsPointer(target: .refreshButton, in: targets, proxy: proxy, arrowType: .up, description: "Refresh!")
+                .zIndex(1)
             suggestionsPointer(target: .scheduleButton, in: targets, proxy: proxy, arrowType: .down, description: "Send an invite!")
-            suggestionsPointer(target: .detailsButton, in: targets, proxy: proxy, arrowType: .left, description: "Take a closer look.")
+                .zIndex(2)
+            suggestionsPointer(target: .detailsButton, in: targets, proxy: proxy, arrowType: .right, description: "Take a closer look.")
+                .zIndex(3)
         } else {
             EmptyView()
         }
@@ -262,6 +267,7 @@ struct SuggestionView: View {
             tutorialPhase = .actionPointers
         case .completeSlide:
             finishSuggestionsTutorial()
+            onTutorialNext()
         case .none, .actionPointers:
             break
         }
@@ -285,6 +291,7 @@ struct SuggestionView: View {
     private func completeSuggestionActionIfNeeded() {
         guard tutorialPhase == .actionPointers else { return }
         tutorialPhase = .completeSlide
+    }
     private func refreshWithDifferentSuggestion() async {
         let previousSuggestion = viewModel.suggestion
         if let previousActivity = previousSuggestion?.activityDescription {
