@@ -24,6 +24,7 @@ struct ConnectionsView: View {
     @State private var tutorialPhase: FriendsTutorialPhase = .none
     @State private var tutorialContactCount = 0
     @State private var startedTutorialRequestID: Int?
+    @State private var selectedSpotlightID: UUID?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.isSearching) private var isSearching
 
@@ -36,6 +37,22 @@ struct ConnectionsView: View {
 
     private var selectedContacts: [TrackedContact] {
         displayedContacts.filter { selectedContactIDs.contains($0.id) }
+    }
+
+    private var selectedSpotlight: FriendSpotlightItem? {
+        guard let selectedSpotlightID else { return nil }
+        return homeViewModel.friendSpotlights.first { $0.id == selectedSpotlightID }
+    }
+
+    private var spotlightNavigationBinding: Binding<Bool> {
+        Binding(
+            get: { selectedSpotlightID != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedSpotlightID = nil
+                }
+            }
+        )
     }
 
     private var existingCustomLabels: [TagSubcategory: [String]] {
@@ -69,22 +86,15 @@ struct ConnectionsView: View {
         if shouldShowForYouSection {
             Section {
                 ForEach(homeViewModel.friendSpotlights) { item in
-                    NavigationLink {
-                        FriendDetailView(
-                            contact: item.contact,
-                            health: item.health,
-                            displayName: homeViewModel.displayName(for: item.contact),
-                            homeViewModel: homeViewModel,
-                            onTutorialProfileOpened: handleTutorialProfileOpened,
-                            onTutorialProfileDismissed: handleTutorialProfileDismissed,
-                            onTutorialGoalCreated: handleTutorialGoalCreated
-                        )
+                    Button {
+                        selectedSpotlightID = item.id
                     } label: {
                         FriendSpotlightCard(
                             item: item,
                             displayName: homeViewModel.displayName(for: item.contact)
                         )
                     }
+                    .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -233,6 +243,19 @@ struct ConnectionsView: View {
                 }
             }
             .navigationTitle("Friends")
+            .navigationDestination(isPresented: spotlightNavigationBinding) {
+                if let selectedSpotlight {
+                    FriendDetailView(
+                        contact: selectedSpotlight.contact,
+                        health: selectedSpotlight.health,
+                        displayName: homeViewModel.displayName(for: selectedSpotlight.contact),
+                        homeViewModel: homeViewModel,
+                        onTutorialProfileOpened: handleTutorialProfileOpened,
+                        onTutorialProfileDismissed: handleTutorialProfileDismissed,
+                        onTutorialGoalCreated: handleTutorialGoalCreated
+                    )
+                }
+            }
             .searchable(text: $searchText, prompt: "Search friends")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
