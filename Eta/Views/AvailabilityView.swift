@@ -8,6 +8,10 @@ struct AvailabilityView: View {
 
     let viewModel: AvailabilityViewModel
     let analyticsService: AnalyticsService
+    let isTutorialActive: Bool
+    let tutorialRequestID: Int
+    let onTutorialDone: () -> Void
+    let onTutorialNext: () -> Void
     /// Day currently shown in the availability grid.
     @State private var selectedDate = Date()
     /// Controls whether schedule blocks can be selected and deselected.
@@ -22,6 +26,16 @@ struct AvailabilityView: View {
     @State private var dragStartSlot: Int?
     /// Current slot under the user's drag in edit mode.
     @State private var dragCurrentSlot: Int?
+    /// Drives the staged, interactive availability tutorial.
+    @State private var tutorialPhase = AvailabilityTutorialPhase.none
+    /// Tracks whether the user has interacted with the day picker during the plan-ahead tutorial step.
+    @State private var tutorialDidPickDay = false
+    /// Tracks whether the user has interacted with recurrence during the plan-ahead tutorial step.
+    @State private var tutorialDidChooseRecurrence = false
+    /// Tracks whether the user has dragged across the grid during the repeat-weekly tutorial step.
+    @State private var tutorialDidDragRecurringAvailability = false
+    /// Day selected when the plan-ahead pointer step starts; the day pointer only clears after this changes.
+    @State private var tutorialPlanStartDate: Date?
 
     /// Height of one availability row, including its vertical padding.
     private let availabilityRowHeight: CGFloat = 21
@@ -36,15 +50,7 @@ struct AvailabilityView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Day",
-                        selection: $selectedDate,
-                        in: today...,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.compact)
-
-                    activityDurationEditor
+                    availabilityControlsRow
 
                     if !hasDisplayableContent && !isEditingAvailability {
                         EmptyAvailabilityState()
@@ -87,6 +93,7 @@ struct AvailabilityView: View {
                             scheduledBlockOverlay
                         }
                         .coordinateSpace(name: "availability-grid")
+                        .availabilityTutorialTarget(.availabilityGrid)
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 8, coordinateSpace: .named("availability-grid"))
                                 .onChanged { value in
@@ -108,6 +115,7 @@ struct AvailabilityView: View {
                             if isEditingAvailability { viewModel.endSession() }
                             isEditingAvailability.toggle()
                         }
+                        handleEditAvailabilityButtonTapped()
                     } label: {
                         Label(
                             isEditingAvailability ? "Done" : "Change Availability",
@@ -116,6 +124,7 @@ struct AvailabilityView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .availabilityTutorialTarget(.editAvailabilityButton)
                 }
                 .padding()
             }
@@ -130,8 +139,36 @@ struct AvailabilityView: View {
                     await viewModel.loadAvailability()
                 }
             }
+            .onAppear {
+                if isTutorialActive {
+                    startAvailabilityTutorial()
+                }
+            }
+            .onChange(of: isTutorialActive) { _, isActive in
+                if isActive {
+                    startAvailabilityTutorial()
+                } else {
+                    tutorialPhase = .none
+                }
+            }
+            .onChange(of: tutorialRequestID) { _, _ in
+                guard isTutorialActive else { return }
+                startAvailabilityTutorial()
+            }
+            .onChange(of: selectedDate) { _ in
+                handleTutorialDaySelection()
+            }
+            .onChange(of: entryMode) { _ in
+                handleTutorialRecurrenceSelection()
+            }
             .onDisappear {
                 viewModel.endSession()
+            }
+            .overlayPreferenceValue(AvailabilityTutorialTargetPreferenceKey.self) { targets in
+                GeometryReader { proxy in
+                    availabilityTutorialOverlay(targets: targets, proxy: proxy)
+                }
+                .allowsHitTesting(tutorialPhase != .none)
             }
         }
         .trackScreen("AvailabilityView", analytics: analyticsService)
@@ -182,6 +219,39 @@ struct AvailabilityView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+    }
+
+    /// Top controls for choosing the visible day and preferred hangout length.
+    private var availabilityControlsRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            daySelector
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .availabilityTutorialTarget(.dayPicker)
+
+            activityDurationEditor
+                .frame(maxWidth: .infinity)
+                .availabilityTutorialTarget(.durationSlider)
+        }
+    }
+
+    /// Compact day picker with an explicit calendar icon for scanability.
+    private var daySelector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Day", systemImage: "calendar")
+                .font(.headline)
+
+            DatePicker(
+                "Day",
+                selection: $selectedDate,
+                in: today...,
+                displayedComponents: [.date]
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// Single scheduled-event blocks layered over the half-hour grid rows.
@@ -240,6 +310,7 @@ struct AvailabilityView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .availabilityTutorialTarget(.repeatWeeklyControl)
 
             if entryMode == .repeatWeekly {
                 Toggle("Repeat end date (optional)", isOn: $hasRepeatEndDate)
@@ -323,6 +394,10 @@ struct AvailabilityView: View {
 
                 toggleAvailability(during: interval)
             }
+        }
+
+        if tutorialPhase == .planPointers && entryMode == .repeatWeekly {
+            tutorialDidDragRecurringAvailability = true
         }
     }
 
@@ -428,6 +503,285 @@ struct AvailabilityView: View {
         return formatter
     }
 
+    /// Renders the Availability tutorial slides and target pointers.
+    @ViewBuilder
+    private func availabilityTutorialOverlay(
+        targets: [AvailabilityTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy
+    ) -> some View {
+        ZStack {
+            tutorialPointers(targets: targets, proxy: proxy)
+                .allowsHitTesting(false)
+
+            if let step = tutorialPhase.walkthroughStep {
+                WalkthroughOverlay(
+                    steps: [step],
+                    onPrimaryAction: { _ in
+                        handleTutorialPrimaryAction()
+                        return true
+                    },
+                    primaryButtonTitleOverride: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Done" : nil,
+                    onSecondaryAction: tutorialPhase == .completeSlide ? {
+                        completeAvailabilityTutorial()
+                    } : nil,
+                    showsBackButton: tutorialPhase.hasPreviousSlide,
+                    onBackAction: {
+                        goBackInAvailabilityTutorial()
+                    },
+                    onDismiss: {
+                        completeAvailabilityTutorial()
+                    }
+                )
+            }
+        }
+    }
+
+    /// Shows the current Availability tutorial pointers for the active interaction phase.
+    @ViewBuilder
+    private func tutorialPointers(
+        targets: [AvailabilityTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy
+    ) -> some View {
+        switch tutorialPhase {
+        case .pointToEditButton:
+            tutorialPointer(
+                target: .editAvailabilityButton,
+                in: targets,
+                proxy: proxy,
+                arrowType: .down,
+                description: "Tap Change Availability to start editing."
+            )
+        case .editPointers:
+            tutorialPointer(
+                target: .durationSlider,
+                in: targets,
+                proxy: proxy,
+                arrowType: .up,
+                description: "Let us know how long you prefer to hangout! You can change this at any time."
+            )
+            tutorialPointer(
+                target: .availabilityGrid,
+                in: targets,
+                proxy: proxy,
+                arrowType: .upperRight,
+                description: "Drag to select."
+            )
+            tutorialPointer(
+                target: .editAvailabilityButton,
+                in: targets,
+                proxy: proxy,
+                arrowType: .down,
+                description: "Press Done when you're finished editing your availability."
+            )
+        case .planPointers:
+            if !tutorialDidPickDay {
+                tutorialPointer(
+                    target: .dayPicker,
+                    in: targets,
+                    proxy: proxy,
+                    arrowType: .up,
+                    description: "Look ahead."
+                )
+            } else {
+                if !tutorialDidChooseRecurrence {
+                    tutorialPointer(
+                        target: .repeatWeeklyControl,
+                        in: targets,
+                        proxy: proxy,
+                        arrowType: .down,
+                        description: "Set up a recurring time block."
+                    )
+                }
+                if !tutorialDidDragRecurringAvailability {
+                    tutorialPointer(
+                        target: .availabilityGrid,
+                        in: targets,
+                        proxy: proxy,
+                        arrowType: .upperRight,
+                        description: "Drag to select a recurring time block."
+                    )
+                }
+                tutorialPointer(
+                    target: .editAvailabilityButton,
+                    in: targets,
+                    proxy: proxy,
+                    arrowType: .down,
+                    description: "Press Done when you're finished."
+                )
+            }
+        case .none, .introSlide, .dragSlide, .planAheadSlide, .completeSlide:
+            EmptyView()
+        }
+    }
+
+    /// Anchors an Availability tutorial pointer to a captured control frame.
+    @ViewBuilder
+    private func tutorialPointer(
+        target: AvailabilityTutorialTarget,
+        in targets: [AvailabilityTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy,
+        arrowType: TutorialPointerArrowType,
+        description: String
+    ) -> some View {
+        if let anchor = targets[target] {
+            TutorialPointer(
+                arrowType: arrowType,
+                targetFrame: proxy[anchor],
+                containerSize: proxy.size,
+                description: description
+            )
+        }
+    }
+
+    /// Resets tracking and starts the Availability tutorial at its first slide.
+    private func startAvailabilityTutorial() {
+        tutorialDidPickDay = false
+        tutorialDidChooseRecurrence = false
+        tutorialDidDragRecurringAvailability = false
+        tutorialPlanStartDate = nil
+        tutorialPhase = .introSlide
+    }
+
+    /// Marks the Availability tutorial complete and notifies the parent tab coordinator.
+    private func completeAvailabilityTutorial() {
+        UserDefaults.standard.set(true, forKey: "walkthrough_availability")
+        tutorialPhase = .none
+        onTutorialDone()
+    }
+
+    /// Advances the Availability tutorial through slides and interactive pointer phases.
+    private func handleTutorialPrimaryAction() {
+        switch tutorialPhase {
+        case .introSlide:
+            tutorialPhase = .pointToEditButton
+        case .dragSlide:
+            isEditingAvailability = true
+            tutorialPhase = .editPointers
+        case .planAheadSlide:
+            isEditingAvailability = true
+            tutorialDidPickDay = false
+            tutorialDidChooseRecurrence = false
+            tutorialDidDragRecurringAvailability = false
+            tutorialPlanStartDate = selectedDate
+            tutorialPhase = .planPointers
+        case .completeSlide:
+            completeAvailabilityTutorial()
+            onTutorialNext()
+        case .none, .pointToEditButton, .editPointers, .planPointers:
+            break
+        }
+    }
+
+    /// Moves the Availability tutorial back to the previous slide phase.
+    private func goBackInAvailabilityTutorial() {
+        switch tutorialPhase {
+        case .dragSlide:
+            tutorialPhase = .introSlide
+        case .planAheadSlide:
+            tutorialPhase = .dragSlide
+        case .completeSlide:
+            tutorialPhase = .planAheadSlide
+        case .none, .introSlide, .pointToEditButton, .editPointers, .planPointers:
+            break
+        }
+    }
+
+    /// Responds to the edit button during tutorial pointer phases.
+    private func handleEditAvailabilityButtonTapped() {
+        switch tutorialPhase {
+        case .pointToEditButton:
+            tutorialPhase = .dragSlide
+        case .editPointers where !isEditingAvailability:
+            tutorialPhase = .planAheadSlide
+        case .planPointers where !isEditingAvailability:
+            tutorialPhase = .completeSlide
+        default:
+            break
+        }
+    }
+
+    /// Records when the user chooses a different day during the plan-ahead step.
+    private func handleTutorialDaySelection() {
+        guard tutorialPhase == .planPointers else { return }
+        guard let tutorialPlanStartDate = tutorialPlanStartDate,
+              !Calendar.current.isDate(selectedDate, inSameDayAs: tutorialPlanStartDate)
+        else { return }
+        tutorialDidPickDay = true
+    }
+
+    /// Records when the user selects repeat-weekly during the plan-ahead step.
+    private func handleTutorialRecurrenceSelection() {
+        guard tutorialPhase == .planPointers else { return }
+        tutorialDidChooseRecurrence = true
+    }
+
+}
+
+/// Step state for the Availability tab's interactive tutorial.
+private enum AvailabilityTutorialPhase: Equatable {
+    case none
+    case introSlide
+    case pointToEditButton
+    case dragSlide
+    case editPointers
+    case planAheadSlide
+    case planPointers
+    case completeSlide
+    var walkthroughStep: WalkthroughStep? {
+        switch self {
+        case .introSlide:
+            return TabWalkthroughs.availability[0]
+        case .dragSlide:
+            return TabWalkthroughs.availability[1]
+        case .planAheadSlide:
+            return TabWalkthroughs.availability[2]
+        case .completeSlide:
+            return TabWalkthroughs.availability[3]
+        case .none, .pointToEditButton, .editPointers, .planPointers:
+            return nil
+        }
+    }
+
+    var hasPreviousSlide: Bool {
+        switch self {
+        case .dragSlide, .planAheadSlide, .completeSlide:
+            return true
+        case .none, .introSlide, .pointToEditButton, .editPointers, .planPointers:
+            return false
+        }
+    }
+}
+
+/// Controls in AvailabilityView that can receive tutorial pointers.
+private enum AvailabilityTutorialTarget: Hashable {
+    case dayPicker
+    case durationSlider
+    case availabilityGrid
+    case repeatWeeklyControl
+    case editAvailabilityButton
+}
+
+/// Collects availability-specific target anchors for tutorial pointers.
+private struct AvailabilityTutorialTargetPreferenceKey: PreferenceKey {
+    static var defaultValue: [AvailabilityTutorialTarget: Anchor<CGRect>] = [:]
+
+    /// Merges availability target anchors into one lookup for the overlay.
+    static func reduce(
+        value: inout [AvailabilityTutorialTarget: Anchor<CGRect>],
+        nextValue: () -> [AvailabilityTutorialTarget: Anchor<CGRect>]
+    ) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private extension View {
+    /// Captures this view's bounds for availability-specific tutorial pointers.
+    func availabilityTutorialTarget(_ target: AvailabilityTutorialTarget) -> some View {
+        anchorPreference(key: AvailabilityTutorialTargetPreferenceKey.self, value: .bounds) { anchor in
+            [target: anchor]
+        }
+    }
 }
 
 /// A scheduled event drawn as one continuous block across the grid.
@@ -612,6 +966,7 @@ private extension HourAvailabilityRow.Status {
     }
 }
 
+/// Editing mode for one-time or recurring availability changes.
 private enum AvailabilityEntryMode: String, CaseIterable, Identifiable {
     case oneTime
     case repeatWeekly

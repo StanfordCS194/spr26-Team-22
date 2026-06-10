@@ -6,12 +6,15 @@ import SwiftUI
 struct FloatingChatButton: View {
     let viewModel: ChatViewModel
     var analyticsService: AnalyticsService?
+    var onPresented: () -> Void = {}
+    var onDismissed: () -> Void = {}
     @State private var isPresented = false
 
     var body: some View {
         Button {
             analyticsService?.logChatOpened()
             isPresented = true
+            onPresented()
         } label: {
             Image(systemName: "bubble.left.and.text.bubble.right.fill")
                 .font(.system(size: 22, weight: .semibold))
@@ -20,7 +23,11 @@ struct FloatingChatButton: View {
                 .background(Color.accentColor, in: Circle())
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
-        .sheet(isPresented: $isPresented, onDismiss: { viewModel.reset() }) {
+        .tutorialTarget(MainTutorialTarget.chatButton)
+        .sheet(isPresented: $isPresented, onDismiss: {
+            viewModel.reset()
+            onDismissed()
+        }) {
             ChatView(viewModel: viewModel)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)

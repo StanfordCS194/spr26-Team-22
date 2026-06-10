@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Card showing a suggested hangout and its primary actions.
 struct SuggestionCard: View {
     let displayName: String
     let timeLabel: String
@@ -48,6 +49,7 @@ struct SuggestionCard: View {
                 }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
+                    .tutorialTarget(SuggestionTutorialTarget.scheduleButton)
 
                 Button("See details & edit") {
                     analyticsService.logButtonTapped(screen: "SuggestionCard", button: "SeeDetailsEdit")
@@ -55,6 +57,7 @@ struct SuggestionCard: View {
                 }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
+                    .tutorialTarget(SuggestionTutorialTarget.detailsButton)
 
                 Button("Maybe Later") {
                     analyticsService.logButtonTapped(screen: "SuggestionCard", button: "MaybeLater")
@@ -62,6 +65,7 @@ struct SuggestionCard: View {
                 }
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
+                    .tutorialTarget(SuggestionTutorialTarget.maybeLaterButton)
             }
         }
         .padding(24)
@@ -78,4 +82,12 @@ struct SuggestionCard: View {
         formatter.timeStyle = .short
         return formatter.string(from: suggestion.proposedTime.start)
     }
+}
+
+/// Buttons on a suggestion card that can receive tutorial pointers.
+enum SuggestionTutorialTarget: Hashable {
+    case refreshButton
+    case scheduleButton
+    case detailsButton
+    case maybeLaterButton
 }
