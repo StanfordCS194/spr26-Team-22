@@ -14,6 +14,7 @@ struct SuggestionView: View {
     @State private var showingCustomize = false
     @State private var tutorialPhase: SuggestionsTutorialPhase = .none
     @State private var startedTutorialRequestID: Int?
+    @State private var diffSuggestions: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -81,6 +82,23 @@ struct SuggestionView: View {
             }
             .navigationTitle("For You")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await refreshWithDifferentSuggestion()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.accentColor, in: Circle())
+                    }
+                    .disabled(viewModel.isLoading)
+                    .accessibilityLabel("Refresh suggestion")
+                }
+            }
             .refreshable {
                 await viewModel.refresh()
             }
@@ -117,6 +135,9 @@ struct SuggestionView: View {
                 suggestionsTutorialOverlay(targets: targets, proxy: proxy)
             }
             .allowsHitTesting(tutorialPhase != .none)
+            }
+        .onDisappear {
+            diffSuggestions = []
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
         .alert("Hangout already scheduled", isPresented: schedulingConflictBinding) {
@@ -264,6 +285,18 @@ struct SuggestionView: View {
     private func completeSuggestionActionIfNeeded() {
         guard tutorialPhase == .actionPointers else { return }
         tutorialPhase = .completeSlide
+    private func refreshWithDifferentSuggestion() async {
+        let previousSuggestion = viewModel.suggestion
+        if let previousActivity = previousSuggestion?.activityDescription {
+            diffSuggestions.append(previousActivity)
+            diffSuggestions = Array(diffSuggestions.suffix(10))
+        }
+
+        await viewModel.refresh(
+            diffContact: previousSuggestion?.contact,
+            diffTime: previousSuggestion?.proposedTime,
+            diffSuggestion: diffSuggestions
+        )
     }
 
     private var schedulingConflictBinding: Binding<Bool> {

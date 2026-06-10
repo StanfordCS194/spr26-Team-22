@@ -14,11 +14,11 @@ struct SuggestionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("You have time \(timeLabel) —")
+                Text("You have time \(timeLabel)!")
                     .font(.title2)
                     .foregroundStyle(.secondary)
 
-                Text("want to \(activityPhrase) with \(displayName)?")
+                Text("Do you want to \(activityPhrase) with \(displayName) at \(startTimeLabel)?")
                     .font(.title)
                     .fontWeight(.semibold)
                     .fixedSize(horizontal: false, vertical: true)
@@ -75,6 +75,12 @@ struct SuggestionCard: View {
     private var activityPhrase: String {
         let raw = suggestion.activityDescription
         return raw.prefix(1).lowercased() + raw.dropFirst()
+    }
+
+    private var startTimeLabel: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: suggestion.proposedTime.start)
     }
 }
 

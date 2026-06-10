@@ -62,15 +62,48 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         return availableBlocks
             .flatMap { block -> [DateInterval] in
                 guard block.endTime > now, block.startTime < searchEnd else { return [] }
-                let interval = DateInterval(start: max(block.startTime, now), end: block.endTime)
+                let start = roundedSlotStart(for: max(block.startTime, now), calendar: calendar)
+                guard start < block.endTime else { return [] }
+
+                let interval = DateInterval(start: start, end: block.endTime)
                 return subtractBusyIntervals(from: interval, busyIntervals: busyIntervals)
-                    .filter { $0.duration >= activityDuration }
-                    .map { DateInterval(start: $0.start, duration: activityDuration) }
+                    .compactMap { freeInterval -> DateInterval? in
+                        let roundedStart = roundedSlotStart(for: freeInterval.start, calendar: calendar)
+                        guard freeInterval.end.timeIntervalSince(roundedStart) >= activityDuration else {
+                            return nil
+                        }
+                        return DateInterval(start: roundedStart, duration: activityDuration)
+                    }
             }
             .filter { !overlapsScheduledHangout($0, busyIntervals: busyIntervals) }
             .sorted { $0.start < $1.start }
             .prefix(maximumCount)
             .map { $0 }
+    }
+
+    /// Rounds availability starts up to the next 15-minute boundary for cleaner suggestions.
+    private func roundedSlotStart(for date: Date, calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.minute, .second, .nanosecond], from: date)
+        let minute = components.minute ?? 0
+        let second = components.second ?? 0
+        let nanosecond = components.nanosecond ?? 0
+        let remainder = minute % 15
+
+        guard remainder != 0 || second != 0 || nanosecond != 0 else {
+            return date
+        }
+
+        let minutesToAdd = remainder == 0 ? 15 : 15 - remainder
+        guard let rounded = calendar.date(byAdding: .minute, value: minutesToAdd, to: date) else {
+            return date
+        }
+
+        return calendar.date(
+            bySettingHour: calendar.component(.hour, from: rounded),
+            minute: calendar.component(.minute, from: rounded),
+            second: 0,
+            of: rounded
+        ) ?? rounded
     }
 
     /// Expands saved one-time and weekly recurring blocks into concrete blocks for the search window.
@@ -85,8 +118,27 @@ final class AvailabilityDataProvider: AvailabilityProvider {
         var expanded: [AvailabilityBlock] = []
 
         while date <= finalDate {
-            expanded.append(contentsOf: blocks.compactMap { $0.occurrence(on: date, calendar: calendar) })
-            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: date) else { break }
+            let occurrences = blocks.compactMap { block -> AvailabilityBlock? in
+                guard var occurrence = block.occurrence(on: date, calendar: calendar) else {
+                    return nil
+                }
+
+                let roundedStart = roundedSlotStart(for: occurrence.startTime, calendar: calendar)
+
+                // Avoid creating invalid blocks where rounding pushes start past end.
+                guard roundedStart < occurrence.endTime else {
+                    return nil
+                }
+
+                occurrence.startTime = roundedStart
+                return occurrence
+            }
+
+            expanded.append(contentsOf: occurrences)
+
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: date) else {
+                break
+            }
             date = nextDate
         }
 

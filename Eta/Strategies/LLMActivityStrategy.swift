@@ -74,13 +74,33 @@ final class LLMActivityStrategy: ActivityStrategy {
         do {
             raw = try await runner.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
         } catch {
-            // Fallback to a random Activity on any runner error (no key, network, rate limit, etc.).
-            // Future: propagate the error and let SuggestionService decide whether to degrade
-            // to RulesActivityStrategy or surface the failure to the ViewModel.
-            print("[LLMActivityStrategy] runner error — falling back to random activity: \(error.localizedDescription)")
-            let description = Activity.allCases.randomElement()?.description ?? Activity.coffee.description
-            return ActivityProposal(activityDescription: description, reason: reason(for: health))
+            if isCancellation(error) {
+                throw error
+            }
+
+            if isRateLimit(error) {
+                return fallbackProposal(for: health, error: error)
+            }
+
+            print("[LLMActivityStrategy] runner error: \(error.localizedDescription)")
+
+            // Give the LLM a little time before degrading
+            do {
+                try await Task.sleep(nanoseconds: 2_500_000_000)
+
+                raw = try await runner.generate(
+                    systemPrompt: systemPrompt,
+                    userPrompt: userPrompt
+                )
+            } catch {
+                if isCancellation(error) {
+                    throw error
+                }
+
+                return fallbackProposal(for: health, error: error)
+            }
         }
+
         let activityDescription = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !activityDescription.isEmpty else { return nil }
 
@@ -91,6 +111,27 @@ final class LLMActivityStrategy: ActivityStrategy {
     }
 
     // MARK: - Private
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return true
+        }
+        return false
+    }
+
+    private func isRateLimit(_ error: Error) -> Bool {
+        error.localizedDescription.contains("HTTP 429")
+    }
+
+    private func fallbackProposal(for health: RelationshipHealth, error: Error) -> ActivityProposal {
+        // Fallback to a random Activity on runner errors that should not keep retrying.
+        print("[LLMActivityStrategy] runner error — falling back to random activity: \(error.localizedDescription)")
+        let description = Activity.allCases.randomElement()?.description ?? Activity.coffee.description
+        return ActivityProposal(activityDescription: description, reason: reason(for: health))
+    }
 
     private func reason(for health: RelationshipHealth) -> String {
         guard let days = health.daysSinceLastHangout else {

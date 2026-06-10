@@ -98,27 +98,26 @@ final class SuggestionViewModel {
 
     // MARK: - Actions
 
-    func refresh() async {
+    func refresh(
+        diffContact: TrackedContact? = nil,
+        diffTime: DateInterval? = nil,
+        diffSuggestion: [String] = []
+    ) async {
         guard case .idle = scheduleState else { return }
         isLoading = true
         defer { isLoading = false }
-        suggestion = await suggestionService.generateSuggestion()
+        suggestion = await suggestionService.generateSuggestion(
+            diffContact: diffContact,
+            diffTime: diffTime,
+            diffSuggestion: diffSuggestion
+        )
 
         #if DEBUG
         if suggestion == nil {
-            let demoContact = TrackedContact(
-                cnContactIdentifier: "demo",
-                name: "Alex Demo",
-                givenName: "Alex",
-                familyName: "Demo"
-            )
-            let start = Calendar.current.date(byAdding: .hour, value: 2, to: .now) ?? .now
-            suggestion = Suggestion(
-                contact: demoContact,
-                activityDescription: "Grab coffee",
-                reason: "You haven't hung out in a while.",
-                proposedTimes: [DateInterval(start: start, duration: 3600)],
-                generatedAt: .now
+            // Demo mode should still exercise refresh behavior when real signals are absent.
+            suggestion = demoFallbackSuggestion(
+                avoiding: diffSuggestion,
+                previousTime: diffTime
             )
         }
         #endif
@@ -193,4 +192,41 @@ final class SuggestionViewModel {
         self.suggestion = suggestion
         schedule()
     }
+
+    #if DEBUG
+    private func demoFallbackSuggestion(
+        avoiding diffSuggestion: [String],
+        previousTime: DateInterval?
+    ) -> Suggestion {
+        let demoContact = TrackedContact(
+            cnContactIdentifier: "demo",
+            name: "Alex Demo",
+            givenName: "Alex",
+            familyName: "Demo"
+        )
+        let avoidedActivities = Set(diffSuggestion)
+        // Keep the DEBUG fallback useful for refresh testing by choosing a new
+        // local activity when the user asks for a different suggestion.
+        let activityDescription = Activity.allCases
+            .filter { !$0.isRemote }
+            .map(\.description)
+            .first { !avoidedActivities.contains($0) }
+            ?? Activity.coffee.description
+
+        let start: Date
+        if let previousTime = previousTime {
+            start = Calendar.current.date(byAdding: .hour, value: 1, to: previousTime.start) ?? previousTime.end
+        } else {
+            start = Calendar.current.date(byAdding: .hour, value: 2, to: .now) ?? .now
+        }
+
+        return Suggestion(
+            contact: demoContact,
+            activityDescription: activityDescription,
+            reason: "You haven't hung out in a while.",
+            proposedTimes: [DateInterval(start: start, duration: 3600)],
+            generatedAt: .now
+        )
+    }
+    #endif
 }
