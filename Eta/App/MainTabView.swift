@@ -42,7 +42,10 @@ struct MainTabView: View {
                     settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService,
                     weeklyCheckInState: weeklyCheckInState,
-                    onShowSettings: { showingSettings = true }
+                    onShowSettings: { showingSettings = true },
+                    onNudge: { contact in
+                        Task { await invitationManager.sendFriendNudge(to: contact) }
+                    }
                 )
                 .walkthrough(key: "friends", steps: TabWalkthroughs.friends)
             }
@@ -106,18 +109,25 @@ struct MainTabView: View {
                     photoRepository: photoRepository,
                     nudgeScheduler: nudgeScheduler,
                     onScheduleNow: { suggestion in
+                        nudgeService.recordEngagement()
                         analyticsService.logNudgeAction("scheduleNow", friendName: nudgeReminderState.friendName, activity: activityRawValue)
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                         suggestionViewModel.scheduleFromNudge(suggestion)
                     },
                     onSuggestions: {
+                        nudgeService.recordEngagement()
                         analyticsService.logNudgeAction("viewSuggestions", friendName: nudgeReminderState.friendName, activity: activityRawValue)
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                     },
                     onDismiss: {
+                        nudgeService.recordDismissal()
                         analyticsService.logNudgeAction("maybeLater", friendName: nudgeReminderState.friendName, activity: activityRawValue)
+                        nudgeReminderState.clear()
+                    },
+                    onReduceFrequency: {
+                        nudgeService.reduceFrequency()
                         nudgeReminderState.clear()
                     }
                 )
