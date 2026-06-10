@@ -6,7 +6,9 @@ struct ReceivedInviteSheet: View {
     let isEdit: Bool
     let onAccept: () -> Void
     let onDecline: () -> Void
+    let onDismissedWithoutResponse: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var responded = false
 
     var body: some View {
         VStack(spacing: 28) {
@@ -29,12 +31,12 @@ struct ReceivedInviteSheet: View {
             .padding(.horizontal, 24)
 
             VStack(spacing: 12) {
-                Button("Accept", action: onAccept)
+                Button("Accept") { responded = true; onAccept() }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .buttonStyle(.borderedProminent)
 
-                Button("Decline", action: onDecline)
+                Button("Decline") { responded = true; onDecline() }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .foregroundStyle(.red)
@@ -52,6 +54,7 @@ struct ReceivedInviteSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onDisappear { if !responded { onDismissedWithoutResponse() } }
     }
 
     private var formattedTime: String {

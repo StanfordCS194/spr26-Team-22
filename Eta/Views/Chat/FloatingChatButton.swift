@@ -5,10 +5,12 @@ import SwiftUI
 /// Pin this above the tab bar using `.overlay(alignment: .bottomTrailing)` on the TabView.
 struct FloatingChatButton: View {
     let viewModel: ChatViewModel
+    var analyticsService: AnalyticsService?
     @State private var isPresented = false
 
     var body: some View {
         Button {
+            analyticsService?.logChatOpened()
             isPresented = true
         } label: {
             Image(systemName: "bubble.left.and.text.bubble.right.fill")

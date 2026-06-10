@@ -53,6 +53,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
             if response.actionIdentifier == "ACCEPT_INVITE" || response.actionIdentifier == "DECLINE_INVITE" {
                 let accepted = response.actionIdentifier == "ACCEPT_INVITE"
+                let isEdit = userInfo["previousInvitationID"] != nil
                 Task { @MainActor in
                     await invitationManager.respondToRemoteInvitation(
                         id: remoteID,
@@ -60,7 +61,9 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                         activity: activity,
                         startTime: startTime,
                         endTime: endTime,
-                        fromIdentifier: fromIdentifier
+                        fromIdentifier: fromIdentifier,
+                        isEdit: isEdit,
+                        delayed: false
                     )
                 }
             } else {

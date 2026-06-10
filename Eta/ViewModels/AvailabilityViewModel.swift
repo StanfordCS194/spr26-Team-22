@@ -36,18 +36,25 @@ final class AvailabilityViewModel {
     private let hangoutRepository: ScheduledHangoutRepository
     private let activityDurationSettings: ActivityDurationSettings
     private let tracker: AvailabilityPromptTracker
+    private let analyticsService: AnalyticsService?
+    private var sessionChangesCount: Int = 0
+    private var sessionDidAdd: Bool = false
+    private var sessionDidRemove: Bool = false
+    private var sessionUsedRecurring: Bool = false
 
     /// Creates an availability view model with persistence, scheduled hangout lookup, and prompt tracking.
     init(
         repository: AvailabilityRepository,
         hangoutRepository: ScheduledHangoutRepository,
         activityDurationSettings: ActivityDurationSettings,
-        tracker: AvailabilityPromptTracker = UserDefaultsAvailabilityPromptTracker()
+        tracker: AvailabilityPromptTracker = UserDefaultsAvailabilityPromptTracker(),
+        analyticsService: AnalyticsService? = nil
     ) {
         self.repository = repository
         self.hangoutRepository = hangoutRepository
         self.activityDurationSettings = activityDurationSettings
         self.tracker = tracker
+        self.analyticsService = analyticsService
         self.activityDurationMinutes = activityDurationSettings.minutes
     }
 
@@ -136,6 +143,9 @@ final class AvailabilityViewModel {
             $0.startTime < $1.startTime
         }
         saveBlocks()
+        sessionChangesCount += 1
+        sessionDidAdd = true
+        if repeatsWeekly { sessionUsedRecurring = true }
 
         return true
     }
@@ -153,6 +163,7 @@ final class AvailabilityViewModel {
 
         if isFree(during: interval) {
             removeAvailability(during: interval)
+            sessionDidRemove = true
         } else {
             blocks.append(AvailabilityBlock(
                 startTime: interval.start,
@@ -161,15 +172,36 @@ final class AvailabilityViewModel {
                 repeatEndDate: repeatEndDate
             ))
             normalizeBlocks()
+            sessionDidAdd = true
         }
 
         saveBlocks()
+        sessionChangesCount += 1
+        if repeatsWeekly { sessionUsedRecurring = true }
     }
 
     /// Removes a saved free-time block by identifier.
     func removeBlock(id: UUID) {
         blocks.removeAll { $0.id == id }
         saveBlocks()
+        sessionChangesCount += 1
+        sessionDidRemove = true
+    }
+
+    /// Call when the user leaves the availability tab. Fires one analytics event if any changes were made.
+    func endSession() {
+        guard sessionChangesCount > 0 else { return }
+        let action: String
+        switch (sessionDidAdd, sessionDidRemove) {
+        case (true, true):  action = "both"
+        case (true, false): action = "added"
+        default:            action = "removed"
+        }
+        analyticsService?.logAvailabilitySessionCompleted(action: action, usedRecurring: sessionUsedRecurring)
+        sessionChangesCount = 0
+        sessionDidAdd = false
+        sessionDidRemove = false
+        sessionUsedRecurring = false
     }
 
     /// Returns whether the daily availability prompt should still be shown.

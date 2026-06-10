@@ -5,6 +5,7 @@ struct FriendDetailView: View {
     let health: RelationshipHealth
     let displayName: String
     let homeViewModel: HomeViewModel
+    var analyticsService: AnalyticsService?
     var onAddGoal: (() -> Void)?
 
     @Environment(\.openURL) private var openURL
@@ -119,13 +120,18 @@ struct FriendDetailView: View {
                     }
                     showingCheckIn = false
                 },
-                onDismiss: { showingCheckIn = false }
+                onDismiss: { showingCheckIn = false },
+                analyticsService: analyticsService
             )
+            .onAppear { analyticsService?.logCheckInOpened(friendName: displayName) }
         }
         .sheet(isPresented: $showingTagPicker) {
             ContactTagPickerView(
                 selectedTags: $editingTags,
-                onDone: { homeViewModel.updateTags(editingTags, for: contact) },
+                onDone: {
+                    homeViewModel.updateTags(editingTags, for: contact)
+                    analyticsService?.logContactTagged(friendName: displayName)
+                },
                 existingLabels: homeViewModel.existingCustomLabels
             )
         }
@@ -141,6 +147,7 @@ struct FriendDetailView: View {
                 }
             )
         }
+        .trackScreen("FriendDetailView", analytics: analyticsService)
     }
 
     // MARK: - Sections
@@ -575,6 +582,7 @@ struct FriendDetailView: View {
     private func saveCity() {
         let trimmed = cityText.trimmingCharacters(in: .whitespacesAndNewlines)
         homeViewModel.updateCity(trimmed.isEmpty ? nil : trimmed, for: contact)
+        if !trimmed.isEmpty { analyticsService?.logContactCitySet(friendName: displayName) }
     }
 
     @ViewBuilder

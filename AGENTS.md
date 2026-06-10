@@ -71,12 +71,10 @@ Eta/
 │   ├── ActivityPhoto.swift               # @Model — activity-scoped photo captured during/after a hangout
 │   ├── ScheduledHangout.swift            # @Model — persisted confirmed hangout
 │   ├── Invitation.swift                  # @Model — persisted outgoing invite
-│   ├── AnalyticsEvent.swift              # @Model — persisted analytics event
 │   ├── HangoutStatus.swift               # enum — pending / confirmed / declined
 │   ├── ActivityProposal.swift            # Value type — LLM activity suggestion with structured fields
 │   ├── PromptContext.swift               # Value type — assembled context fed to LLM
 │   ├── UserPreferences.swift             # Value type — user-configurable preferences
-│   ├── SessionInfo.swift                 # Value type — analytics session metadata
 │   ├── RemoteInvitation.swift            # Value type — invite payload sent to/from Supabase
 │   └── PendingReceivedInvitation.swift   # @Model — persisted received invite awaiting response
 │
@@ -131,8 +129,7 @@ Eta/
 │   ├── WeeklyCheckInState.swift          # @Observable — bridges weekly check-in tap → WeeklyCheckInView
 │   ├── PreferencesService.swift          # Reads/writes UserPreferences from UserDefaults; also owns week-keyed
 │   │                                     #   priority API (weeklyPriorityContactID, dismiss escalation, completion)
-│   ├── AnalyticsService.swift            # Logs analytics events to SwiftData
-│   └── AnalyticsService+CustomEvents.swift
+│   └── AnalyticsService.swift            # Logs analytics events to Supabase (fire-and-forget)
 │
 ├── ViewModels/
 │   ├── SuggestionViewModel.swift         # Drives SuggestionView; scheduleFromNudge reuses accepted→sent flow;
@@ -169,9 +166,6 @@ Eta/
     │   ├── OnboardingView.swift
     │   └── PhoneSetupView.swift          # Shown before main app if no identifier registered; saves to PhoneSetupService
     └── Analytics/
-        ├── AnalyticsDebugTrigger.swift   # Protocol + TripleTapBottomRightTrigger (bottom-right)
-        ├── AnalyticsDebugModifier.swift
-        ├── AnalyticsDebugOverlay.swift
         └── ScreenTrackingModifier.swift
 ```
 
@@ -258,7 +252,7 @@ EtaApp
  ├─ NudgeService(relationshipService:, photoRepository:, runner: GitHubModelsLLMRunner())
  ├─ NudgeScheduler(availabilityDataProvider:)
  ├─ WeeklyCheckInService(preferencesService:)
- ├─ AnalyticsService(modelContext:)
+ ├─ AnalyticsService(supabaseService:)
  ├─ NotificationDelegate(invitationManager:, reminderPhotoState:, weeklyCheckInState:, nudgeReminderState:, receivedInviteState:)
  │       ← held strongly on EtaApp; UNUserNotificationCenter.delegate is weak
  ├─ SuggestionViewModel(suggestionService:, inviteService:, invitationManager:, formatter:, photoRepository:,

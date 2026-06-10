@@ -41,6 +41,7 @@ final class HomeViewModel {
     private let relationshipService: RelationshipService
     private let contactProfileService: ContactProfileService
     private let preferencesService: PreferencesService
+    private let analyticsService: AnalyticsService?
 
     var checkInTemplate: String? { preferencesService.preferences.checkInTemplate }
     var hasSetCheckInTemplate: Bool { preferencesService.preferences.hasSetCheckInTemplate }
@@ -84,7 +85,8 @@ final class HomeViewModel {
         formatter: ContactFormatter,
         relationshipService: RelationshipService,
         contactProfileService: ContactProfileService,
-        preferencesService: PreferencesService
+        preferencesService: PreferencesService,
+        analyticsService: AnalyticsService? = nil
     ) {
         self.goalRepository = goalRepository
         self.insightGenerationService = insightGenerationService
@@ -95,6 +97,7 @@ final class HomeViewModel {
         self.relationshipService = relationshipService
         self.contactProfileService = contactProfileService
         self.preferencesService = preferencesService
+        self.analyticsService = analyticsService
     }
 
     // MARK: - Refresh
@@ -150,11 +153,22 @@ final class HomeViewModel {
     // MARK: - Goal actions
 
     func createGoal(_ goal: Goal) {
+        let friendName = goal.friendIDs.first
+            .flatMap { id in (try? contactRepository.fetchAll())?.first { $0.id == id } }
+            .map { formatter.displayName(for: $0) }
+        analyticsService?.logGoalCreated(
+            title: goal.title,
+            friendName: friendName,
+            cadence: goal.cadence.rawValue,
+            target: goal.target,
+            source: goal.source.rawValue
+        )
         try? goalRepository.add(goal)
         activeGoals = (try? goalRepository.fetchActive()) ?? []
     }
 
     func deleteGoal(_ goal: Goal) {
+        analyticsService?.logGoalDeleted(title: goal.title)
         try? goalRepository.remove(goal)
         activeGoals = (try? goalRepository.fetchActive()) ?? []
     }
@@ -356,6 +370,7 @@ final class HomeViewModel {
     }
 
     func logPastHangout(contact: TrackedContact, activity: String, date: Date) {
+        analyticsService?.logHangoutLoggedManually(friendName: formatter.displayName(for: contact), activity: activity)
         let interval = DateInterval(start: date, duration: 3600)
         let hangout = ScheduledHangout(contact: contact, activity: activity, selectedTime: interval)
         hangout.inviteeResponse = .confirmed

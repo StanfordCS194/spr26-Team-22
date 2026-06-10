@@ -33,14 +33,80 @@ import Foundation
 //   created_at      TIMESTAMPTZ DEFAULT now()
 // );
 //
+// CREATE TABLE analytics_events (
+//   id          TEXT PRIMARY KEY,
+//   device_id   TEXT NOT NULL,
+//   session_id  TEXT NOT NULL,
+//   event_type  TEXT NOT NULL,
+//   category    TEXT NOT NULL,
+//   value       TEXT,
+//   metadata    JSONB,
+//   identifier  TEXT,
+//   client_ts   TIMESTAMPTZ NOT NULL,
+//   created_at  TIMESTAMPTZ DEFAULT now()
+// );
+//
+// KPI SQL queries (run in Supabase dashboard after demo):
+//
+// -- KPI 1: % of active devices (opened in last 7 days) that created ≥1 plan
+// SELECT
+//   COUNT(DISTINCT CASE WHEN event_type = 'InvitationSent' THEN device_id END)::float
+//   / NULLIF(COUNT(DISTINCT device_id), 0) * 100 AS pct_active_with_plan
+// FROM analytics_events
+// WHERE created_at > now() - interval '7 days';
+//
+// -- KPI 2: Median seconds from app open to first plan created, per session
+// WITH session_times AS (
+//   SELECT session_id,
+//     MIN(CASE WHEN event_type = 'AppLaunched'     THEN client_ts END) AS opened,
+//     MIN(CASE WHEN event_type = 'InvitationSent'  THEN client_ts END) AS planned
+//   FROM analytics_events GROUP BY session_id
+// )
+// SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (planned - opened))) AS median_seconds
+// FROM session_times WHERE opened IS NOT NULL AND planned IS NOT NULL;
+//
+// -- KPI 3: % of created plans that resulted in a confirmed hangout
+// -- (join on device_id: sender's InvitationSent + sender's HangoutConfirmed via handleInvitationResponse)
+// SELECT
+//   COUNT(DISTINCT CASE WHEN event_type = 'HangoutConfirmed' THEN device_id || value END)::float
+//   / NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'InvitationSent' THEN device_id || value END), 0) * 100
+//   AS pct_plans_confirmed
+// FROM analytics_events;
+//
+// -- KPI 4: % of suggestions accepted (SuggestionAccepted / (SuggestionAccepted + SuggestionDismissed))
+// SELECT
+//   COUNT(*) FILTER (WHERE event_type = 'SuggestionAccepted')::float
+//   / NULLIF(COUNT(*) FILTER (WHERE event_type IN ('SuggestionAccepted', 'SuggestionDismissed')), 0) * 100
+//   AS pct_suggestions_accepted
+// FROM analytics_events;
+//
+// -- KPI 5: % of tracked contacts hung out with in last 14 days
+// -- (uses last ConnectionAdded totalConnections per device + HangoutConfirmed value = friendName)
+// WITH totals AS (
+//   SELECT DISTINCT ON (device_id) device_id,
+//     (metadata->>'totalConnections')::int AS total_contacts
+//   FROM analytics_events WHERE event_type = 'ConnectionAdded'
+//   ORDER BY device_id, client_ts DESC
+// ),
+// confirmed AS (
+//   SELECT device_id, COUNT(DISTINCT value) AS hung_out_with
+//   FROM analytics_events
+//   WHERE event_type = 'HangoutConfirmed' AND created_at > now() - interval '14 days'
+//   GROUP BY device_id
+// )
+// SELECT AVG(c.hung_out_with::float / NULLIF(t.total_contacts, 0)) * 100 AS avg_pct_contacts_hung_out
+// FROM totals t JOIN confirmed c USING (device_id);
+//
 // Enable Row Level Security and add permissive policies for all tables:
 //
-//   ALTER TABLE devices       ENABLE ROW LEVEL SECURITY;
-//   ALTER TABLE invitations   ENABLE ROW LEVEL SECURITY;
-//   ALTER TABLE cancellations ENABLE ROW LEVEL SECURITY;
-//   CREATE POLICY "allow all" ON devices       FOR ALL USING (true) WITH CHECK (true);
-//   CREATE POLICY "allow all" ON invitations   FOR ALL USING (true) WITH CHECK (true);
-//   CREATE POLICY "allow all" ON cancellations FOR ALL USING (true) WITH CHECK (true);
+//   ALTER TABLE devices           ENABLE ROW LEVEL SECURITY;
+//   ALTER TABLE invitations       ENABLE ROW LEVEL SECURITY;
+//   ALTER TABLE cancellations     ENABLE ROW LEVEL SECURITY;
+//   ALTER TABLE analytics_events  ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "allow all" ON devices           FOR ALL USING (true) WITH CHECK (true);
+//   CREATE POLICY "allow all" ON invitations       FOR ALL USING (true) WITH CHECK (true);
+//   CREATE POLICY "allow all" ON cancellations     FOR ALL USING (true) WITH CHECK (true);
+//   CREATE POLICY "allow all" ON analytics_events  FOR ALL USING (true) WITH CHECK (true);
 
 final class SupabaseService {
     private let baseURL: String
@@ -179,6 +245,35 @@ final class SupabaseService {
         let now = iso(Date())
         let path = "/rest/v1/invitations?from_device=eq.\(deviceID)&status=eq.pending&end_time=lt.\(now)"
         try? await request(path: path, method: "DELETE")
+    }
+
+    // MARK: - Analytics
+
+    func postAnalyticsEvent(
+        id: String,
+        sessionID: String,
+        eventType: String,
+        category: String,
+        value: String?,
+        metadata: [String: Any]?,
+        clientTimestamp: Date,
+        userIdentifier: String? = nil
+    ) async {
+        guard isConfigured else { return }
+        var body: [String: Any] = [
+            "id": id,
+            "device_id": deviceID,
+            "session_id": sessionID,
+            "event_type": eventType,
+            "category": category,
+            "client_ts": iso(clientTimestamp)
+        ]
+        if let value { body["value"] = value }
+        if let userIdentifier { body["identifier"] = userIdentifier }
+        if let metadata {
+            body["metadata"] = metadata
+        }
+        try? await request(path: "/rest/v1/analytics_events", method: "POST", body: body)
     }
 
     // MARK: - Private helpers

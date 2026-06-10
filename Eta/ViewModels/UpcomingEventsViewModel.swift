@@ -78,7 +78,9 @@ final class UpcomingEventsViewModel {
             activity: invite.activity,
             startTime: invite.startTime,
             endTime: invite.endTime,
-            fromIdentifier: invite.fromIdentifier
+            fromIdentifier: invite.fromIdentifier,
+            isEdit: invite.isEdit,
+            delayed: true
         )
         await refresh()
     }
@@ -86,7 +88,7 @@ final class UpcomingEventsViewModel {
     // MARK: - CRUD
 
     /// Books a new hangout and sends an invitation via InvitationManager.
-    func addEvent(contact: TrackedContact, activity: String, interval: DateInterval, previousInvitationID: String? = nil) async {
+    func addEvent(contact: TrackedContact, activity: String, interval: DateInterval, previousInvitationID: String? = nil, source: String = "manual") async {
         let suggestion = Suggestion(
             contact: contact,
             activityDescription: activity,
@@ -103,7 +105,8 @@ final class UpcomingEventsViewModel {
             scheduledTime: interval.start,
             endDate: interval.end,
             hangoutID: hangoutID,
-            previousInvitationID: previousInvitationID
+            previousInvitationID: previousInvitationID,
+            source: source
         )
         await refresh()
     }
@@ -116,7 +119,7 @@ final class UpcomingEventsViewModel {
         invitationManager.cancelHangoutReminders(for: hangout.id)
         try? hangoutRepository.remove(hangout)
         reloadItems()
-        await addEvent(contact: contact, activity: activity, interval: interval, previousInvitationID: previousInvitationID)
+        await addEvent(contact: contact, activity: activity, interval: interval, previousInvitationID: previousInvitationID, source: "edit")
     }
 
     /// Removes the hangout and cancels its associated notifications.

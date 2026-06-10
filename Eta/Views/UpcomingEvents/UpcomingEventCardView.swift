@@ -3,6 +3,7 @@ import SwiftUI
 struct UpcomingEventCardView: View {
     let item: HangoutDisplayItem
     let photoRepository: ActivityPhotoRepository
+    var analyticsService: AnalyticsService?
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
@@ -58,7 +59,8 @@ struct UpcomingEventCardView: View {
                     try? photoRepository.save(imageData: data, activity: activity, hangoutID: hangoutID)
                     showingPhotoSheet = false
                 },
-                onDismiss: { showingPhotoSheet = false }
+                onDismiss: { showingPhotoSheet = false },
+                analyticsService: analyticsService
             )
         }
     }

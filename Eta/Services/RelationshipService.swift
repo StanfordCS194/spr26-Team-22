@@ -5,7 +5,6 @@ final class RelationshipService {
     private let repository: ContactRepository
     private let hangoutRepository: ScheduledHangoutRepository
     private let preferencesService: PreferencesService
-    private var analyticsService: AnalyticsService?
 
     init(
         repository: ContactRepository,
@@ -15,10 +14,6 @@ final class RelationshipService {
         self.repository = repository
         self.hangoutRepository = hangoutRepository
         self.preferencesService = preferencesService
-    }
-    
-    func setAnalyticsService(_ service: AnalyticsService) {
-        self.analyticsService = service
     }
 
     /// Returns one RelationshipHealth per active tracked contact.

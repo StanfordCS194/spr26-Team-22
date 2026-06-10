@@ -9,6 +9,7 @@ final class InvitationManager {
     private let supabaseService: SupabaseService
     private let phoneSetupService: PhoneSetupService
     private let pendingReceivedRepo: PendingReceivedInvitationRepository
+    private let analyticsService: AnalyticsService
     var pendingFeedbackHangoutID: UUID?
     var receivedInviteState: ReceivedInviteState?
 
@@ -23,13 +24,15 @@ final class InvitationManager {
         modelContext: ModelContext,
         supabaseService: SupabaseService,
         phoneSetupService: PhoneSetupService,
-        pendingReceivedRepo: PendingReceivedInvitationRepository
+        pendingReceivedRepo: PendingReceivedInvitationRepository,
+        analyticsService: AnalyticsService
     ) {
         self.notificationService = notificationService
         self.modelContext = modelContext
         self.supabaseService = supabaseService
         self.phoneSetupService = phoneSetupService
         self.pendingReceivedRepo = pendingReceivedRepo
+        self.analyticsService = analyticsService
     }
 
     /// Cancels the heads-up and photo-capture notifications scheduled for a hangout.
@@ -45,6 +48,7 @@ final class InvitationManager {
     }
 
     func submitFeedback(hangoutID: UUID, friendRating: Int, activityRating: Int) throws {
+        let hangout = fetchHangout(id: hangoutID)
         let feedback = HangoutFeedback(
             hangoutID: hangoutID,
             friendRating: friendRating,
@@ -52,10 +56,20 @@ final class InvitationManager {
         )
         modelContext.insert(feedback)
         try modelContext.save()
+        analyticsService.logFeedbackSubmitted(
+            friendRating: friendRating,
+            wouldRepeatActivity: activityRating > 0,
+            activity: hangout?.activity ?? "",
+            skipped: false
+        )
         pendingFeedbackHangoutID = nil
     }
 
     func dismissFeedback() {
+        if let hangoutID = pendingFeedbackHangoutID {
+            let hangout = fetchHangout(id: hangoutID)
+            analyticsService.logFeedbackSubmitted(friendRating: 0, wouldRepeatActivity: false, activity: hangout?.activity ?? "", skipped: true)
+        }
         pendingFeedbackHangoutID = nil
     }
 
@@ -68,7 +82,8 @@ final class InvitationManager {
         scheduledTime: Date,
         endDate: Date,
         hangoutID: UUID,
-        previousInvitationID: String? = nil
+        previousInvitationID: String? = nil,
+        source: String = "suggestion"
     ) async throws -> Invitation {
         try? await notificationService.requestAuthorization()
 
@@ -118,6 +133,8 @@ final class InvitationManager {
             endDate: endDate
         )
 
+        analyticsService.logInvitationSent(contactName: friendName, activity: activityName, source: source)
+
         return invitation
     }
 
@@ -137,6 +154,7 @@ final class InvitationManager {
                 hangout.inviteeResponse = accepted ? .confirmed : .declined
 
                 if accepted {
+                    analyticsService.logHangoutConfirmed(friendName: invitation.friendName, activity: invitation.activityName)
                     Task {
                         try? await notificationService.scheduleFeedbackNotification(
                             hangoutID: hangout.id,
@@ -145,6 +163,8 @@ final class InvitationManager {
                             at: hangout.endDate
                         )
                     }
+                } else {
+                    analyticsService.logHangoutDeclined(friendName: invitation.friendName, activity: invitation.activityName)
                 }
             }
         }
@@ -163,7 +183,9 @@ final class InvitationManager {
         activity: String,
         startTime: Date,
         endTime: Date,
-        fromIdentifier: String
+        fromIdentifier: String,
+        isEdit: Bool = false,
+        delayed: Bool = false
     ) async {
         if accepted && hasOverlappingScheduledHangout(start: startTime, end: endTime) {
             try? await supabaseService.respondToInvitation(id: id, accepted: false)
@@ -173,6 +195,13 @@ final class InvitationManager {
 
         try? await supabaseService.respondToInvitation(id: id, accepted: accepted)
         try? pendingReceivedRepo.delete(id: id)
+
+        let senderName = findContact(byIdentifier: fromIdentifier)?.name ?? fromIdentifier
+        if accepted {
+            analyticsService.logHangoutConfirmed(friendName: senderName, activity: activity, isEdit: isEdit, delayed: delayed)
+        } else {
+            analyticsService.logHangoutDeclined(friendName: senderName, activity: activity, isEdit: isEdit, delayed: delayed)
+        }
 
         guard accepted, let sender = findContact(byIdentifier: fromIdentifier) else { return }
 
@@ -287,6 +316,7 @@ final class InvitationManager {
                 continue
             }
             guard !notified.contains(remote.id) else { continue }
+            analyticsService.logInvitationReceived(friendName: remote.friendName, activity: remote.activity)
             print("[Poll] scheduling notification for invite=\(remote.id)")
             if let prevID = remote.previousInvitationID {
                 let all = (try? modelContext.fetch(FetchDescriptor<ScheduledHangout>())) ?? []
@@ -318,6 +348,7 @@ final class InvitationManager {
                 try? modelContext.save()
                 NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
                 let friendName = findContact(byIdentifier: cancellation.fromIdentifier)?.name ?? cancellation.fromIdentifier
+                analyticsService.logEventCanceledByFriend(friendName: friendName, activity: cancellation.activity)
                 await notificationService.scheduleEventCanceledNotification(
                     friendName: friendName,
                     activityName: cancellation.activity

@@ -64,7 +64,8 @@ struct ConnectionsView: View {
                             contact: item.contact,
                             health: item.health,
                             displayName: homeViewModel.displayName(for: item.contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            analyticsService: analyticsService
                         )
                     } label: {
                         FriendSpotlightCard(
@@ -160,7 +161,8 @@ struct ConnectionsView: View {
                                 upcomingHangout: nil
                             ),
                             displayName: viewModel.displayName(for: contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            analyticsService: analyticsService
                         )
                     } label: {
                         ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)

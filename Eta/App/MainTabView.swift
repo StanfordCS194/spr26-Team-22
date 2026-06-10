@@ -30,7 +30,8 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
                 AvailabilityView(
-                    viewModel: availabilityViewModel
+                    viewModel: availabilityViewModel,
+                    analyticsService: analyticsService
                 )
                 .walkthrough(key: "availability", steps: TabWalkthroughs.availability)
             }
@@ -48,7 +49,8 @@ struct MainTabView: View {
             Tab("Events", systemImage: "cup.and.saucer", value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
-                    photoRepository: photoRepository
+                    photoRepository: photoRepository,
+                    analyticsService: analyticsService
                 )
                 .walkthrough(key: "events", steps: TabWalkthroughs.events)
             }
@@ -65,7 +67,7 @@ struct MainTabView: View {
             homeViewModel.recomputeAllIsRemote()
             Task { await homeViewModel.refresh() }
         }) {
-            SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false })
+            SettingsView(viewModel: settingsViewModel, onDismiss: { showingSettings = false }, analyticsService: analyticsService)
         }
         .sheet(isPresented: Binding(
             get: { invitationManager.pendingFeedbackHangoutID != nil },
@@ -80,11 +82,10 @@ struct MainTabView: View {
         }
         // Floating chat button — pinned above the tab bar in the bottom-trailing corner.
         .overlay(alignment: .bottomTrailing) {
-            FloatingChatButton(viewModel: chatViewModel)
+            FloatingChatButton(viewModel: chatViewModel, analyticsService: analyticsService)
                 .padding(.trailing, 20)
                 .padding(.bottom, 72) // clears the tab bar (≈49pt) + breathing room
         }
-        .analyticsDebug(service: analyticsService)
         .onChange(of: selectedTab) { _, newTab in
             guard newTab == .availability else { return }
             Task {
@@ -105,15 +106,20 @@ struct MainTabView: View {
                     photoRepository: photoRepository,
                     nudgeScheduler: nudgeScheduler,
                     onScheduleNow: { suggestion in
+                        analyticsService.logNudgeAction("scheduleNow", friendName: nudgeReminderState.friendName, activity: activityRawValue)
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                         suggestionViewModel.scheduleFromNudge(suggestion)
                     },
                     onSuggestions: {
+                        analyticsService.logNudgeAction("viewSuggestions", friendName: nudgeReminderState.friendName, activity: activityRawValue)
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                     },
-                    onDismiss: { nudgeReminderState.clear() }
+                    onDismiss: {
+                        analyticsService.logNudgeAction("maybeLater", friendName: nudgeReminderState.friendName, activity: activityRawValue)
+                        nudgeReminderState.clear()
+                    }
                 )
             }
         }
@@ -124,6 +130,7 @@ struct MainTabView: View {
             WeeklyCheckInView(
                 connectionsViewModel: connectionsViewModel,
                 homeViewModel: homeViewModel,
+                analyticsService: analyticsService,
                 onDismiss: { weeklyCheckInState.clear() },
                 onViewSuggestions: {
                     weeklyCheckInState.clear()
@@ -149,7 +156,9 @@ struct MainTabView: View {
                                 activity: invite.activity,
                                 startTime: invite.startTime,
                                 endTime: invite.endTime,
-                                fromIdentifier: invite.fromIdentifier
+                                fromIdentifier: invite.fromIdentifier,
+                                isEdit: receivedInviteState.isEdit,
+                                delayed: false
                             )
                             await upcomingEventsViewModel.refresh()
                         }
@@ -163,10 +172,19 @@ struct MainTabView: View {
                                 activity: invite.activity,
                                 startTime: invite.startTime,
                                 endTime: invite.endTime,
-                                fromIdentifier: invite.fromIdentifier
+                                fromIdentifier: invite.fromIdentifier,
+                                isEdit: receivedInviteState.isEdit,
+                                delayed: false
                             )
                             await upcomingEventsViewModel.refresh()
                         }
+                    },
+                    onDismissedWithoutResponse: {
+                        analyticsService.logInviteDelayed(
+                            friendName: invite.friendName,
+                            activity: invite.activity,
+                            isEdit: receivedInviteState.isEdit
+                        )
                     }
                 )
             }

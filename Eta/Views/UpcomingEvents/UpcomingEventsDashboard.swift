@@ -3,6 +3,7 @@ import SwiftUI
 struct UpcomingEventsDashboard: View {
     let viewModel: UpcomingEventsViewModel
     let photoRepository: ActivityPhotoRepository
+    let analyticsService: AnalyticsService
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showingAddSheet = false
@@ -32,8 +33,12 @@ struct UpcomingEventsDashboard: View {
                                 UpcomingEventCardView(
                                     item: item,
                                     photoRepository: photoRepository,
+                                    analyticsService: analyticsService,
                                     onEdit: { editingItem = item },
-                                    onDelete: { viewModel.deleteEvent(item.hangout) }
+                                    onDelete: {
+                                        analyticsService.logEventDeleted(activity: item.hangout.activity)
+                                        viewModel.deleteEvent(item.hangout)
+                                    }
                                 )
                                 .padding(.horizontal)
                             }
@@ -77,6 +82,7 @@ struct UpcomingEventsDashboard: View {
             AddEditEventSheet(
                 mode: .add(viewModel.contacts),
                 onSave: { contact, activity, interval in
+                    analyticsService.logEventCreated(activity: activity, isEdit: false)
                     await viewModel.addEvent(contact: contact, activity: activity, interval: interval)
                 },
                 onSuggestActivity: { contact, proposedTime in
@@ -88,6 +94,7 @@ struct UpcomingEventsDashboard: View {
             AddEditEventSheet(
                 mode: .edit(item),
                 onSave: { _, activity, interval in
+                    analyticsService.logEventCreated(activity: activity, isEdit: true)
                     await viewModel.editEvent(item.hangout, activity: activity, interval: interval)
                 },
                 onSuggestActivity: { contact, proposedTime in
@@ -95,5 +102,6 @@ struct UpcomingEventsDashboard: View {
                 }
             )
         }
+        .trackScreen("UpcomingEventsDashboard", analytics: analyticsService)
     }
 }

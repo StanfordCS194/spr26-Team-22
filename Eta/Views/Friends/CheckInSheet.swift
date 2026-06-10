@@ -9,6 +9,7 @@ struct CheckInSheet: View {
     let initialTemplate: String
     let onSend: (String, Bool) -> Void
     let onDismiss: () -> Void
+    var analyticsService: AnalyticsService?
 
     enum AttachmentMode: String, CaseIterable {
         case none  = "None"
@@ -31,7 +32,8 @@ struct CheckInSheet: View {
         phoneNumber: String,
         initialTemplate: String,
         onSend: @escaping (String, Bool) -> Void,
-        onDismiss: @escaping () -> Void
+        onDismiss: @escaping () -> Void,
+        analyticsService: AnalyticsService? = nil
     ) {
         self.displayName = displayName
         self.givenName = givenName
@@ -39,6 +41,7 @@ struct CheckInSheet: View {
         self.initialTemplate = initialTemplate
         self.onSend = onSend
         self.onDismiss = onDismiss
+        self.analyticsService = analyticsService
         let personalized = initialTemplate.localizedCaseInsensitiveContains(givenName)
             ? initialTemplate
             : "Hey \(givenName)! \(initialTemplate)"
@@ -101,6 +104,9 @@ struct CheckInSheet: View {
                         .disabled(trimmed.isEmpty || (attachmentMode == .photo && photoData == nil))
                 }
             }
+        }
+        .onChange(of: attachmentMode) { _, newMode in
+            if newMode == .nudge { analyticsService?.logSendNudge(friendName: displayName) }
         }
         .onChange(of: selectedPhoto) { _, newItem in
             Task {
