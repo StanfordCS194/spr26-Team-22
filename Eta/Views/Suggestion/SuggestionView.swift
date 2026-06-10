@@ -146,6 +146,9 @@ struct SuggestionView: View {
             diffContact: previousSuggestion?.contact,
             diffTime: previousSuggestion?.proposedTime,
             diffSuggestion: diffSuggestions
+        )
+    }
+
     private var schedulingConflictBinding: Binding<Bool> {
         Binding(
             get: { viewModel.hasSchedulingConflict },
