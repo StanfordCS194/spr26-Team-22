@@ -283,6 +283,10 @@ struct EtaApp: App {
                 OnboardingView(viewModel: onboardingViewModel, analyticsService: analyticsService)
             }
         }
+        .onOpenURL { url in
+            guard url.scheme == "eta" else { return }
+            invitationManager.handleInviteURL(url)
+        }
         .modelContainer(container)
     }
 
