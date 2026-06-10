@@ -96,14 +96,16 @@ final class InvitationManager {
         modelContext.insert(invitation)
         try modelContext.save()
 
-        if supabaseService.isConfigured,
-           let receiverDeviceID = await contactDeviceID(for: contact),
-           !receiverDeviceID.isEmpty {
+        if supabaseService.isConfigured {
+            // Post to Supabase regardless of whether the contact has the app registered.
+            // If they do, toIdentifier matches their device for push routing.
+            // If they don't, toIdentifier is empty and they accept via iMessage/web RSVP.
+            let receiverDeviceID = await contactDeviceID(for: contact)
             let remote = RemoteInvitation(
                 id: invitation.id,
                 fromDevice: supabaseService.deviceID,
                 fromIdentifier: phoneSetupService.myIdentifier ?? "",
-                toIdentifier: receiverDeviceID,
+                toIdentifier: receiverDeviceID ?? "",
                 friendName: friendName,
                 activity: activityName,
                 startTime: scheduledTime,
@@ -122,6 +124,7 @@ final class InvitationManager {
                 activityName: activityName
             )
         } else {
+            // Supabase not configured — dev/demo mode only. Simulate acceptance locally.
             try await notificationService.sendInvitation(for: invitation)
         }
 

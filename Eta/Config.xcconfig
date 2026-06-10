@@ -23,5 +23,5 @@ LLM_API_KEY =
 // Supabase project URL and anon key — get from supabase.com → Project Settings → API
 // DO NOT PUSH TO REMOTE
 SUPABASE_URL = rcsttehfkfghynyzmjca.supabase.co
-SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjc3R0ZWhma2ZnaHlueXptamNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODAxODUsImV4cCI6MjA5NDI1NjE4NX0.LEKcnc98AM3zlTTmzX-Z_EUbqJT5-m1Xjsz6HsbaH7U
+SUPABASE_ANON_KEY = sb_publishable_zE5ABZ_fDaDIoGLHbtx1pg_OlZAQICR
 

@@ -48,7 +48,10 @@ private struct ExtSupabase {
     }
 
     static func postInvitation(id: String, activity: String, startTime: Date, endTime: Date) async {
-        guard isConfigured else { return }
+        guard isConfigured else {
+            print("[ExtSupabase] not configured — baseURL='\(baseURL)' anonKey prefix='\(anonKey.prefix(10))'")
+            return
+        }
         let body: [String: Any] = [
             "id": id, "from_device": SharedDefaults.deviceID,
             "from_identifier": "", "to_identifier": "", "friend_name": "",
@@ -63,7 +66,12 @@ private struct ExtSupabase {
         req.setValue(anonKey, forHTTPHeaderField: "apikey")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: req)
+        if let (data, response) = try? await URLSession.shared.data(for: req) {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[ExtSupabase] postInvitation status=\(status) body=\(String(data: data, encoding: .utf8) ?? "")")
+        } else {
+            print("[ExtSupabase] postInvitation network error")
+        }
     }
 }
 
