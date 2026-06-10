@@ -285,7 +285,8 @@ class MessagesViewController: MSMessagesAppViewController {
         message.url = components.url
         message.layout = layout
 
-        conversation.insert(message) { [weak self] error in
+        // Use send() so the response goes out immediately without requiring a second tap.
+        conversation.send(message) { [weak self] error in
             if error == nil {
                 self?.requestPresentationStyle(.compact)
             }
