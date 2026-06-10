@@ -2,20 +2,62 @@ import SwiftUI
 
 private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
 
+/// Content for one walkthrough slide.
 struct WalkthroughStep {
     let icon: String
     let iconColor: Color
     let title: String
     let description: String
+    let primaryButtonTitle: String?
+
+    init(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        description: String,
+        primaryButtonTitle: String? = nil
+    ) {
+        self.icon = icon
+        self.iconColor = iconColor
+        self.title = title
+        self.description = description
+        self.primaryButtonTitle = primaryButtonTitle
+    }
 }
 
+/// Modal-style overlay that presents walkthrough slides.
 struct WalkthroughOverlay: View {
-    let tabName: String
     let steps: [WalkthroughStep]
+    let onPrimaryAction: ((Int) -> Bool)?
+    let primaryButtonTitleOverride: String?
+    let secondaryButtonTitle: String?
+    let onSecondaryAction: (() -> Void)?
+    let showsBackButton: Bool
+    let onBackAction: (() -> Void)?
     let onDismiss: () -> Void
 
     @State private var currentStep = 0
     @State private var appeared = false
+
+    init(
+        steps: [WalkthroughStep],
+        onPrimaryAction: ((Int) -> Bool)? = nil,
+        primaryButtonTitleOverride: String? = nil,
+        secondaryButtonTitle: String? = nil,
+        onSecondaryAction: (() -> Void)? = nil,
+        showsBackButton: Bool = false,
+        onBackAction: (() -> Void)? = nil,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.steps = steps
+        self.onPrimaryAction = onPrimaryAction
+        self.primaryButtonTitleOverride = primaryButtonTitleOverride
+        self.secondaryButtonTitle = secondaryButtonTitle
+        self.onSecondaryAction = onSecondaryAction
+        self.showsBackButton = showsBackButton
+        self.onBackAction = onBackAction
+        self.onDismiss = onDismiss
+    }
 
     var body: some View {
         ZStack {
@@ -58,10 +100,14 @@ struct WalkthroughOverlay: View {
                     .padding(.horizontal, 8)
 
                 HStack(spacing: 12) {
-                    if currentStep > 0 {
+                    if currentStep > 0 || showsBackButton {
                         Button {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                currentStep -= 1
+                            if currentStep > 0 {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    currentStep -= 1
+                                }
+                            } else {
+                                onBackAction?()
                             }
                         } label: {
                             Text("Back")
@@ -75,6 +121,9 @@ struct WalkthroughOverlay: View {
                     }
 
                     Button {
+                        if onPrimaryAction?(currentStep) == true {
+                            return
+                        }
                         if currentStep < steps.count - 1 {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 currentStep += 1
@@ -83,13 +132,27 @@ struct WalkthroughOverlay: View {
                             dismiss()
                         }
                     } label: {
-                        Text(currentStep < steps.count - 1 ? "Next" : "Got it!")
+                        Text(primaryButtonTitleOverride ?? step.primaryButtonTitle ?? (currentStep < steps.count - 1 ? "Next" : "Got it!"))
                             .font(.system(size: 15, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(etaTeal)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+
+                    if let secondaryButtonTitle, let onSecondaryAction {
+                        Button {
+                            onSecondaryAction()
+                        } label: {
+                            Text(secondaryButtonTitle)
+                                .font(.system(size: 15, weight: .bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(.white.opacity(0.15))
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
                     }
                 }
             }
@@ -114,6 +177,7 @@ struct WalkthroughOverlay: View {
         }
     }
 
+    /// Animates the walkthrough out, then notifies the owner.
     private func dismiss() {
         withAnimation(.easeOut(duration: 0.25)) {
             appeared = false
@@ -121,36 +185,5 @@ struct WalkthroughOverlay: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             onDismiss()
         }
-    }
-}
-
-struct WalkthroughModifier: ViewModifier {
-    let key: String
-    let steps: [WalkthroughStep]
-
-    @State private var showWalkthrough: Bool
-
-    init(key: String, steps: [WalkthroughStep]) {
-        self.key = key
-        self.steps = steps
-        _showWalkthrough = State(initialValue: !UserDefaults.standard.bool(forKey: "walkthrough_\(key)"))
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .overlay {
-                if showWalkthrough {
-                    WalkthroughOverlay(tabName: key, steps: steps) {
-                        UserDefaults.standard.set(true, forKey: "walkthrough_\(key)")
-                        showWalkthrough = false
-                    }
-                }
-            }
-    }
-}
-
-extension View {
-    func walkthrough(key: String, steps: [WalkthroughStep]) -> some View {
-        modifier(WalkthroughModifier(key: key, steps: steps))
     }
 }
