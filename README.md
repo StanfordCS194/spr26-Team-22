@@ -4,6 +4,9 @@ Eta is a lightweight iOS app that helps you maintain friendships by reducing fri
 
 The core loop: **detect a free slot + identify an overdue friend → surface a time-specific suggestion → send an invite via iMessage.**
 
+> [!NOTE]
+> For detailed documentation of Eta's development, please see our [wiki](https://github.com/StanfordCS194/spr26-Team-22/wiki).
+
 ### Features
 
 - **Smart suggestions** — combines calendar availability and relationship health scores to recommend who to hang out with and when
