@@ -7,6 +7,7 @@ struct ConnectionsView: View {
     let analyticsService: AnalyticsService
     let weeklyCheckInState: WeeklyCheckInState
     let onShowSettings: () -> Void
+    var photoRepository: ActivityPhotoRepository?
 
     @State private var searchText = ""
     @State private var showingAddSheet = false
@@ -65,7 +66,8 @@ struct ConnectionsView: View {
                             health: item.health,
                             displayName: homeViewModel.displayName(for: item.contact),
                             homeViewModel: homeViewModel,
-                            analyticsService: analyticsService
+                            analyticsService: analyticsService,
+                            photoRepository: photoRepository
                         )
                     } label: {
                         FriendSpotlightCard(
@@ -162,7 +164,8 @@ struct ConnectionsView: View {
                             ),
                             displayName: viewModel.displayName(for: contact),
                             homeViewModel: homeViewModel,
-                            analyticsService: analyticsService
+                            analyticsService: analyticsService,
+                            photoRepository: photoRepository
                         )
                     } label: {
                         ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)

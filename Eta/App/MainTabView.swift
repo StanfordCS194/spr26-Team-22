@@ -42,7 +42,8 @@ struct MainTabView: View {
                     settingsViewModel: settingsViewModel,
                     analyticsService: analyticsService,
                     weeklyCheckInState: weeklyCheckInState,
-                    onShowSettings: { showingSettings = true }
+                    onShowSettings: { showingSettings = true },
+                    photoRepository: photoRepository
                 )
                 .walkthrough(key: "friends", steps: TabWalkthroughs.friends)
             }

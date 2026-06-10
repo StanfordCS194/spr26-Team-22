@@ -7,6 +7,7 @@ struct FriendDetailView: View {
     let homeViewModel: HomeViewModel
     var analyticsService: AnalyticsService?
     var onAddGoal: (() -> Void)?
+    var photoRepository: ActivityPhotoRepository?
 
     @Environment(\.openURL) private var openURL
     @State private var showingGoalCreation = false
@@ -121,7 +122,8 @@ struct FriendDetailView: View {
                     showingCheckIn = false
                 },
                 onDismiss: { showingCheckIn = false },
-                analyticsService: analyticsService
+                analyticsService: analyticsService,
+                contactPhotoData: photoRepository?.photos(for: contact).first?.imageData
             )
             .onAppear { analyticsService?.logCheckInOpened(friendName: displayName) }
         }
