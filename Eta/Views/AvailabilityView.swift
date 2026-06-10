@@ -7,6 +7,7 @@ import SwiftUI
 struct AvailabilityView: View {
 
     let viewModel: AvailabilityViewModel
+    let analyticsService: AnalyticsService
     /// Day currently shown in the availability grid.
     @State private var selectedDate = Date()
     /// Controls whether schedule blocks can be selected and deselected.
@@ -104,6 +105,7 @@ struct AvailabilityView: View {
 
                     Button {
                         withAnimation {
+                            if isEditingAvailability { viewModel.endSession() }
                             isEditingAvailability.toggle()
                         }
                     } label: {
@@ -128,7 +130,11 @@ struct AvailabilityView: View {
                     await viewModel.loadAvailability()
                 }
             }
+            .onDisappear {
+                viewModel.endSession()
+            }
         }
+        .trackScreen("AvailabilityView", analytics: analyticsService)
     }
 
     /// 30-minute slots displayed in the day grid.

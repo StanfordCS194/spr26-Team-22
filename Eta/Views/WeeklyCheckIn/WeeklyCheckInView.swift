@@ -3,6 +3,7 @@ import SwiftUI
 struct WeeklyCheckInView: View {
     let connectionsViewModel: ConnectionsViewModel
     let homeViewModel: HomeViewModel
+    let analyticsService: AnalyticsService
     let onDismiss: () -> Void
     let onViewSuggestions: () -> Void
 
@@ -30,6 +31,7 @@ struct WeeklyCheckInView: View {
                     Button("Done") {
                         saveGoal()
                         homeViewModel.markCheckInCompleted()
+                        analyticsService.logWeeklyCheckInCompleted(prioritySet: goalContactID != nil)
                         onDismiss()
                     }
                     .fontWeight(.semibold)
@@ -51,9 +53,12 @@ struct WeeklyCheckInView: View {
                 onSend: { message, saveAsDefault in
                     if saveAsDefault { homeViewModel.updateCheckInTemplate(message) }
                 },
-                onDismiss: { checkInSheetContact = nil }
+                onDismiss: { checkInSheetContact = nil },
+                analyticsService: analyticsService
             )
+            .onAppear { analyticsService.logCheckInOpened(friendName: homeViewModel.displayName(for: contact)) }
         }
+        .trackScreen("WeeklyCheckInView", analytics: analyticsService)
     }
 
     // MARK: - Sections

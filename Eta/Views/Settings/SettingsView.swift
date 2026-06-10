@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     let viewModel: SettingsViewModel
     let onDismiss: () -> Void
+    let analyticsService: AnalyticsService
 
     @State private var showingClearConfirmation = false
     @State private var cityText: String = ""
@@ -40,6 +41,7 @@ struct SettingsView: View {
                 Text("This removes all friends, hangouts, goals, and insights. The app will re-seed with example data on next launch.")
             }
         }
+        .trackScreen("SettingsView", analytics: analyticsService)
     }
 
     // MARK: - Sections

@@ -7,6 +7,7 @@ struct ReminderPhotoSheet: View {
     let existingPhotos: [Data]
     let onSave: (Data) -> Void
     let onDismiss: () -> Void
+    var analyticsService: AnalyticsService?
 
     @State private var showingCamera = false
     @State private var showingPermissionAlert = false
@@ -41,12 +42,14 @@ struct ReminderPhotoSheet: View {
                     onCapture: { image in
                         showingCamera = false
                         guard let data = image.thumbnail().jpegData80 else { return }
+                        analyticsService?.logPhotoSaved(activity: activity.rawValue)
                         onSave(data)
                     },
                     onCancel: { showingCamera = false }
                 )
                 .ignoresSafeArea()
             }
+            .onAppear { analyticsService?.logPhotoSheetOpened(activity: activity.rawValue) }
             .alert("Camera Access Required", isPresented: $showingPermissionAlert) {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -110,10 +113,18 @@ struct ReminderPhotoSheet: View {
         case .authorized:
             showingCamera = true
         case .notDetermined:
+            let requestedAt = Date()
+            analyticsService?.logPermissionRequested(type: "Camera")
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async {
-                    if granted { showingCamera = true }
-                    else { showingPermissionAlert = true }
+                    let elapsed = Date().timeIntervalSince(requestedAt)
+                    if granted {
+                        self.analyticsService?.logPermissionGranted(type: "Camera", timeElapsed: elapsed)
+                        showingCamera = true
+                    } else {
+                        self.analyticsService?.logPermissionDenied(type: "Camera", timeElapsed: elapsed)
+                        showingPermissionAlert = true
+                    }
                 }
             }
         case .denied, .restricted:

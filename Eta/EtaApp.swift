@@ -42,7 +42,6 @@ struct EtaApp: App {
         let container = try! ModelContainer(
             for: TrackedContact.self,
                 ScheduledHangout.self,
-                AnalyticsEvent.self,
                 Invitation.self,
                 Goal.self,
                 PersonalRelationshipInsight.self,
@@ -64,14 +63,17 @@ struct EtaApp: App {
         let reminderPhotoState = ReminderPhotoState()
         self.reminderPhotoState = reminderPhotoState
 
-        let analyticsService = AnalyticsService(modelContext: ctx)
-        self.analyticsService = analyticsService
-
         let supabaseService = SupabaseService()
         self.supabaseService = supabaseService
+
+        let analyticsService = AnalyticsService(supabaseService: supabaseService)
+        self.analyticsService = analyticsService
         let phoneSetupService = PhoneSetupService()
         self.phoneSetupService = phoneSetupService
         self._hasPhoneSetup = State(initialValue: phoneSetupService.myIdentifier != nil)
+        if let id = phoneSetupService.myIdentifier {
+            analyticsService.start(identifier: id)
+        }
 
         let formatter = ContactFormatter()
         let preferencesService = PreferencesService()
@@ -88,7 +90,6 @@ struct EtaApp: App {
             hangoutRepository: hangoutRepository,
             preferencesService: preferencesService
         )
-        relationshipService.setAnalyticsService(analyticsService)
         let nudgeService = NudgeService(
             relationshipService: relationshipService,
             photoRepository: photoRepository,
@@ -139,7 +140,8 @@ struct EtaApp: App {
             modelContext: ctx,
             supabaseService: supabaseService,
             phoneSetupService: phoneSetupService,
-            pendingReceivedRepo: pendingReceivedInviteRepo
+            pendingReceivedRepo: pendingReceivedInviteRepo,
+            analyticsService: analyticsService
         )
         self.invitationManager = invitationManager
         invitationManager.receivedInviteState = receivedInviteState
@@ -175,7 +177,8 @@ struct EtaApp: App {
             inviteService: inviteService,
             invitationManager: invitationManager,
             availabilityDataProvider: availabilityDataProvider,
-            goalRepository: goalRepository
+            goalRepository: goalRepository,
+            analyticsService: analyticsService
         )
         self.suggestionViewModel = SuggestionViewModel(
             suggestionService: suggestionService,
@@ -203,7 +206,8 @@ struct EtaApp: App {
             formatter: formatter,
             relationshipService: relationshipService,
             contactProfileService: contactProfileService,
-            preferencesService: preferencesService
+            preferencesService: preferencesService,
+            analyticsService: analyticsService
         )
 
         self.settingsViewModel = SettingsViewModel(
@@ -215,11 +219,9 @@ struct EtaApp: App {
                 try? ctx.delete(model: Goal.self)
                 try? ctx.delete(model: PersonalRelationshipInsight.self)
                 try? ctx.delete(model: ContactProfile.self)
-                try? ctx.delete(model: AnalyticsEvent.self)
                 try? ctx.delete(model: Invitation.self)
                 try? ctx.save()
                 UserDefaults.standard.removeObject(forKey: "insight_dismissal_counts")
-                UserDefaults.standard.removeObject(forKey: "eta.sessionNotes")
             }
         )
 
@@ -234,12 +236,13 @@ struct EtaApp: App {
         self.availabilityViewModel = AvailabilityViewModel(
             repository: availabilityRepository,
             hangoutRepository: hangoutRepository,
-            activityDurationSettings: activityDurationSettings
+            activityDurationSettings: activityDurationSettings,
+            analyticsService: analyticsService
         )
 
         self._onboardingViewModel = State(initialValue: OnboardingViewModel(
             preferencesService: preferencesService,
-            onComplete: { } // onComplete: { seeder.seedIfNeeded() }
+            onComplete: { analyticsService.logOnboardingCompleted() }
         ))
 
         setupLifecycleTracking(analyticsService: analyticsService)
@@ -251,6 +254,7 @@ struct EtaApp: App {
                 PhoneSetupView(phoneSetupService: phoneSetupService) {
                     hasPhoneSetup = true
                     if let id = phoneSetupService.myIdentifier {
+                        analyticsService.start(identifier: id)
                         Task { await supabaseService.registerDevice(identifier: id) }
                     }
                 }
@@ -275,7 +279,7 @@ struct EtaApp: App {
                     chatViewModel: chatViewModel
                 )
             } else {
-                OnboardingView(viewModel: onboardingViewModel)
+                OnboardingView(viewModel: onboardingViewModel, analyticsService: analyticsService)
             }
         }
         .modelContainer(container)

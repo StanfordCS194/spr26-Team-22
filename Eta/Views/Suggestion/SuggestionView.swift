@@ -35,18 +35,9 @@ struct SuggestionView: View {
                                 },
                                 onSchedule: {
                                     let name = viewModel.displayName(for: suggestion)
-                                    let hour = Calendar.current.component(.hour, from: suggestion.proposedTime.start)
-                                    let timeOfDay: String
-                                    switch hour {
-                                    case 5..<12: timeOfDay = "morning"
-                                    case 12..<18: timeOfDay = "afternoon"
-                                    default:      timeOfDay = "evening"
-                                    }
-                                    analyticsService.logInvitationInitiated(
+                                    analyticsService.logSuggestionAccepted(
                                         contactName: name,
-                                        activity: suggestion.activityDescription,
-                                        timeOfDay: timeOfDay,
-                                        isFreeSlotSuggested: true
+                                        activity: suggestion.activityDescription
                                     )
                                     scheduleStartTime = Date()
                                     viewModel.schedule()

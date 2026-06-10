@@ -6,6 +6,7 @@ private let etaTeal = Color(red: 0.25, green: 0.48, blue: 0.46)
 struct OnboardingView: View {
     @State private var currentPage = 0
     let viewModel: OnboardingViewModel
+    var analyticsService: AnalyticsService?
     
     var body: some View {
         ZStack {
@@ -40,7 +41,7 @@ struct OnboardingView: View {
                     OnboardingPageFeatures()
                         .tag(1)
                     
-                    OnboardingPagePreferences(viewModel: viewModel)
+                    OnboardingPagePreferences(viewModel: viewModel, analyticsService: analyticsService)
                         .tag(2)
                     
                     OnboardingPageGetStarted()
@@ -79,8 +80,20 @@ struct OnboardingView: View {
                     } else {
                         Button(action: {
                             Task {
-                                try? await UNUserNotificationCenter.current()
-                                    .requestAuthorization(options: [.alert, .sound, .badge])
+                                let requestedAt = Date()
+                                analyticsService?.logPermissionRequested(type: "Notifications")
+                                do {
+                                    let granted = try await UNUserNotificationCenter.current()
+                                        .requestAuthorization(options: [.alert, .sound, .badge])
+                                    let elapsed = Date().timeIntervalSince(requestedAt)
+                                    if granted {
+                                        analyticsService?.logPermissionGranted(type: "Notifications", timeElapsed: elapsed)
+                                    } else {
+                                        analyticsService?.logPermissionDenied(type: "Notifications", timeElapsed: elapsed)
+                                    }
+                                } catch {
+                                    analyticsService?.logPermissionDenied(type: "Notifications", timeElapsed: Date().timeIntervalSince(requestedAt))
+                                }
                             }
                             viewModel.completeOnboarding()
                         }) {
@@ -352,6 +365,7 @@ struct PermissionInfo: View {
 
 struct OnboardingPagePreferences: View {
     let viewModel: OnboardingViewModel
+    var analyticsService: AnalyticsService?
     @State private var enableNotifications: Bool = false
     @State private var notificationTime: Date = {
         var components = DateComponents()
@@ -379,6 +393,7 @@ struct OnboardingPagePreferences: View {
                         CitySearchField(city: $cityText, onCommit: { value in
                             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                             viewModel.userPreferences.userCity = trimmed.isEmpty ? nil : trimmed
+                            if !trimmed.isEmpty { analyticsService?.logUserLocationSet() }
                         })
                         .onChange(of: cityText) { _, value in
                             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)

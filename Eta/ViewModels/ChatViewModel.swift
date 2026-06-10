@@ -21,6 +21,7 @@ final class ChatViewModel {
     private let invitationManager: InvitationManager
     private let availabilityDataProvider: AvailabilityDataProvider
     private let goalRepository: GoalRepository
+    private let analyticsService: AnalyticsService?
 
     /// Lazily built on first send so it captures current contact + health data.
     private var chatService: ChatService?
@@ -30,13 +31,15 @@ final class ChatViewModel {
         inviteService: InviteService,
         invitationManager: InvitationManager,
         availabilityDataProvider: AvailabilityDataProvider,
-        goalRepository: GoalRepository
+        goalRepository: GoalRepository,
+        analyticsService: AnalyticsService? = nil
     ) {
         self.contactRepository = contactRepository
         self.inviteService = inviteService
         self.invitationManager = invitationManager
         self.availabilityDataProvider = availabilityDataProvider
         self.goalRepository = goalRepository
+        self.analyticsService = analyticsService
     }
 
     // MARK: — Conversation
@@ -65,8 +68,10 @@ final class ChatViewModel {
     func invokeAction(_ call: ChatFunctionCall) {
         switch call {
         case .scheduleHangout(let friendName, let activity, let proposedTime):
+            analyticsService?.logChatActionConfirmed(action: "scheduleHangout", friendName: friendName, detail: "\(activity) at \(proposedTime)")
             scheduleHangout(friendName: friendName, activity: activity, proposedTimeString: proposedTime)
         case .setGoal(let friendName, let goal):
+            analyticsService?.logChatActionConfirmed(action: "setGoal", friendName: friendName, detail: goal)
             setGoal(friendName: friendName, goal: goal)
         }
         invokedAction = call
@@ -75,6 +80,11 @@ final class ChatViewModel {
 
     /// Clears the session so the next chat open starts fresh.
     func reset() {
+        let count = messages.filter { $0.role == .user }.count
+        let actionTaken = invokedAction != nil
+        if count > 0 {
+            analyticsService?.logChatSessionCompleted(messageCount: count, actionTaken: actionTaken)
+        }
         messages = []
         pendingFunctionCall = nil
         invokedAction = nil
@@ -112,7 +122,8 @@ final class ChatViewModel {
                 friendName: friendName,
                 scheduledTime: interval.start,
                 endDate: interval.end,
-                hangoutID: hangoutID
+                hangoutID: hangoutID,
+                source: "chat"
             )
             shouldDismiss = true
         }
@@ -133,6 +144,13 @@ final class ChatViewModel {
             windowStart: now,
             windowEnd: windowEnd,
             source: .aiAccepted
+        )
+        analyticsService?.logGoalCreated(
+            title: goal,
+            friendName: friendName,
+            cadence: cadence.rawValue,
+            target: 2,
+            source: GoalSource.aiAccepted.rawValue
         )
         try? goalRepository.add(newGoal)
         shouldDismiss = true

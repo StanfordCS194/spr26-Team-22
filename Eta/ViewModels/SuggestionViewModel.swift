@@ -149,7 +149,7 @@ final class SuggestionViewModel {
 
     /// Persists the hangout, then sends the invitation
     /// via push notification. Drives the UI through accepted → invitationSent states.
-    func schedule() {
+    func schedule(source: String = "suggestion") {
         guard let suggestion else { return }
         let name = displayName(for: suggestion)
         let activityName = suggestion.activityDescription
@@ -170,7 +170,8 @@ final class SuggestionViewModel {
                 friendName: name,
                 scheduledTime: scheduledTime,
                 endDate: endDate,
-                hangoutID: hangoutID
+                hangoutID: hangoutID,
+                source: source
             )
             scheduleState = .invitationSent(friendName: name)
             self.suggestion = nil
@@ -190,7 +191,7 @@ final class SuggestionViewModel {
     /// Drives the same accepted → invitationSent flow as a normal schedule() call.
     func scheduleFromNudge(_ suggestion: Suggestion) {
         self.suggestion = suggestion
-        schedule()
+        schedule(source: "nudge")
     }
 
     #if DEBUG
