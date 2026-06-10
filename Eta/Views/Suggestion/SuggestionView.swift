@@ -111,6 +111,13 @@ struct SuggestionView: View {
             diffSuggestions = []
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
+        .alert("Hangout already scheduled", isPresented: schedulingConflictBinding) {
+            Button("OK", role: .cancel) {
+                viewModel.dismissSchedulingConflict()
+            }
+        } message: {
+            Text("Pick a different time.")
+        }
         .sheet(isPresented: $showingCustomize) {
             if let suggestion = viewModel.suggestion {
                 SuggestionDetailSheet(
@@ -139,6 +146,14 @@ struct SuggestionView: View {
             diffContact: previousSuggestion?.contact,
             diffTime: previousSuggestion?.proposedTime,
             diffSuggestion: diffSuggestions
+    private var schedulingConflictBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.hasSchedulingConflict },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.dismissSchedulingConflict()
+                }
+            }
         )
     }
 }

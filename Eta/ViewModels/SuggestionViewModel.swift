@@ -17,6 +17,7 @@ final class SuggestionViewModel {
     private(set) var suggestion: Suggestion?
     private(set) var isLoading: Bool = false
     private(set) var scheduleState: ScheduleState = .idle
+    private(set) var hasSchedulingConflict = false
 
     private let suggestionService: SuggestionService
     private let inviteService: InviteService
@@ -155,7 +156,10 @@ final class SuggestionViewModel {
         let scheduledTime = suggestion.proposedTime.start
 
         let contact = suggestion.contact
-        let hangoutID = inviteService.book(suggestion: suggestion)
+        guard let hangoutID = inviteService.book(suggestion: suggestion) else {
+            hasSchedulingConflict = true
+            return
+        }
         let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
@@ -176,6 +180,10 @@ final class SuggestionViewModel {
     /// Returns the suggestion view to idle so the user can pull-to-refresh for a new suggestion.
     func done() {
         scheduleState = .idle
+    }
+
+    func dismissSchedulingConflict() {
+        hasSchedulingConflict = false
     }
 
     /// Schedules a hangout built from outside this ViewModel (e.g. nudge sheet).

@@ -94,7 +94,7 @@ final class UpcomingEventsViewModel {
             proposedTimes: [interval],
             generatedAt: .now
         )
-        let hangoutID = inviteService.book(suggestion: suggestion)
+        guard let hangoutID = inviteService.book(suggestion: suggestion) else { return }
         let friendName = formatter.displayName(for: contact)
         _ = try? await invitationManager.acceptSuggestion(
             contact: contact,
