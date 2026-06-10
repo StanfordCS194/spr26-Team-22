@@ -8,8 +8,12 @@ struct FriendDetailView: View {
     var analyticsService: AnalyticsService?
     var onAddGoal: (() -> Void)?
     var onNudge: (() -> Void)?
+    var onTutorialProfileOpened: (() -> Void)?
+    var onTutorialProfileDismissed: (() -> Void)?
+    var onTutorialGoalCreated: (() -> Void)?
 
     @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
     @State private var showingGoalCreation = false
     @State private var showingLogHangout = false
     @State private var showingCheckIn = false
@@ -57,6 +61,10 @@ struct FriendDetailView: View {
         .onAppear {
             notesText = profile.notes
             cityText = contact.city ?? ""
+            onTutorialProfileOpened?()
+        }
+        .onDisappear {
+            onTutorialProfileDismissed?()
         }
         .onChange(of: showingTagPicker) { _, isShowing in
             if isShowing { editingTags = contact.contextTags }
@@ -145,6 +153,10 @@ struct FriendDetailView: View {
                 likedActivities: profile.likedActivities,
                 onGoalCreated: { goal in
                     homeViewModel.createGoal(goal)
+                    if let onTutorialGoalCreated {
+                        onTutorialGoalCreated()
+                        dismiss()
+                    }
                 }
             )
         }
@@ -559,6 +571,7 @@ struct FriendDetailView: View {
                     Label("Add a goal", systemImage: "target").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .tutorialTarget(FriendsTutorialTarget.addGoalButton)
             } else {
                 Button {
                     showingGoalCreation = true
@@ -566,6 +579,7 @@ struct FriendDetailView: View {
                     Label("Add a goal", systemImage: "target").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tutorialTarget(FriendsTutorialTarget.addGoalButton)
 
                 if hasPhone { checkInButton(prominent: false) }
 
