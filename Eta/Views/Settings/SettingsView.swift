@@ -94,7 +94,32 @@ struct SettingsView: View {
                     ),
                     displayedComponents: .hourAndMinute
                 )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Nudge frequency")
+                        Spacer()
+                        Text(nudgeFrequencyLabel(viewModel.preferences.nudgeFrequencyDays))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(viewModel.preferences.nudgeFrequencyDays) },
+                            set: { viewModel.preferences.nudgeFrequencyDays = Int($0.rounded()) }
+                        ),
+                        in: 1...7,
+                        step: 1
+                    )
+                }
             }
+        }
+    }
+
+    private func nudgeFrequencyLabel(_ days: Int) -> String {
+        switch days {
+        case 1: return "Daily"
+        case 7: return "Weekly"
+        default: return "Every \(days) days"
         }
     }
 

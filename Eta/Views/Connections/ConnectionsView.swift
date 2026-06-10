@@ -5,6 +5,7 @@ struct ConnectionsView: View {
     let homeViewModel: HomeViewModel
     let analyticsService: AnalyticsService
     let onShowSettings: () -> Void
+    var onNudge: ((TrackedContact) -> Void)?
 
     @State private var searchText = ""
     @State private var showingAddSheet = false
@@ -62,7 +63,8 @@ struct ConnectionsView: View {
                             contact: item.contact,
                             health: item.health,
                             displayName: homeViewModel.displayName(for: item.contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            onNudge: onNudge.map { fn in { fn(item.contact) } }
                         )
                     } label: {
                         FriendSpotlightCard(
@@ -120,7 +122,8 @@ struct ConnectionsView: View {
                                 upcomingHangout: nil
                             ),
                             displayName: viewModel.displayName(for: contact),
-                            homeViewModel: homeViewModel
+                            homeViewModel: homeViewModel,
+                            onNudge: onNudge.map { fn in { fn(contact) } }
                         )
                     } label: {
                         ContactRow(contact: contact, viewModel: viewModel, activeFilter: viewModel.selectedTagFilter)

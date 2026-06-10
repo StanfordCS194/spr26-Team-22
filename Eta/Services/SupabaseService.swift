@@ -2,7 +2,21 @@ import Foundation
 
 // MARK: - Supabase setup
 //
-// Required tables (run in Supabase SQL editor):
+// Required tables (run in Supabase SQL editor).
+//
+// friend_nudges table (for 6.3 friend-suggested reminders):
+//
+// CREATE TABLE friend_nudges (
+//   id            TEXT PRIMARY KEY,
+//   from_device   TEXT NOT NULL,
+//   from_name     TEXT NOT NULL,
+//   to_identifier TEXT NOT NULL,   -- matches devices.identifier on receiver's side
+//   created_at    TIMESTAMPTZ DEFAULT now()
+// );
+// ALTER TABLE friend_nudges ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "allow all" ON friend_nudges FOR ALL USING (true) WITH CHECK (true);
+//
+// Original tables:
 //
 // CREATE TABLE devices (
 //   device_id   TEXT PRIMARY KEY,
@@ -142,6 +156,38 @@ final class SupabaseService {
 
     func deleteInvitation(id: String) async {
         try? await request(path: "/rest/v1/invitations?id=eq.\(id)", method: "DELETE")
+    }
+
+    // MARK: - Friend nudges
+
+    /// Sends a nudge from the current user to a contact identified by phone/email.
+    func sendFriendNudge(to toIdentifier: String, fromName: String) async {
+        guard isConfigured else { return }
+        let body: [String: Any] = [
+            "id": UUID().uuidString,
+            "from_device": deviceID,
+            "from_name": fromName,
+            "to_identifier": toIdentifier
+        ]
+        try? await request(path: "/rest/v1/friend_nudges", method: "POST", body: body)
+    }
+
+    /// Fetches nudges sent to `myIdentifier`, deletes them from Supabase, and returns sender names.
+    func fetchAndDeleteReceivedNudges(myIdentifier: String) async -> [String] {
+        guard isConfigured else { return [] }
+        let encoded = urlEncoded(myIdentifier)
+        guard let data = try? await request(
+            path: "/rest/v1/friend_nudges?to_identifier=eq.\(encoded)&select=id,from_name",
+            method: "GET"
+        ),
+        let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return [] }
+
+        let names = rows.compactMap { $0["from_name"] as? String }
+        for id in rows.compactMap({ $0["id"] as? String }) {
+            try? await request(path: "/rest/v1/friend_nudges?id=eq.\(id)", method: "DELETE")
+        }
+        return names
     }
 
     /// Deletes sent invitations that are still pending but whose end_time has passed.

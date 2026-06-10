@@ -164,6 +164,22 @@ final class LocalNotificationService: NotificationServiceProtocol {
         try? await center.add(request)
     }
 
+    func scheduleFriendNudgeNotification(fromName: String) async {
+        guard preferencesService.preferences.enableNotifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "\(fromName) wants to hang out!"
+        content.body = "They're thinking of you — why not reach out?"
+        content.sound = .default
+        content.userInfo = ["notificationType": "friendNudge", "fromName": fromName]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "friend-nudge-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short

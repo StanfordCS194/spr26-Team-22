@@ -6,6 +6,7 @@ struct FriendDetailView: View {
     let displayName: String
     let homeViewModel: HomeViewModel
     var onAddGoal: (() -> Void)?
+    var onNudge: (() -> Void)?
 
     @Environment(\.openURL) private var openURL
     @State private var showingGoalCreation = false
@@ -566,6 +567,15 @@ struct FriendDetailView: View {
                 } label: {
                     Label("Log a hangout", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
                         .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if let onNudge, hasPhone {
+                Button {
+                    onNudge()
+                } label: {
+                    Label("Nudge them", systemImage: "hand.wave").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }

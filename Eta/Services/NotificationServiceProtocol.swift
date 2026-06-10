@@ -28,4 +28,7 @@ protocol NotificationServiceProtocol {
 
     /// Schedule a notification for the sender when the receiver declines.
     func scheduleInviteDeclinedNotification(friendName: String, activityName: String) async
+
+    /// Schedule a notification when a friend sends a nudge via the friend-nudge feature.
+    func scheduleFriendNudgeNotification(fromName: String) async
 }

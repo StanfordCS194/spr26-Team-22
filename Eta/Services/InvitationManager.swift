@@ -182,11 +182,21 @@ final class InvitationManager {
 
     // MARK: - Polling
 
+    /// Sends a nudge to a friend who has the app installed. The friend receives a local
+    /// notification the next time their app polls (within ~10 seconds of foregrounding).
+    func sendFriendNudge(to contact: TrackedContact) async {
+        let identifier = contactIdentifier(for: contact)
+        guard !identifier.isEmpty else { return }
+        let fromName = phoneSetupService.myIdentifier ?? "A friend"
+        await supabaseService.sendFriendNudge(to: identifier, fromName: fromName)
+    }
+
     /// Called on every app foreground. Checks for new received invites and sent invite responses.
     func pollForUpdates() async {
         async let sent: () = pollSentInvitations()
         async let received: () = pollReceivedInvitations()
-        _ = await (sent, received)
+        async let nudges: () = pollFriendNudges()
+        _ = await (sent, received, nudges)
         expireStaleHangouts()
     }
 
@@ -206,6 +216,15 @@ final class InvitationManager {
             NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
         }
         try? pendingReceivedRepo.deleteExpired()
+    }
+
+    private func pollFriendNudges() async {
+        guard supabaseService.isConfigured,
+              let myIdentifier = phoneSetupService.myIdentifier else { return }
+        let senderNames = await supabaseService.fetchAndDeleteReceivedNudges(myIdentifier: myIdentifier)
+        for name in senderNames {
+            await notificationService.scheduleFriendNudgeNotification(fromName: name)
+        }
     }
 
     private func pollSentInvitations() async {

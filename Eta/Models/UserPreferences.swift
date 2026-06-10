@@ -11,6 +11,8 @@ struct UserPreferences: Codable {
     var userCity: String?
     var userLatitude: Double?
     var userLongitude: Double?
+    /// How many days between nudge notifications. 1 = daily, 7 = weekly.
+    var nudgeFrequencyDays: Int
 
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
@@ -27,7 +29,8 @@ struct UserPreferences: Codable {
         hasSetCheckInTemplate: Bool = false,
         userCity: String? = nil,
         userLatitude: Double? = nil,
-        userLongitude: Double? = nil
+        userLongitude: Double? = nil,
+        nudgeFrequencyDays: Int = 1
     ) {
         self.preferredActivities = preferredActivities
         self.relationshipHealthThreshold = relationshipHealthThreshold
@@ -39,6 +42,7 @@ struct UserPreferences: Codable {
         self.userCity = userCity
         self.userLatitude = userLatitude
         self.userLongitude = userLongitude
+        self.nudgeFrequencyDays = nudgeFrequencyDays
     }
 
     func encode(to encoder: Encoder) throws {
@@ -53,6 +57,7 @@ struct UserPreferences: Codable {
         try container.encodeIfPresent(userCity, forKey: .userCity)
         try container.encodeIfPresent(userLatitude, forKey: .userLatitude)
         try container.encodeIfPresent(userLongitude, forKey: .userLongitude)
+        try container.encode(nudgeFrequencyDays, forKey: .nudgeFrequencyDays)
     }
 
     init(from decoder: Decoder) throws {
@@ -68,6 +73,7 @@ struct UserPreferences: Codable {
         userCity = try container.decodeIfPresent(String.self, forKey: .userCity)
         userLatitude = try container.decodeIfPresent(Double.self, forKey: .userLatitude)
         userLongitude = try container.decodeIfPresent(Double.self, forKey: .userLongitude)
+        nudgeFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .nudgeFrequencyDays) ?? 1
     }
 
     enum CodingKeys: String, CodingKey {
@@ -81,5 +87,6 @@ struct UserPreferences: Codable {
         case userCity
         case userLatitude
         case userLongitude
+        case nudgeFrequencyDays
     }
 }

@@ -92,7 +92,8 @@ struct EtaApp: App {
         let nudgeService = NudgeService(
             relationshipService: relationshipService,
             photoRepository: photoRepository,
-            runner: GitHubModelsLLMRunner()
+            runner: GitHubModelsLLMRunner(),
+            preferencesService: preferencesService
         )
         self.nudgeService = nudgeService
         self.weeklyCheckInService = WeeklyCheckInService()

@@ -38,7 +38,10 @@ struct MainTabView: View {
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
                     analyticsService: analyticsService,
-                    onShowSettings: { showingSettings = true }
+                    onShowSettings: { showingSettings = true },
+                    onNudge: { contact in
+                        Task { await invitationManager.sendFriendNudge(to: contact) }
+                    }
                 )
             } label: {
                 tabLabel("Friends", systemImage: "person.2.fill", isActive: selectedTab == .friends)
@@ -109,15 +112,24 @@ struct MainTabView: View {
                     photoRepository: photoRepository,
                     nudgeScheduler: nudgeScheduler,
                     onScheduleNow: { suggestion in
+                        nudgeService.recordEngagement()
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                         suggestionViewModel.scheduleFromNudge(suggestion)
                     },
                     onSuggestions: {
+                        nudgeService.recordEngagement()
                         nudgeReminderState.clear()
                         selectedTab = .suggestions
                     },
-                    onDismiss: { nudgeReminderState.clear() }
+                    onDismiss: {
+                        nudgeService.recordDismissal()
+                        nudgeReminderState.clear()
+                    },
+                    onReduceFrequency: {
+                        nudgeService.reduceFrequency()
+                        nudgeReminderState.clear()
+                    }
                 )
             }
         }
