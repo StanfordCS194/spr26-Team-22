@@ -4,6 +4,7 @@ struct ReceivedInviteSheet: View {
     let invite: RemoteInvitation
     let senderName: String
     let isEdit: Bool
+    let hasConflict: Bool
     let onAccept: () -> Void
     let onDecline: () -> Void
     let onDismissedWithoutResponse: () -> Void
@@ -27,6 +28,11 @@ struct ReceivedInviteSheet: View {
                 Text(formattedTime)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if hasConflict {
+                    Label("You already have an event at this time", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
             .padding(.horizontal, 24)
 
@@ -35,6 +41,7 @@ struct ReceivedInviteSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .buttonStyle(.borderedProminent)
+                    .disabled(hasConflict)
 
                 Button("Decline") { responded = true; onDecline() }
                     .frame(maxWidth: .infinity)

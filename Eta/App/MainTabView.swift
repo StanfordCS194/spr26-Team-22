@@ -222,6 +222,7 @@ struct MainTabView: View {
                     invite: invite,
                     senderName: receivedInviteState.senderName,
                     isEdit: receivedInviteState.isEdit,
+                    hasConflict: invitationManager.hasConflict(start: invite.startTime, end: invite.endTime),
                     onAccept: {
                         receivedInviteState.clear()
                         Task {

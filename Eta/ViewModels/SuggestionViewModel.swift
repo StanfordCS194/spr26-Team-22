@@ -17,7 +17,6 @@ final class SuggestionViewModel {
     private(set) var suggestion: Suggestion?
     private(set) var isLoading: Bool = false
     private(set) var scheduleState: ScheduleState = .idle
-    private(set) var hasSchedulingConflict = false
 
     private let suggestionService: SuggestionService
     private let inviteService: InviteService
@@ -133,6 +132,12 @@ final class SuggestionViewModel {
         suggestion = nil
     }
 
+    func hasConflict(for time: Date) -> Bool {
+        guard let s = suggestion else { return false }
+        let interval = DateInterval(start: time, duration: s.proposedTime.duration)
+        return invitationManager.hasConflict(start: interval.start, end: interval.end)
+    }
+
     /// Replaces the current suggestion's activity and start time without re-running the engine.
     /// The original duration is preserved; only the start is shifted to `time`.
     func customize(activity: String, time: Date) {
@@ -156,10 +161,7 @@ final class SuggestionViewModel {
         let scheduledTime = suggestion.proposedTime.start
 
         let contact = suggestion.contact
-        guard let hangoutID = inviteService.book(suggestion: suggestion) else {
-            hasSchedulingConflict = true
-            return
-        }
+        guard let hangoutID = inviteService.book(suggestion: suggestion) else { return }
         let endDate = suggestion.proposedTime.end
 
         Task { @MainActor in
@@ -183,11 +185,7 @@ final class SuggestionViewModel {
         scheduleState = .idle
     }
 
-    func dismissSchedulingConflict() {
-        hasSchedulingConflict = false
-    }
-
-    /// Schedules a hangout built from outside this ViewModel (e.g. nudge sheet).
+/// Schedules a hangout built from outside this ViewModel (e.g. nudge sheet).
     /// Drives the same accepted → invitationSent flow as a normal schedule() call.
     func scheduleFromNudge(_ suggestion: Suggestion) {
         self.suggestion = suggestion
