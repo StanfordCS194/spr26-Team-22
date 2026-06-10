@@ -15,13 +15,18 @@ final class InviteService {
     /// Persists the scheduled hangout using the first proposed availability option.
     /// Returns the hangout's UUID so the caller can link the resulting Invitation to it.
     @discardableResult
-    func book(suggestion: Suggestion) -> UUID {
+    func book(suggestion: Suggestion) -> UUID? {
         let hangout = ScheduledHangout(
             contact: suggestion.contact,
             activity: suggestion.activityDescription,
             selectedTime: suggestion.proposedTime
         )
-        try? hangoutRepository.add(hangout)
+        do {
+            try hangoutRepository.add(hangout)
+        } catch {
+            return nil
+        }
+
         NotificationCenter.default.post(name: .hangoutScheduled, object: nil)
         return hangout.id
     }
