@@ -138,6 +138,27 @@ struct WalkthroughModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .overlay(alignment: .bottomLeading) {
+                if !steps.isEmpty && !showWalkthrough {
+                    // Every tab that installs this modifier gets a manual way
+                    // to replay its walkthrough after the first-run overlay is dismissed.
+                    Button {
+                        showWalkthrough = true
+                    } label: {
+                        Image(systemName: "questionmark.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(etaTeal)
+                            .frame(width: 44, height: 44)
+                            .background(.regularMaterial, in: Circle())
+                            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+                    }
+                    .accessibilityLabel("Show walkthrough")
+                    .help("Show walkthrough")
+                    .padding(.leading, 20)
+                    .padding(.bottom, 18)
+                }
+            }
             .overlay {
                 if showWalkthrough {
                     WalkthroughOverlay(tabName: key, steps: steps) {
