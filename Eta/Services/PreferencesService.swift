@@ -38,6 +38,11 @@ final class PreferencesService {
         savePreferences()
     }
 
+    func updateNudgeFrequency(_ days: Int) {
+        preferences.nudgeFrequencyDays = min(max(days, 1), 7)
+        savePreferences()
+    }
+
     func updateUserCoordinates(_ latitude: Double, _ longitude: Double) {
         preferences.userLatitude = latitude
         preferences.userLongitude = longitude

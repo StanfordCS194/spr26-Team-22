@@ -8,6 +8,7 @@ struct ConnectionsView: View {
     let analyticsService: AnalyticsService
     let weeklyCheckInState: WeeklyCheckInState
     let onShowSettings: () -> Void
+    var onNudge: ((TrackedContact) -> Void)?
     let isTutorialActive: Bool
     let tutorialRequestID: Int
     let settingsDismissCount: Int
@@ -185,6 +186,7 @@ struct ConnectionsView: View {
                             displayName: viewModel.displayName(for: contact),
                             homeViewModel: homeViewModel,
                             analyticsService: analyticsService,
+                            onNudge: onNudge.map { fn in { fn(contact) } }
                             onTutorialProfileOpened: handleTutorialProfileOpened,
                             onTutorialProfileDismissed: handleTutorialProfileDismissed,
                             onTutorialGoalCreated: handleTutorialGoalCreated
@@ -252,6 +254,7 @@ struct ConnectionsView: View {
                         displayName: homeViewModel.displayName(for: selectedSpotlight.contact),
                         homeViewModel: homeViewModel,
                         analyticsService: analyticsService,
+                        onNudge: onNudge.map { fn in { fn(selectedSpotlight.contact) } },
                         onTutorialProfileOpened: handleTutorialProfileOpened,
                         onTutorialProfileDismissed: handleTutorialProfileDismissed,
                         onTutorialGoalCreated: handleTutorialGoalCreated

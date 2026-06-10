@@ -247,6 +247,47 @@ final class SupabaseService {
         try? await request(path: path, method: "DELETE")
     }
 
+    // MARK: - Friend nudges
+    //
+    // Requires a friend_nudges table in Supabase:
+    //
+    // CREATE TABLE friend_nudges (
+    //   id            TEXT PRIMARY KEY,
+    //   from_device   TEXT NOT NULL,
+    //   from_name     TEXT NOT NULL,
+    //   to_identifier TEXT NOT NULL,
+    //   created_at    TIMESTAMPTZ DEFAULT now()
+    // );
+    // ALTER TABLE friend_nudges ENABLE ROW LEVEL SECURITY;
+    // CREATE POLICY "allow all" ON friend_nudges FOR ALL USING (true) WITH CHECK (true);
+
+    func sendFriendNudge(to toIdentifier: String, fromName: String) async {
+        guard isConfigured else { return }
+        let body: [String: Any] = [
+            "id": UUID().uuidString,
+            "from_device": deviceID,
+            "from_name": fromName,
+            "to_identifier": toIdentifier
+        ]
+        try? await request(path: "/rest/v1/friend_nudges", method: "POST", body: body)
+    }
+
+    func fetchAndDeleteReceivedNudges(myIdentifier: String) async -> [String] {
+        guard isConfigured else { return [] }
+        let encoded = urlEncoded(myIdentifier)
+        guard let data = try? await request(
+            path: "/rest/v1/friend_nudges?to_identifier=eq.\(encoded)&select=id,from_name",
+            method: "GET"
+        ),
+        let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return [] }
+        let names = rows.compactMap { $0["from_name"] as? String }
+        for id in rows.compactMap({ $0["id"] as? String }) {
+            try? await request(path: "/rest/v1/friend_nudges?id=eq.\(id)", method: "DELETE")
+        }
+        return names
+    }
+
     // MARK: - Analytics
 
     func postAnalyticsEvent(

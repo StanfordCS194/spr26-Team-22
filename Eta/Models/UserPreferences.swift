@@ -17,6 +17,8 @@ struct UserPreferences: Codable {
     var weeklyCheckInDay: Int
     /// Time of day for the weekly check-in notification. Only hour/minute components are used.
     var weeklyCheckInTime: Date
+    /// How many days between nudge notifications. 1 = daily, 7 = weekly.
+    var nudgeFrequencyDays: Int
 
     init(
         preferredActivities: [String] = Activity.allCases.map { $0.rawValue },
@@ -41,7 +43,8 @@ struct UserPreferences: Codable {
             components.hour = 18
             components.minute = 0
             return Calendar.current.date(from: components) ?? Date()
-        }()
+        }(),
+        nudgeFrequencyDays: Int = 1
     ) {
         self.preferredActivities = preferredActivities
         self.relationshipHealthThreshold = relationshipHealthThreshold
@@ -56,6 +59,7 @@ struct UserPreferences: Codable {
         self.weeklyCheckInEnabled = weeklyCheckInEnabled
         self.weeklyCheckInDay = weeklyCheckInDay
         self.weeklyCheckInTime = weeklyCheckInTime
+        self.nudgeFrequencyDays = nudgeFrequencyDays
     }
 
     func encode(to encoder: Encoder) throws {
@@ -73,6 +77,7 @@ struct UserPreferences: Codable {
         try container.encode(weeklyCheckInEnabled, forKey: .weeklyCheckInEnabled)
         try container.encode(weeklyCheckInDay, forKey: .weeklyCheckInDay)
         try container.encode(weeklyCheckInTime.timeIntervalSince1970, forKey: .weeklyCheckInTimeInterval)
+        try container.encode(nudgeFrequencyDays, forKey: .nudgeFrequencyDays)
     }
 
     init(from decoder: Decoder) throws {
@@ -90,6 +95,7 @@ struct UserPreferences: Codable {
         userLongitude = try container.decodeIfPresent(Double.self, forKey: .userLongitude)
         weeklyCheckInEnabled = try container.decodeIfPresent(Bool.self, forKey: .weeklyCheckInEnabled) ?? true
         weeklyCheckInDay = try container.decodeIfPresent(Int.self, forKey: .weeklyCheckInDay) ?? 1
+        nudgeFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .nudgeFrequencyDays) ?? 1
         let checkInTimeInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .weeklyCheckInTimeInterval)
         if let t = checkInTimeInterval {
             weeklyCheckInTime = Date(timeIntervalSince1970: t)
@@ -113,5 +119,6 @@ struct UserPreferences: Codable {
         case weeklyCheckInEnabled
         case weeklyCheckInDay
         case weeklyCheckInTimeInterval
+        case nudgeFrequencyDays
     }
 }

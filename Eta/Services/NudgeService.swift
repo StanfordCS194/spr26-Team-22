@@ -21,11 +21,15 @@ extension Notification.Name {
 /// without — so the no-key fallback in GitHubModelsLLMRunner is the single source of random enum.
 /// hasPhotos / Banner photo both branch on llmMode (not force): llmMode → any friend; else → enum lookup.
 final class NudgeService {
-    private static let scheduledNudgeID = "me.Eta.nudge.scheduled"
+    private static let scheduledNudgeID  = "me.Eta.nudge.scheduled"
+    private static let lastNudgeDateKey  = "me.Eta.nudge.lastSentDate"
+    private static let dismissalCountKey = "me.Eta.nudge.consecutiveDismissals"
+    private static let lastContactIDKey  = "me.Eta.nudge.lastContactID"
 
     private let relationshipService: RelationshipService
     private let photoRepository: ActivityPhotoRepository
     private let runner: any LLMRunner
+    private let preferencesService: PreferencesService
 
     private var llmMode: Bool {
         (Bundle.main.object(forInfoDictionaryKey: "LLM_API_KEY") as? String).map { !$0.isEmpty } ?? false
@@ -34,10 +38,12 @@ final class NudgeService {
     init(
         relationshipService: RelationshipService,
         photoRepository: ActivityPhotoRepository,
-        runner: any LLMRunner
+        runner: any LLMRunner,
+        preferencesService: PreferencesService
     ) {
         self.relationshipService = relationshipService
         self.photoRepository = photoRepository
+        self.preferencesService = preferencesService
         self.runner = runner
 
         NotificationCenter.default.addObserver(
@@ -58,17 +64,48 @@ final class NudgeService {
         if !force {
             UNUserNotificationCenter.current()
                 .removePendingNotificationRequests(withIdentifiers: [Self.scheduledNudgeID])
+            UserDefaults.standard.set(Date(), forKey: Self.lastNudgeDateKey)
         }
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         try? await UNUserNotificationCenter.current().add(request)
     }
 
+    /// Call when the user taps "Maybe later". After 3 consecutive dismissals the interval
+    /// is automatically bumped by one day (phase-out).
+    func recordDismissal() {
+        let count = UserDefaults.standard.integer(forKey: Self.dismissalCountKey) + 1
+        if count >= 3 {
+            bumpFrequency()
+            UserDefaults.standard.set(0, forKey: Self.dismissalCountKey)
+        } else {
+            UserDefaults.standard.set(count, forKey: Self.dismissalCountKey)
+        }
+    }
+
+    /// Call when the user acts on a nudge. Resets the dismissal counter.
+    func recordEngagement() {
+        UserDefaults.standard.set(0, forKey: Self.dismissalCountKey)
+    }
+
+    /// Immediately increase the nudge interval by one day (cap: 7).
+    func reduceFrequency() {
+        bumpFrequency()
+    }
+
     // MARK: - Private
 
     private func buildNudge(force: Bool) async -> (UNMutableNotificationContent?, String, UNNotificationTrigger?) {
         let healthScores = await relationshipService.computeHealth()
-        let best = healthScores.max(by: { $0.score < $1.score })
+        // Rotation: skip the last-nudged contact when other overdue options exist.
+        let lastID = UserDefaults.standard.string(forKey: Self.lastContactIDKey)
+            .flatMap { UUID(uuidString: $0) }
+        let candidates = healthScores.filter { $0.score > 0 }
+        let pool = candidates.count > 1 ? candidates.filter { $0.contact.id != lastID } : candidates
+        let best = (pool.isEmpty ? candidates : pool).max(by: { $0.score < $1.score })
+        if let id = best?.contact.id {
+            UserDefaults.standard.set(id.uuidString, forKey: Self.lastContactIDKey)
+        }
 
         var activityDescription: String
         var fallbackActivity: Activity
@@ -169,7 +206,7 @@ final class NudgeService {
         let identifier = force ? "nudge-debug-\(UUID().uuidString)" : Self.scheduledNudgeID
         let trigger: UNNotificationTrigger = force
             ? UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            : UNCalendarNotificationTrigger(dateMatching: next9am(), repeats: false)
+            : UNCalendarNotificationTrigger(dateMatching: nextFireDate(), repeats: false)
 
         return (content, identifier, trigger)
     }
@@ -198,15 +235,28 @@ final class NudgeService {
         return trimmed.isEmpty ? (Activity.allCases.randomElement()?.rawValue ?? Activity.walk.rawValue) : trimmed
     }
 
-    private func next9am() -> DateComponents {
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: .now)
-        components.hour = 9
-        components.minute = 0
-        let today9am = Calendar.current.date(from: components)!
-        let fireDate = today9am > .now
-            ? today9am
-            : Calendar.current.date(byAdding: .day, value: 1, to: today9am)!
-        return Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+    private func nextFireDate() -> DateComponents {
+        let frequencyDays = preferencesService.preferences.nudgeFrequencyDays
+        let lastDate = UserDefaults.standard.object(forKey: Self.lastNudgeDateKey) as? Date
+        let baseDay = lastDate.flatMap {
+            Calendar.current.date(byAdding: .day, value: frequencyDays, to: $0)
+        } ?? Date()
+        let preferredTime = preferencesService.preferences.notificationTime
+        let timeComps = Calendar.current.dateComponents([.hour, .minute], from: preferredTime)
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: baseDay)
+        comps.hour = timeComps.hour ?? 9
+        comps.minute = timeComps.minute ?? 0
+        let fireAt = Calendar.current.date(from: comps) ?? Date()
+        let adjusted = fireAt > Date()
+            ? fireAt
+            : Calendar.current.date(byAdding: .day, value: 1, to: fireAt)!
+        return Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: adjusted)
+    }
+
+    private func bumpFrequency() {
+        let current = preferencesService.preferences.nudgeFrequencyDays
+        guard current < 7 else { return }
+        preferencesService.updateNudgeFrequency(current + 1)
     }
 
     private func makeAttachment(from data: Data?) -> UNNotificationAttachment? {

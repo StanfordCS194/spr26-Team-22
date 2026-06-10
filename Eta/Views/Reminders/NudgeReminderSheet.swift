@@ -9,6 +9,7 @@ struct NudgeReminderSheet: View {
     let onScheduleNow: (Suggestion) -> Void
     let onSuggestions: () -> Void
     let onDismiss: () -> Void
+    let onReduceFrequency: () -> Void
 
     @State private var showNoSlot = false
 
@@ -78,6 +79,10 @@ struct NudgeReminderSheet: View {
                     }
 
                     Button("Maybe later", action: onDismiss)
+                    Button("Remind me less often", action: onReduceFrequency)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .buttonStyle(.plain)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .foregroundStyle(.secondary)
