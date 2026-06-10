@@ -154,14 +154,17 @@ final class SuggestionViewModel {
 
         Task { @MainActor in
             scheduleState = .accepted
-            _ = try? await invitationManager.acceptSuggestion(
+            if let result = try? await invitationManager.acceptSuggestion(
                 contact: contact,
                 activityName: activityName,
                 friendName: name,
                 scheduledTime: scheduledTime,
                 endDate: endDate,
                 hangoutID: hangoutID
-            )
+            ), !result.wasSentToAppUser, let s = self.suggestion {
+                // Contact isn't on Supabase — open an iMessage so they get the web RSVP link too.
+                inviteService.sendMessage(for: s, invitationID: result.invitation.id)
+            }
             scheduleState = .invitationSent(friendName: name)
             self.suggestion = nil
         }

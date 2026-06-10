@@ -54,8 +54,14 @@ final class InvitationManager {
         pendingFeedbackHangoutID = nil
     }
 
-    /// Creates a pending invitation and either POSTs to Supabase (demo contact) or
-    /// schedules a simulated local acceptance notification (all other contacts).
+    /// Creates a pending invitation.
+    ///
+    /// - If the contact has a registered Supabase device, routes via push notification
+    ///   and returns `wasSentToAppUser = true`.
+    /// - If Supabase is configured but the contact has no device, posts a record anyway
+    ///   (using their phone/email as `to_identifier`) so the web RSVP link can update it.
+    ///   Returns `wasSentToAppUser = false` — the caller should open an iMessage fallback.
+    /// - If Supabase is not configured, simulates acceptance locally.
     func acceptSuggestion(
         contact: TrackedContact,
         activityName: String,
@@ -63,7 +69,7 @@ final class InvitationManager {
         scheduledTime: Date,
         endDate: Date,
         hangoutID: UUID
-    ) async throws -> Invitation {
+    ) async throws -> (invitation: Invitation, wasSentToAppUser: Bool) {
         try? await notificationService.requestAuthorization()
 
         let invitation = Invitation(
@@ -75,14 +81,16 @@ final class InvitationManager {
         modelContext.insert(invitation)
         try modelContext.save()
 
-        if supabaseService.isConfigured,
-           let receiverDeviceID = await supabaseService.lookupDeviceID(for: contactIdentifier(for: contact)),
-           !receiverDeviceID.isEmpty {
+        var wasSentToAppUser = false
+
+        if supabaseService.isConfigured {
+            let receiverDeviceID = await supabaseService.lookupDeviceID(for: contactIdentifier(for: contact))
+            let hasDevice = (receiverDeviceID ?? "").isEmpty == false
             let remote = RemoteInvitation(
                 id: invitation.id,
                 fromDevice: supabaseService.deviceID,
                 fromIdentifier: phoneSetupService.myIdentifier ?? "",
-                toIdentifier: receiverDeviceID,
+                toIdentifier: hasDevice ? receiverDeviceID! : contactIdentifier(for: contact),
                 friendName: friendName,
                 activity: activityName,
                 startTime: scheduledTime,
@@ -90,10 +98,13 @@ final class InvitationManager {
                 status: "pending"
             )
             try await supabaseService.postInvitation(remote)
-            await notificationService.scheduleInviteSentNotification(
-                friendName: friendName,
-                activityName: activityName
-            )
+            if hasDevice {
+                wasSentToAppUser = true
+                await notificationService.scheduleInviteSentNotification(
+                    friendName: friendName,
+                    activityName: activityName
+                )
+            }
         } else {
             try await notificationService.sendInvitation(for: invitation)
         }
@@ -106,7 +117,7 @@ final class InvitationManager {
             endDate: endDate
         )
 
-        return invitation
+        return (invitation, wasSentToAppUser)
     }
 
     /// Marks the invitation as confirmed or declined and updates the linked ScheduledHangout.
@@ -247,9 +258,58 @@ final class InvitationManager {
         notifiedRemoteIDs = notified
     }
 
+    // MARK: - Web RSVP / iMessage deeplink
+
+    /// Handles `eta://invite-accepted?activity=<act>&start=<ts>&end=<ts>&senderName=<name>`.
+    /// Creates a confirmed ScheduledHangout on the local device (receiver or sender side).
+    func handleInviteURL(_ url: URL) {
+        guard url.scheme == "eta", url.host == "invite-accepted",
+              let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        else { return }
+
+        let activity = items.first { $0.name == "activity" }?.value ?? ""
+        guard !activity.isEmpty else { return }
+
+        let startTs = Double(items.first { $0.name == "start" }?.value ?? "") ?? 0
+        let endTs   = Double(items.first { $0.name == "end"   }?.value ?? "") ?? 0
+        guard startTs > 0 else { return }
+
+        let startDate = Date(timeIntervalSince1970: startTs)
+        let endDate   = endTs > 0 ? Date(timeIntervalSince1970: endTs) : startDate.addingTimeInterval(3600)
+        let interval  = DateInterval(start: startDate, end: endDate)
+
+        let senderName = items.first { $0.name == "senderName" }?.value
+        let contact    = senderName.flatMap { findContact(byName: $0) }
+
+        let hangout: ScheduledHangout
+        if let contact {
+            hangout = ScheduledHangout(contact: contact, activity: activity, selectedTime: interval)
+        } else {
+            hangout = ScheduledHangout(
+                contactName: senderName ?? "via iMessage",
+                activity: activity,
+                selectedTime: interval
+            )
+        }
+        hangout.inviteeResponse = .confirmed
+        modelContext.insert(hangout)
+        try? modelContext.save()
+        NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
+    }
+
     private func contactIdentifier(for contact: TrackedContact) -> String {
         if let phone = contact.phoneNumber { return PhoneSetupService.normalized(phone) }
         return contact.emailAddress?.lowercased() ?? ""
+    }
+
+    private func findContact(byName name: String) -> TrackedContact? {
+        let all = (try? modelContext.fetch(FetchDescriptor<TrackedContact>())) ?? []
+        let lower = name.lowercased()
+        return all.first {
+            $0.name.lowercased().contains(lower)
+            || $0.givenName.lowercased() == lower
+            || "\($0.givenName) \($0.familyName)".lowercased() == lower
+        }
     }
 
     private func findContact(byIdentifier identifier: String) -> TrackedContact? {

@@ -26,9 +26,9 @@ final class InviteService {
         return hangout.id
     }
 
-    /// Opens Messages with a pre-filled invite text.
-    /// Call this when the user taps "Send Invite" on the confirmation screen.
-    func sendMessage(for suggestion: Suggestion) {
-        provider.sendInvite(for: suggestion)
+    /// Opens Messages with a pre-filled invite text including the web RSVP link.
+    /// `invitationID` must match the Supabase record created by InvitationManager.acceptSuggestion.
+    func sendMessage(for suggestion: Suggestion, invitationID: String) {
+        provider.sendInvite(for: suggestion, invitationID: invitationID)
     }
 }

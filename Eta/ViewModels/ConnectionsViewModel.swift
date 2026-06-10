@@ -24,9 +24,27 @@ final class ConnectionsViewModel {
         let base = selectedTagFilter.map { filter in
             contacts.filter { $0.contextTags.contains { $0.parentCategory == filter } }
         } ?? contacts
-        return base.sorted {
-            (healthScores[$0.id]?.score ?? 0) > (healthScores[$1.id]?.score ?? 0)
+        // Sort warmest first (ascending daysSinceLastHangout); nil (never seen) goes last.
+        return base.sorted { a, b in
+            let dA = healthScores[a.id]?.daysSinceLastHangout
+            let dB = healthScores[b.id]?.daysSinceLastHangout
+            switch (dA, dB) {
+            case (nil, nil): return false
+            case (nil, _):   return false
+            case (_, nil):   return true
+            default:         return dA! < dB!
+            }
         }
+    }
+
+    /// Recency-weighted mean of warmth(days) across friends. 0=dormant, 1=active social life.
+    var socialWarmth: Double {
+        let values = healthScores.values.compactMap { health -> Double? in
+            guard let days = health.daysSinceLastHangout else { return nil }
+            return max(0, min(1, 1 - log10(Double(days) + 1) / 3))
+        }
+        guard !values.isEmpty else { return 0.5 }
+        return values.reduce(0, +) / Double(values.count)
     }
     /// Filtered slice of the address book — updated synchronously as the search query changes.
     private(set) var searchResults: [ContactPickerItem] = []
@@ -111,12 +129,16 @@ final class ConnectionsViewModel {
         }
 
         switch days {
-        case 0:        return "Seen today"
-        case 1:        return "Seen yesterday"
-        case 2..<7:    return "Last seen \(days) days ago"
-        case 7..<30:   return "Last seen \(days / 7) week\(days / 7 == 1 ? "" : "s") ago"
-        case 30..<365: return "Last seen \(days / 30) month\(days / 30 == 1 ? "" : "s") ago"
-        default:       return "Last seen \(days / 365) year\(days / 365 == 1 ? "" : "s") ago"
+        case 0..<7:
+            return "this week"
+        case 7..<30:
+            return "this month"
+        case 30..<365:
+            let m = days / 30
+            return "\(m) month\(m == 1 ? "" : "s") ago"
+        default:
+            let y = days / 365
+            return "\(y) year\(y == 1 ? "" : "s") ago"
         }
     }
 

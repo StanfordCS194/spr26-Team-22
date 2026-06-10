@@ -241,35 +241,41 @@ struct EtaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if !hasPhoneSetup {
-                PhoneSetupView(phoneSetupService: phoneSetupService) {
-                    hasPhoneSetup = true
-                    if let id = phoneSetupService.myIdentifier {
-                        Task { await supabaseService.registerDevice(identifier: id) }
+            Group {
+                if !hasPhoneSetup {
+                    PhoneSetupView(phoneSetupService: phoneSetupService) {
+                        hasPhoneSetup = true
+                        if let id = phoneSetupService.myIdentifier {
+                            Task { await supabaseService.registerDevice(identifier: id) }
+                        }
                     }
+                } else if onboardingViewModel.hasCompletedOnboarding {
+                    MainTabView(
+                        homeViewModel: homeViewModel,
+                        connectionsViewModel: connectionsViewModel,
+                        suggestionViewModel: suggestionViewModel,
+                        upcomingEventsViewModel: upcomingEventsViewModel,
+                        settingsViewModel: settingsViewModel,
+                        availabilityViewModel: availabilityViewModel,
+                        analyticsService: analyticsService,
+                        invitationManager: invitationManager,
+                        photoRepository: photoRepository,
+                        reminderPhotoState: reminderPhotoState,
+                        nudgeService: nudgeService,
+                        nudgeScheduler: nudgeScheduler,
+                        weeklyCheckInService: weeklyCheckInService,
+                        weeklyCheckInState: weeklyCheckInState,
+                        nudgeReminderState: nudgeReminderState,
+                        receivedInviteState: receivedInviteState,
+                        chatViewModel: chatViewModel
+                    )
+                } else {
+                    OnboardingView(viewModel: onboardingViewModel)
                 }
-            } else if onboardingViewModel.hasCompletedOnboarding {
-                MainTabView(
-                    homeViewModel: homeViewModel,
-                    connectionsViewModel: connectionsViewModel,
-                    suggestionViewModel: suggestionViewModel,
-                    upcomingEventsViewModel: upcomingEventsViewModel,
-                    settingsViewModel: settingsViewModel,
-                    availabilityViewModel: availabilityViewModel,
-                    analyticsService: analyticsService,
-                    invitationManager: invitationManager,
-                    photoRepository: photoRepository,
-                    reminderPhotoState: reminderPhotoState,
-                    nudgeService: nudgeService,
-                    nudgeScheduler: nudgeScheduler,
-                    weeklyCheckInService: weeklyCheckInService,
-                    weeklyCheckInState: weeklyCheckInState,
-                    nudgeReminderState: nudgeReminderState,
-                    receivedInviteState: receivedInviteState,
-                    chatViewModel: chatViewModel
-                )
-            } else {
-                OnboardingView(viewModel: onboardingViewModel)
+            }
+            .onOpenURL { url in
+                guard url.scheme == "eta" else { return }
+                invitationManager.handleInviteURL(url)
             }
         }
         .modelContainer(container)

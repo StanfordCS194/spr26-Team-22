@@ -46,10 +46,12 @@ final class UpcomingEventsViewModel {
             let startOfToday = Calendar.current.startOfDay(for: .now)
 
             let items: [HangoutDisplayItem] = hangouts
-                .filter { $0.contact != nil }
+                .filter { $0.contact != nil || $0.contactName != nil }
                 .sorted { $0.startDate < $1.startDate }
                 .map { hangout in
-                    let name = hangout.contact.map { formatter.displayName(for: $0) } ?? "Unknown"
+                    let name = hangout.contact.map { formatter.displayName(for: $0) }
+                        ?? hangout.contactName
+                        ?? "Unknown"
                     return HangoutDisplayItem(hangout: hangout, contactName: name)
                 }
 

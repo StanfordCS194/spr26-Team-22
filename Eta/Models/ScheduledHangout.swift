@@ -12,8 +12,11 @@ enum InviteeResponse: String, Codable {
 final class ScheduledHangout {
     var id: UUID
     var contact: TrackedContact?
+    /// Display fallback used when `contact` is nil — e.g. when the hangout was accepted via the web RSVP
+    /// page and the sender isn't in the receiver's TrackedContacts.
+    var contactName: String?
     var activity: String       // Activity.rawValue — stored as String; use resolvedActivity to get the enum
-    
+
     var startDate: Date
     var endDate: Date
 
@@ -29,6 +32,26 @@ final class ScheduledHangout {
     ) {
         self.id = id
         self.contact = contact
+        self.contactName = nil
+        self.activity = activity
+        self.startDate = selectedTime.start
+        self.endDate = selectedTime.end
+        self.scheduledAt = scheduledAt
+        self.inviteeResponse = .pending
+    }
+
+    /// Creates a confirmed hangout sourced from a web RSVP or iMessage deeplink where the other
+    /// party may not be a TrackedContact on this device.
+    init(
+        id: UUID = UUID(),
+        contactName: String?,
+        activity: String,
+        selectedTime: DateInterval,
+        scheduledAt: Date = .now
+    ) {
+        self.id = id
+        self.contact = nil
+        self.contactName = contactName
         self.activity = activity
         self.startDate = selectedTime.start
         self.endDate = selectedTime.end

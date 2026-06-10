@@ -6,5 +6,7 @@ import Foundation
 /// Tomorrow: iMessage extension with collaborative planning.
 /// Swap implementations in EtaApp.swift without touching InviteService.
 protocol InviteProvider {
-    func sendInvite(for suggestion: Suggestion)
+    /// Opens the iMessage compose sheet with a pre-filled invite.
+    /// `invitationID` is the Supabase record ID so the message body can embed the web RSVP link.
+    func sendInvite(for suggestion: Suggestion, invitationID: String)
 }

@@ -23,35 +23,45 @@ struct MainTabView: View {
     let receivedInviteState: ReceivedInviteState
     let chatViewModel: ChatViewModel
 
-    @State private var selectedTab: TabChoice = .events
+    @State private var selectedTab: TabChoice = .suggestions
     @State private var showingSettings = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Availability", systemImage: "clock.badge.checkmark", value: .availability) {
-                AvailabilityView(
-                    viewModel: availabilityViewModel
-                )
+            Tab(value: .availability) {
+                AvailabilityView(viewModel: availabilityViewModel)
+            } label: {
+                tabLabel("Availability", systemImage: "clock.badge.checkmark", isActive: selectedTab == .availability)
             }
-            Tab("Friends", systemImage: "person.2.fill", value: .friends) {
+            Tab(value: .friends) {
                 ConnectionsView(
                     viewModel: connectionsViewModel,
                     homeViewModel: homeViewModel,
                     analyticsService: analyticsService,
                     onShowSettings: { showingSettings = true }
                 )
+            } label: {
+                tabLabel("Friends", systemImage: "person.2.fill", isActive: selectedTab == .friends)
             }
-            Tab("Events", systemImage: "cup.and.saucer", value: .events) {
+            Tab(value: .events) {
                 UpcomingEventsDashboard(
                     viewModel: upcomingEventsViewModel,
                     photoRepository: photoRepository
                 )
+            } label: {
+                tabLabel("Events", systemImage: "cup.and.saucer", isActive: selectedTab == .events)
             }
-            Tab("Suggestions", systemImage: "sparkles", value: .suggestions) {
+            Tab(value: .suggestions) {
                 SuggestionView(
                     viewModel: suggestionViewModel,
+                    socialWarmth: connectionsViewModel.socialWarmth,
+                    contactDaysSinceLastHangout: suggestionViewModel.suggestion.flatMap {
+                        connectionsViewModel.healthScores[$0.contact.id]?.daysSinceLastHangout
+                    },
                     analyticsService: analyticsService
                 )
+            } label: {
+                tabLabel("Suggestions", systemImage: "sparkles", isActive: selectedTab == .suggestions)
             }
         }
         .sheet(isPresented: $showingSettings, onDismiss: {
@@ -175,6 +185,21 @@ struct MainTabView: View {
                     onDismiss: { reminderPhotoState.clear() }
                 )
             }
+        }
+    }
+
+    @ViewBuilder
+    private func tabLabel(_ title: String, systemImage: String, isActive: Bool) -> some View {
+        Label {
+            Text(title)
+                .foregroundStyle(isActive ? AnyShapeStyle(EtaColor.warm) : AnyShapeStyle(EtaColor.text2))
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(
+                    isActive
+                        ? AnyShapeStyle(EtaColor.appGradient)
+                        : AnyShapeStyle(EtaColor.text2)
+                )
         }
     }
 }

@@ -152,11 +152,14 @@ struct ConnectionsView: View {
 
     private var contactList: some View {
         List {
-            if !isSearching {
-                Section {} header: { filterBar }
-            }
             forYouSection
             allFriendsSection
+        }
+        // Fix: pill bar is injected via safeAreaInset so it's fully opaque and list scrolls beneath it.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !isSearching {
+                filterBar
+            }
         }
     }
 
@@ -299,20 +302,26 @@ struct ConnectionsView: View {
         }
     }
 
+    // MARK: - Filter bar
+
     @ViewBuilder
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                filterChip(label: "All", icon: nil, filter: nil)
-                ForEach(TagCategory.allCases) { category in
-                    filterChip(label: category.rawValue, icon: category.icon, filter: category)
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip(label: "All", icon: nil, filter: nil)
+                    ForEach(TagCategory.allCases) { category in
+                        filterChip(label: category.rawValue, icon: category.icon, filter: category)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            // Solid background prevents list content from bleeding through
+            .background(EtaColor.ink0)
+            Divider()
+                .overlay(EtaColor.hairline)
         }
-        .background(Color(UIColor.systemBackground))
-        Divider()
     }
 
     private func filterChip(label: String, icon: String?, filter: TagCategory?) -> some View {
@@ -326,12 +335,17 @@ struct ConnectionsView: View {
                         .font(.caption)
                 }
                 Text(label)
-                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
-            .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.12), in: Capsule())
-            .foregroundStyle(isSelected ? .white : .primary)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(EtaColor.appGradient)
+                    : AnyShapeStyle(EtaColor.surface2),
+                in: Capsule()
+            )
+            .foregroundStyle(isSelected ? EtaColor.ink0 : EtaColor.text2)
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
@@ -360,57 +374,51 @@ private struct ContactRow: View {
     var isSelected: Bool = false
     var activeFilter: TagCategory? = nil
 
+    private var days: Int? { viewModel.healthScores[contact.id]?.daysSinceLastHangout }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 if isSelecting {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
-                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(isSelected ? EtaColor.warm : EtaColor.text2)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.displayName(for: contact))
-                        .font(.body)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(EtaColor.text1)
 
                     if let label = viewModel.healthLabel(for: contact) {
                         let tag = primaryTag(for: contact, filter: activeFilter)
                         Text((tag.map { "\($0.displayName) · " } ?? "") + label)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(EtaColor.text2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Nudge chip: gentle prompt for contacts not seen in 30+ days
+                if let d = days, d >= 30, !isSelecting {
+                    nudgeChip(days: d)
+                }
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 14)
             .padding(.horizontal, 16)
 
-            WarmthBar(days: viewModel.healthScores[contact.id]?.daysSinceLastHangout)
+            WarmthBar(days: days)
         }
     }
-}
 
-private struct WarmthBar: View {
-    let days: Int?
-
-    private func warmth(_ d: Int) -> Double {
-        max(0, min(1, 1 - log10(Double(d) + 1) / 3))
-    }
-
-    var body: some View {
-        ZStack(alignment: .leading) {
-            Rectangle()
-                .fill(Color(white: 0.22))
-
-            if let d = days {
-                let w = warmth(d)
-                let hue = (150.0 + (1.0 - w) * 28.0) / 360.0
-                Rectangle()
-                    .fill(Color(hue: hue, saturation: 0.62, brightness: 0.52))
-                    .scaleEffect(x: max(0.02, w), anchor: .leading)
-            }
-        }
-        .frame(height: 2)
-        .frame(maxWidth: .infinity)
+    @ViewBuilder
+    private func nudgeChip(days: Int) -> some View {
+        let label = days > 365 ? "been a while" : "worth a hello"
+        Text("\(label) →")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(EtaColor.text1)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(EtaColor.surface2, in: Capsule())
     }
 }
