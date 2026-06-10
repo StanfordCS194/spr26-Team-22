@@ -56,8 +56,8 @@ final class SuggestionService {
         // Signal 1: opportunity. Check first so an empty availability inbox stays quiet.
         let freeSlots: [DateInterval]
         do {
-            freeSlots = try await availabilityProvider.findAvailableSlots()
-                .filter { !isSameAvailabilityBlock($0, as: diffTime) }
+            let availableSlots = try await availabilityProvider.findAvailableSlots()
+            freeSlots = preferredSlots(from: availableSlots, avoiding: diffTime)
         } catch {
             print(error.localizedDescription)
             return nil
@@ -66,7 +66,7 @@ final class SuggestionService {
 
         // Signal 2: need. Rank contacts by health score.
         let healthScores = await relationshipService.computeHealth()
-        guard let topHealth = topContact(from: healthScores, excluding: diffContact) else {
+        guard let topHealth = topContact(from: healthScores, preferringDifferentFrom: diffContact) else {
             return nil
         }
 
@@ -81,13 +81,18 @@ final class SuggestionService {
             }
             baseContext = .empty
         }
-        var context = contextByAddingAvoidance(to: baseContext, avoiding: diffSuggestion)
+        var context = baseContext
         context.proposedTime = freeSlots.first
-        context.previouslySuggestedActivities = suggestedActivities[topHealth.contact.id] ?? []
+        // Use one explicit avoidance list for both strategy types:
+        // session history prevents repeats during normal refreshes, while diffSuggestion
+        // carries activities the user just asked to replace via the refresh button.
+        context.previouslySuggestedActivities = orderedUnique(
+            (suggestedActivities[topHealth.contact.id] ?? []) + diffSuggestion
+        )
 
         // Delegate activity and reason selection to the strategy.
         // On LLM failure, fall back to the rules-based strategy so the inbox isn't left empty.
-        let proposal: ActivityProposal
+        var proposal: ActivityProposal
         do {
             if let proposalAttempt = try await activityStrategy.propose(for: topHealth, context: context) {
                 proposal = proposalAttempt
@@ -106,6 +111,18 @@ final class SuggestionService {
                 return nil
             }
             proposal = fallback
+        }
+
+        // Activity is the one refresh dimension that should definitively change.
+        // If the primary strategy repeats anyway, retry through stricter fallbacks.
+        if shouldRetryAvoidedProposal(proposal, context: context) {
+            if let fallback = try? await fallbackStrategy.propose(for: topHealth, context: context) {
+                proposal = fallback
+            }
+            if shouldRetryAvoidedProposal(proposal, context: context),
+               let forcedProposal = forcedDifferentProposal(from: proposal, for: topHealth, context: context) {
+                proposal = forcedProposal
+            }
         }
 
         let suggestion = Suggestion(
@@ -127,25 +144,47 @@ final class SuggestionService {
     /// Otherwise falls back to the highest-scoring contact above the recency threshold.
     private func topContact(
         from healthScores: [RelationshipHealth],
-        excluding diffContact: TrackedContact?
+        preferringDifferentFrom diffContact: TrackedContact?
     ) -> RelationshipHealth? {
         let eligible = healthScores.filter { health in
-            guard health.contact.isActive else { return false }
+            health.contact.isActive
+        }
+
+        // Refresh should try another friend first, but a single eligible friend should
+        // still get a new activity instead of dropping the inbox to empty.
+        let preferredEligible = eligible.filter { health in
             guard let diffContact else { return true }
             return health.contact.id != diffContact.id
         }
+        if let preferredContact = bestContact(from: preferredEligible) {
+            return preferredContact
+        }
 
+        return bestContact(from: eligible)
+    }
+
+    private func bestContact(from healthScores: [RelationshipHealth]) -> RelationshipHealth? {
         if let priorityID = preferencesService.weeklyPriorityContactID(),
            !preferencesService.isWeeklyPrioritySuppressed(),
            !preferencesService.isWeeklyPriorityWaived(),
-           let priorityHealth = eligible.first(where: { $0.contact.id == priorityID }),
+           let priorityHealth = healthScores.first(where: { $0.contact.id == priorityID }),
            priorityHealth.score > 0 {
             return priorityHealth
         }
 
-        return eligible
+        return healthScores
             .filter { $0.score >= minimumScoreThreshold }
             .max(by: { $0.score < $1.score })
+    }
+
+    private func preferredSlots(
+        from slots: [DateInterval],
+        avoiding diffTime: DateInterval?
+    ) -> [DateInterval] {
+        // Refresh should try another free slot first, but if there is only one viable
+        // slot, keep it and let the activity change carry the refresh.
+        let preferred = slots.filter { !isSameAvailabilityBlock($0, as: diffTime) }
+        return preferred.isEmpty ? slots : preferred
     }
 
     private func isSameAvailabilityBlock(_ slot: DateInterval, as diffTime: DateInterval?) -> Bool {
@@ -164,15 +203,36 @@ final class SuggestionService {
         return false
     }
 
-    private func contextByAddingAvoidance(
-        to context: PromptContext,
-        avoiding diffSuggestion: [String]
-    ) -> PromptContext {
-        var updatedContext = context
-        let avoidanceFacts = diffSuggestion.map {
-            ContextFact(description: "Avoid suggestions like \($0)", source: .userGoal)
+    private func orderedUnique(_ activities: [String]) -> [String] {
+        // Keep the first occurrence so avoidance order reflects what the user saw first.
+        var seen: Set<String> = []
+        return activities.filter { seen.insert($0).inserted }
+    }
+
+    private func shouldRetryAvoidedProposal(
+        _ proposal: ActivityProposal,
+        context: PromptContext
+    ) -> Bool {
+        // Some primary strategies degrade to a local random activity when the LLM is
+        // unavailable; this keeps refresh-avoidance enforced in that no-key path too.
+        context.previouslySuggestedActivities.contains(proposal.activityDescription)
+    }
+
+    private func forcedDifferentProposal(
+        from proposal: ActivityProposal,
+        for health: RelationshipHealth,
+        context: PromptContext
+    ) -> ActivityProposal? {
+        // Last resort for refresh: pick the first enum activity that was not just shown.
+        let avoided = Set(context.previouslySuggestedActivities)
+        guard let activity = Activity.allCases.first(where: {
+            $0.isRemote == health.contact.isRemote && !avoided.contains($0.description)
+        }) else {
+            return nil
         }
-        updatedContext.userGoals.append(contentsOf: avoidanceFacts)
-        return updatedContext
+        return ActivityProposal(
+            activityDescription: activity.description,
+            reason: proposal.reason
+        )
     }
 }
