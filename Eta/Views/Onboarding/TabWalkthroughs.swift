@@ -7,19 +7,28 @@ enum TabWalkthroughs {
             icon: "clock.badge.checkmark",
             iconColor: .blue,
             title: "Set Your Availability",
-            description: "Tell Eta when you're free so it can suggest hangouts at the right times."
+            description: "Tell Eta when you're free so it can suggest hangouts at the right times.",
+            primaryButtonTitle: "Try it"
         ),
         WalkthroughStep(
-            icon: "hand.tap",
+            icon: "hand.draw",
             iconColor: .indigo,
-            title: "Tap to Toggle Hours",
-            description: "Tap any hour block to mark it as free or busy. Your availability is saved automatically."
+            title: "Drag to Toggle Hours",
+            description: "Drag your finger over an hour to mark it as free or busy. Your availability is saved automatically.",
+            primaryButtonTitle: "Try it"
         ),
         WalkthroughStep(
             icon: "calendar.badge.clock",
             iconColor: .teal,
             title: "Plan Ahead",
-            description: "Swipe between days to set your availability for the week. The more you add, the better your suggestions."
+            description: "Swipe between different days to set your availability for the week. You can also set recurring time blocks. The more you add the better your suggestions.",
+            primaryButtonTitle: "Try it"
+        ),
+        WalkthroughStep(
+            icon: "checkmark.circle.fill",
+            iconColor: .green,
+            title: "Availability Set!",
+            description: "You're ready to get hangout suggestions!"
         ),
     ]
 
@@ -34,13 +43,28 @@ enum TabWalkthroughs {
             icon: "plus.circle.fill",
             iconColor: .green,
             title: "Add Friends",
-            description: "Tap the + button to add friends from your contacts. Eta will track how often you hang out."
+            description: "Tap the ••• button to add friends from your contacts and tag your relationships. Eta will track how often you hang out.",
+            primaryButtonTitle: "Try it"
         ),
         WalkthroughStep(
             icon: "heart.text.clipboard",
             iconColor: .pink,
             title: "Relationship Health",
             description: "Each friend shows a health score based on how recently you've spent time together."
+        ),
+        WalkthroughStep(
+            icon: "gearshape",
+            iconColor: .gray,
+            title: "Preferences",
+            description: "Set your own preferences in Settings!",
+            primaryButtonTitle: "Try it"
+        ),
+        WalkthroughStep(
+            icon: "checkmark.circle.fill",
+            iconColor: .green,
+            title: "All set!",
+            description: "Let us know your availability and you can schedule some hangouts!",
+            primaryButtonTitle: "Done"
         ),
     ]
 
@@ -60,8 +84,16 @@ enum TabWalkthroughs {
         WalkthroughStep(
             icon: "clock.arrow.circlepath",
             iconColor: .cyan,
-            title: "Event History",
-            description: "Scroll down to see past hangouts and track your social activity over time."
+            title: "Use the Chatbot",
+            description: "You can use the chatbot to set goals, add preferences, and schedule hangouts with ease!",
+            primaryButtonTitle: "Try it"
+        ),
+        WalkthroughStep(
+            icon: "checklist",
+            iconColor: .green,
+            title: "Finished",
+            description: "You're ready to use the app.",
+            primaryButtonTitle: "Done"
         ),
     ]
 
@@ -81,8 +113,16 @@ enum TabWalkthroughs {
         WalkthroughStep(
             icon: "arrow.clockwise",
             iconColor: .teal,
-            title: "Pull to Refresh",
-            description: "Not feeling it? Pull down to get a new suggestion, or tap 'Maybe Later' to dismiss."
+            title: "Tap to Refresh",
+            description: "Not feeling it? You can edit its details yourself or tap the refresh button for a new one.",
+            primaryButtonTitle: "Try it"
+        ),
+        WalkthroughStep(
+            icon: "checkmark.circle.fill",
+            iconColor: .green,
+            title: "Go to the Events tab to see your new event!",
+            description: "",
+            primaryButtonTitle: "Done"
         ),
     ]
 }

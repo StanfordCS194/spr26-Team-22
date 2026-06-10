@@ -1,12 +1,19 @@
 import SwiftUI
 
+/// Suggestions tab that presents the current hangout suggestion and tutorial flow.
 struct SuggestionView: View {
     let viewModel: SuggestionViewModel
     let analyticsService: AnalyticsService
+    let isTutorialActive: Bool
+    let tutorialRequestID: Int
+    let onTutorialDone: () -> Void
+    let onTutorialNext: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var scheduleStartTime: Date?
     @State private var showingCustomize = false
+    @State private var tutorialPhase: SuggestionsTutorialPhase = .none
+    @State private var startedTutorialRequestID: Int?
 
     var body: some View {
         NavigationStack {
@@ -26,10 +33,13 @@ struct SuggestionView: View {
                                 displayName: viewModel.displayName(for: suggestion),
                                 timeLabel: viewModel.timeLabel(for: suggestion),
                                 suggestion: suggestion,
-                                onCustomize: { showingCustomize = true },
+                                onCustomize: {
+                                    showingCustomize = true
+                                },
                                 latestPhotoData: viewModel.latestPhotoData(for: suggestion),
                                 onDismiss: {
                                     analyticsService.logSuggestionDismissed(contactName: viewModel.displayName(for: suggestion))
+                                    completeSuggestionActionIfNeeded()
                                     viewModel.dismiss()
                                 },
                                 onSchedule: {
@@ -48,6 +58,7 @@ struct SuggestionView: View {
                                         isFreeSlotSuggested: true
                                     )
                                     scheduleStartTime = Date()
+                                    completeSuggestionActionIfNeeded()
                                     viewModel.schedule()
                                 },
                                 analyticsService: analyticsService
@@ -76,6 +87,7 @@ struct SuggestionView: View {
         }
         .task {
             await viewModel.refresh()
+            startSuggestionsTutorialIfNeeded()
 
             if let suggestion = viewModel.suggestion {
                 analyticsService.logSuggestionsGenerated(
@@ -88,6 +100,23 @@ struct SuggestionView: View {
             if newPhase == .active {
                 Task { await viewModel.refresh() }
             }
+        }
+        .onChange(of: isTutorialActive) { _, isActive in
+            if !isActive {
+                tutorialPhase = .none
+                startedTutorialRequestID = nil
+            } else {
+                startSuggestionsTutorialIfNeeded()
+            }
+        }
+        .onChange(of: tutorialRequestID) { _, _ in
+            startSuggestionsTutorialIfNeeded()
+        }
+        .overlayPreferenceValue(TutorialTargetPreferenceKey<SuggestionTutorialTarget>.self) { targets in
+            GeometryReader { proxy in
+                suggestionsTutorialOverlay(targets: targets, proxy: proxy)
+            }
+            .allowsHitTesting(tutorialPhase != .none)
         }
         .trackScreen("SuggestionView", analytics: analyticsService)
         .alert("Hangout already scheduled", isPresented: schedulingConflictBinding) {
@@ -114,6 +143,129 @@ struct SuggestionView: View {
         }
     }
 
+    /// Renders the Suggestions tutorial slides and target pointers.
+    @ViewBuilder
+    private func suggestionsTutorialOverlay(
+        targets: [SuggestionTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy
+    ) -> some View {
+        ZStack {
+            suggestionsTutorialPointers(targets: targets, proxy: proxy)
+                .allowsHitTesting(false)
+
+            if let step = tutorialPhase.walkthroughStep {
+                WalkthroughOverlay(
+                    steps: [step],
+                    onPrimaryAction: { _ in
+                        handleSuggestionsTutorialPrimaryAction()
+                        return true
+                    },
+                    secondaryButtonTitle: tutorialPhase == .completeSlide ? "Next Step" : nil,
+                    onSecondaryAction: tutorialPhase == .completeSlide ? {
+                        finishSuggestionsTutorial()
+                        onTutorialNext()
+                    } : nil,
+                    showsBackButton: tutorialPhase.hasPreviousSlide,
+                    onBackAction: {
+                        goBackInSuggestionsTutorial()
+                    },
+                    onDismiss: {
+                        finishSuggestionsTutorial()
+                    }
+                )
+            }
+        }
+    }
+
+    /// Shows all action-button pointers for the interactive Suggestions step.
+    @ViewBuilder
+    private func suggestionsTutorialPointers(
+        targets: [SuggestionTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy
+    ) -> some View {
+        if tutorialPhase == .actionPointers {
+            suggestionsPointer(target: .scheduleButton, in: targets, proxy: proxy, arrowType: .down, description: "Send an invite!")
+            suggestionsPointer(target: .detailsButton, in: targets, proxy: proxy, arrowType: .left, description: "Take a closer look.")
+        } else {
+            EmptyView()
+        }
+    }
+
+    /// Anchors a Suggestions tutorial pointer to a card button when available.
+    @ViewBuilder
+    private func suggestionsPointer(
+        target: SuggestionTutorialTarget,
+        in targets: [SuggestionTutorialTarget: Anchor<CGRect>],
+        proxy: GeometryProxy,
+        arrowType: TutorialPointerArrowType,
+        description: String
+    ) -> some View {
+        if let anchor = targets[target] {
+            TutorialPointer(
+                arrowType: arrowType,
+                targetFrame: proxy[anchor],
+                containerSize: proxy.size,
+                description: description
+            )
+        }
+    }
+
+    /// Resets tracking and starts the Suggestions tutorial at its first slide.
+    private func startSuggestionsTutorial() {
+        tutorialPhase = .introSlide
+    }
+
+    /// Starts the Suggestions tutorial once for the active parent request.
+    private func startSuggestionsTutorialIfNeeded() {
+        guard isTutorialActive, tutorialRequestID > 0 else { return }
+        guard startedTutorialRequestID != tutorialRequestID else { return }
+        startedTutorialRequestID = tutorialRequestID
+        startSuggestionsTutorial()
+    }
+
+    /// Marks the Suggestions tutorial complete and notifies the parent tab coordinator.
+    private func finishSuggestionsTutorial() {
+        UserDefaults.standard.set(true, forKey: "walkthrough_suggestions")
+        tutorialPhase = .none
+        onTutorialDone()
+    }
+
+    /// Advances the Suggestions tutorial through slides and the action-pointer phase.
+    private func handleSuggestionsTutorialPrimaryAction() {
+        switch tutorialPhase {
+        case .introSlide:
+            tutorialPhase = .inviteSlide
+        case .inviteSlide:
+            tutorialPhase = .refreshSlide
+        case .refreshSlide:
+            tutorialPhase = .actionPointers
+        case .completeSlide:
+            finishSuggestionsTutorial()
+        case .none, .actionPointers:
+            break
+        }
+    }
+
+    /// Moves the Suggestions tutorial back to the previous slide phase.
+    private func goBackInSuggestionsTutorial() {
+        switch tutorialPhase {
+        case .inviteSlide:
+            tutorialPhase = .introSlide
+        case .refreshSlide:
+            tutorialPhase = .inviteSlide
+        case .completeSlide:
+            tutorialPhase = .refreshSlide
+        case .none, .introSlide, .actionPointers:
+            break
+        }
+    }
+
+    /// Moves past the action-pointer phase when the user chooses a final action.
+    private func completeSuggestionActionIfNeeded() {
+        guard tutorialPhase == .actionPointers else { return }
+        tutorialPhase = .completeSlide
+    }
+
     private var schedulingConflictBinding: Binding<Bool> {
         Binding(
             get: { viewModel.hasSchedulingConflict },
@@ -128,6 +280,7 @@ struct SuggestionView: View {
 
 // MARK: - Confirmation views
 
+/// Transitional view shown while a hangout invite is being scheduled.
 private struct AcceptedView: View {
     var body: some View {
         VStack(spacing: 8) {
@@ -143,6 +296,7 @@ private struct AcceptedView: View {
     }
 }
 
+/// Confirmation view shown after an invitation has been sent.
 private struct InvitationSentView: View {
     let friendName: String
     let onDone: () -> Void
@@ -169,5 +323,39 @@ private struct InvitationSentView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// Step state for the Suggestions tab's interactive tutorial.
+private enum SuggestionsTutorialPhase: Equatable {
+    case none
+    case introSlide
+    case inviteSlide
+    case refreshSlide
+    case actionPointers
+    case completeSlide
+
+    var walkthroughStep: WalkthroughStep? {
+        switch self {
+        case .introSlide:
+            return TabWalkthroughs.suggestions[0]
+        case .inviteSlide:
+            return TabWalkthroughs.suggestions[1]
+        case .refreshSlide:
+            return TabWalkthroughs.suggestions[2]
+        case .completeSlide:
+            return TabWalkthroughs.suggestions[3]
+        case .none, .actionPointers:
+            return nil
+        }
+    }
+
+    var hasPreviousSlide: Bool {
+        switch self {
+        case .inviteSlide, .refreshSlide, .completeSlide:
+            return true
+        case .none, .introSlide, .actionPointers:
+            return false
+        }
     }
 }
