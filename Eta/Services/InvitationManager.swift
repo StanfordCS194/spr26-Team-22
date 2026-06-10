@@ -259,6 +259,10 @@ final class InvitationManager {
         try? pendingReceivedRepo.deleteExpired()
     }
 
+    func hasConflict(start: Date, end: Date) -> Bool {
+        hasOverlappingScheduledHangout(start: start, end: end)
+    }
+
     private func hasOverlappingScheduledHangout(start: Date, end: Date) -> Bool {
         guard end > start else { return false }
 

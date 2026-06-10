@@ -85,6 +85,10 @@ final class UpcomingEventsViewModel {
         await refresh()
     }
 
+    func hasConflict(for interval: DateInterval, excludingID: UUID? = nil) -> Bool {
+        (try? hangoutRepository.hasOverlappingHangout(start: interval.start, end: interval.end, excludingID: excludingID)) ?? false
+    }
+
     // MARK: - CRUD
 
     /// Books a new hangout and sends an invitation via InvitationManager.

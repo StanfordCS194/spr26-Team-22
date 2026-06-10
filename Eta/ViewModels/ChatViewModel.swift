@@ -115,7 +115,10 @@ final class ChatViewModel {
                 proposedTimes: [interval],
                 generatedAt: .now
             )
-            guard let hangoutID = inviteService.book(suggestion: suggestion) else { return }
+            guard let hangoutID = inviteService.book(suggestion: suggestion) else {
+                messages.append(ChatMessage(role: .assistant, content: "You already have an event at that time. Try a different time."))
+                return
+            }
             _ = try? await invitationManager.acceptSuggestion(
                 contact: contact,
                 activityName: activity,

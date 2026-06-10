@@ -31,6 +31,10 @@ final class InviteService {
         return hangout.id
     }
 
+    func hasConflict(for interval: DateInterval) -> Bool {
+        (try? hangoutRepository.hasOverlappingHangout(start: interval.start, end: interval.end)) ?? false
+    }
+
     /// Opens Messages with a pre-filled invite text.
     /// Call this when the user taps "Send Invite" on the confirmation screen.
     func sendMessage(for suggestion: Suggestion) {

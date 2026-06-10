@@ -24,6 +24,7 @@ struct UpcomingEventsDashboard: View {
                             ForEach(viewModel.pendingInvites) { invite in
                                 ReceivedInviteCard(
                                     invite: invite,
+                                    hasConflict: viewModel.hasConflict(for: DateInterval(start: invite.startTime, end: invite.endTime)),
                                     onAccept: { Task { await viewModel.respond(to: invite, accepted: true) } },
                                     onDecline: { Task { await viewModel.respond(to: invite, accepted: false) } }
                                 )
@@ -87,7 +88,8 @@ struct UpcomingEventsDashboard: View {
                 },
                 onSuggestActivity: { contact, proposedTime in
                     try await viewModel.suggestActivity(for: contact, proposedTime: proposedTime)
-                }
+                },
+                conflictChecker: { viewModel.hasConflict(for: $0) }
             )
         }
         .sheet(item: $editingItem) { item in
@@ -99,7 +101,8 @@ struct UpcomingEventsDashboard: View {
                 },
                 onSuggestActivity: { contact, proposedTime in
                     try await viewModel.suggestActivity(for: contact, proposedTime: proposedTime)
-                }
+                },
+                conflictChecker: { viewModel.hasConflict(for: $0, excludingID: item.hangout.id) }
             )
         }
         .trackScreen("UpcomingEventsDashboard", analytics: analyticsService)

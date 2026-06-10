@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReceivedInviteCard: View {
     let invite: PendingReceivedInvitation
+    let hasConflict: Bool
     let onAccept: () -> Void
     let onDecline: () -> Void
 
@@ -16,6 +17,11 @@ struct ReceivedInviteCard: View {
                 Text(formattedTime)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if hasConflict {
+                    Label("You already have an event at this time", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
 
             HStack(spacing: 10) {
@@ -27,6 +33,7 @@ struct ReceivedInviteCard: View {
                 Button("Accept", action: onAccept)
                     .frame(maxWidth: .infinity)
                     .buttonStyle(.borderedProminent)
+                    .disabled(hasConflict)
             }
         }
         .padding()

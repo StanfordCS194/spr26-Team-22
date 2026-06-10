@@ -14,6 +14,7 @@ struct AddEditEventSheet: View {
     let mode: Mode
     let onSave: (TrackedContact, String, DateInterval) async -> Void
     let onSuggestActivity: (TrackedContact, DateInterval) async throws -> String?
+    var conflictChecker: ((DateInterval) -> Bool)?
 
     @State private var selectedContactID: UUID?
     @State private var activityInputMode: ActivityInputMode = .preset
@@ -43,7 +44,7 @@ struct AddEditEventSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        .disabled(!canSave)
+                        .disabled(!canSave || hasConflict)
                 }
             }
         }
@@ -133,6 +134,11 @@ struct AddEditEventSheet: View {
                 Text("2 hours").tag(2.0)
                 Text("3 hours").tag(3.0)
             }
+            if hasConflict {
+                Label("You already have an event at this time", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
         }
     }
 
@@ -163,6 +169,11 @@ struct AddEditEventSheet: View {
         case .preset: return selectedPreset.rawValue
         case .custom: return customText.trimmingCharacters(in: .whitespaces)
         }
+    }
+
+    private var hasConflict: Bool {
+        guard let checker = conflictChecker else { return false }
+        return checker(DateInterval(start: startDate, duration: durationHours * 3600))
     }
 
     private var canSave: Bool {

@@ -7,6 +7,7 @@ struct SuggestionDetailSheet: View {
     let initialTime: Date
     let onConfirm: (String, Date) -> Void
     let onDismiss: () -> Void
+    var conflictChecker: ((Date) -> Bool)?
 
     @State private var selectedActivity: String
     @State private var selectedTime: Date
@@ -17,7 +18,8 @@ struct SuggestionDetailSheet: View {
         initialActivity: String,
         initialTime: Date,
         onConfirm: @escaping (String, Date) -> Void,
-        onDismiss: @escaping () -> Void
+        onDismiss: @escaping () -> Void,
+        conflictChecker: ((Date) -> Bool)? = nil
     ) {
         self.displayName = displayName
         self.reason = reason
@@ -25,6 +27,7 @@ struct SuggestionDetailSheet: View {
         self.initialTime = initialTime
         self.onConfirm = onConfirm
         self.onDismiss = onDismiss
+        self.conflictChecker = conflictChecker
         _selectedActivity = State(initialValue: initialActivity)
         _selectedTime = State(initialValue: initialTime)
     }
@@ -64,6 +67,11 @@ struct SuggestionDetailSheet: View {
                         in: Date()...,
                         displayedComponents: [.date, .hourAndMinute]
                     )
+                    if let checker = conflictChecker, checker(selectedTime) {
+                        Label("You already have an event at this time", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             .navigationTitle("Customize")
@@ -76,6 +84,7 @@ struct SuggestionDetailSheet: View {
                     Button("Done") {
                         onConfirm(selectedActivity, selectedTime)
                     }
+                    .disabled(conflictChecker?(selectedTime) == true)
                 }
             }
             .onChange(of: initialActivity) { _, newActivity in

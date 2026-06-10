@@ -20,17 +20,18 @@ final class ScheduledHangoutRepository {
         guard try !hasOverlappingHangout(start: hangout.startDate, end: hangout.endDate) else {
             throw ScheduledHangoutRepositoryError.overlappingHangout
         }
-
         modelContext.insert(hangout)
         try modelContext.save()
         NotificationCenter.default.post(name: .scheduledHangoutsDidChange, object: nil)
     }
 
     /// Returns true when a non-canceled hangout already occupies any part of the interval.
-    func hasOverlappingHangout(start: Date, end: Date) throws -> Bool {
+    /// Pass `excludingID` to ignore a specific hangout (e.g. the one being edited).
+    func hasOverlappingHangout(start: Date, end: Date, excludingID: UUID? = nil) throws -> Bool {
         guard end > start else { return false }
 
         return try fetchUpcoming().contains {
+            $0.id != excludingID &&
             $0.status != .canceled &&
             $0.startDate < end &&
             $0.endDate > start
