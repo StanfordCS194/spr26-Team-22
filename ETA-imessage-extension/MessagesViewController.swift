@@ -2,6 +2,79 @@ import UIKit
 import Messages
 import SwiftUI
 
+// MARK: - Supabase client (extension-side, minimal)
+//
+// Uses the same group.me.Eta App Group as the main app so both targets share one deviceID.
+// One-time Xcode setup required: add the "App Groups" capability (group.me.Eta) to BOTH targets
+// in Signing & Capabilities. Once done, the extension and main app share the same Supabase
+// deviceID, so InvitationManager.pollSentInvitations picks up extension-originated invites.
+
+private enum SharedDefaults {
+    static let appGroupID = "group.me.Eta"
+    static var suite: UserDefaults { UserDefaults(suiteName: appGroupID) ?? .standard }
+
+    static var deviceID: String {
+        if let saved = suite.string(forKey: "supabaseDeviceID") { return saved }
+        let id = UUID().uuidString
+        suite.set(id, forKey: "supabaseDeviceID")
+        return id
+    }
+}
+
+private struct ExtSupabase {
+    static var baseURL: String {
+        let host = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String) ?? ""
+        return host.isEmpty ? "" : "https://\(host)"
+    }
+    static var anonKey: String {
+        (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String) ?? ""
+    }
+    static var isConfigured: Bool { !baseURL.isEmpty && !anonKey.isEmpty }
+
+    static func rsvpURL(for invitationID: String) -> String? {
+        guard isConfigured else { return nil }
+        return "\(baseURL)/functions/v1/invite-rsvp?id=\(invitationID)"
+    }
+
+    static func updateStatus(id: String, to status: String) async {
+        guard isConfigured, let url = URL(string: "\(baseURL)/rest/v1/invitations?id=eq.\(id)") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["status": status])
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    static func postInvitation(id: String, activity: String, startTime: Date, endTime: Date) async {
+        guard isConfigured else {
+            print("[ExtSupabase] not configured — baseURL='\(baseURL)' anonKey prefix='\(anonKey.prefix(10))'")
+            return
+        }
+        let body: [String: Any] = [
+            "id": id, "from_device": SharedDefaults.deviceID,
+            "from_identifier": "", "to_identifier": "", "friend_name": "",
+            "activity": activity,
+            "start_time": ISO8601DateFormatter().string(from: startTime),
+            "end_time":   ISO8601DateFormatter().string(from: endTime),
+            "status": "pending"
+        ]
+        var req = URLRequest(url: URL(string: "\(baseURL)/rest/v1/invitations")!)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (data, response) = try? await URLSession.shared.data(for: req) {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[ExtSupabase] postInvitation status=\(status) body=\(String(data: data, encoding: .utf8) ?? "")")
+        } else {
+            print("[ExtSupabase] postInvitation network error")
+        }
+    }
+}
+
 // MARK: - Data
 
 private struct InviteActivity: Identifiable, Hashable {
@@ -52,7 +125,8 @@ class MessagesViewController: MSMessagesAppViewController {
         removeAllChildViewControllers()
 
         if let message = conversation.selectedMessage, let url = message.url {
-            presentInviteDetail(from: url, session: message.session, conversation: conversation)
+            let isSender = message.senderParticipantIdentifier == conversation.localParticipantIdentifier
+            presentInviteDetail(from: url, isSender: isSender, session: message.session, conversation: conversation)
             return
         }
 
@@ -89,30 +163,59 @@ class MessagesViewController: MSMessagesAppViewController {
         embed(UIHostingController(rootView: view))
     }
 
-    private func presentInviteDetail(from url: URL, session: MSSession?, conversation: MSConversation) {
+    private func presentInviteDetail(
+        from url: URL, isSender: Bool, session: MSSession?, conversation: MSConversation
+    ) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let items = components.queryItems else { return }
 
-        let activityName = items.first { $0.name == "activity" }?.value ?? "Hang out"
-        let iconName = items.first { $0.name == "icon" }?.value ?? "calendar"
-        let timestamp = items.first { $0.name == "date" }?.value ?? ""
-        let note = items.first { $0.name == "note" }?.value ?? ""
-        let statusRaw = items.first { $0.name == "status" }?.value ?? "pending"
+        let activityName  = items.first { $0.name == "activity"     }?.value ?? "Hang out"
+        let iconName      = items.first { $0.name == "icon"         }?.value ?? "calendar"
+        let timestamp     = items.first { $0.name == "date"         }?.value ?? ""
+        let endTimestamp  = items.first { $0.name == "endTime"      }?.value ?? ""
+        let note          = items.first { $0.name == "note"         }?.value ?? ""
+        let statusRaw     = items.first { $0.name == "status"       }?.value ?? "pending"
+        let invitationID  = items.first { $0.name == "invitationID" }?.value ?? ""
         let status = InviteStatus(rawValue: statusRaw) ?? .pending
-        let date = Date(timeIntervalSince1970: Double(timestamp) ?? Date().timeIntervalSince1970)
+        let startDate = Date(timeIntervalSince1970: Double(timestamp) ?? Date().timeIntervalSince1970)
+        let endDate   = Date(timeIntervalSince1970: Double(endTimestamp) ?? startDate.addingTimeInterval(3600).timeIntervalSince1970)
         let color = InviteActivity.all.first { $0.name == activityName }?.color ?? etaTeal
+
+        // If the sender opens an already-accepted bubble, offer "Add to Eta".
+        let onAddToEta: (() -> Void)? = (isSender && status == .accepted) ? { [weak self] in
+            self?.openEtaApp(activity: activityName, startDate: startDate, endDate: endDate, invitationID: invitationID)
+        } : nil
 
         let view = EnvelopeDetailView(
             activityName: activityName, icon: iconName,
-            date: date, note: note, status: status, accentColor: color
+            date: startDate, note: note, status: status, accentColor: color,
+            isSender: isSender, onAddToEta: onAddToEta
         ) { [weak self] newStatus in
             self?.respondToInvite(
                 activityName: activityName, icon: iconName,
-                date: date, note: note, status: newStatus,
+                date: startDate, endDate: endDate, note: note,
+                invitationID: invitationID, status: newStatus,
                 session: session, conversation: conversation
             )
         }
         embed(UIHostingController(rootView: view))
+    }
+
+    private func openEtaApp(activity: String, startDate: Date, endDate: Date, invitationID: String = "") {
+        var c = URLComponents()
+        c.scheme = "eta"
+        c.host   = "invite-accepted"
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "activity", value: activity),
+            URLQueryItem(name: "start",    value: "\(startDate.timeIntervalSince1970)"),
+            URLQueryItem(name: "end",      value: "\(endDate.timeIntervalSince1970)"),
+        ]
+        if !invitationID.isEmpty {
+            items.append(URLQueryItem(name: "invitationID", value: invitationID))
+        }
+        c.queryItems = items
+        guard let url = c.url else { return }
+        extensionContext?.open(url, completionHandler: nil)
     }
 
     // MARK: - Sending
@@ -120,23 +223,35 @@ class MessagesViewController: MSMessagesAppViewController {
     private func sendInvite(activity: InviteActivity, date: Date, note: String) {
         guard let conversation = activeConversation else { return }
 
+        let invitationID = UUID().uuidString
+        let endTime = date.addingTimeInterval(3600)
+
+        Task { await ExtSupabase.postInvitation(id: invitationID, activity: activity.name, startTime: date, endTime: endTime) }
+
         let message = MSMessage(session: MSSession())
         let layout = MSMessageTemplateLayout()
         layout.image = renderEnvelopeCard(activity: activity, date: date, status: .pending)
         layout.caption = activity.name
         layout.subcaption = formatDate(date)
+        if let rsvpURL = ExtSupabase.rsvpURL(for: invitationID) {
+            layout.trailingSubcaption = "Tap to RSVP"
+            message.summaryText = "Hangout invite: \(activity.name)\nRSVP: \(rsvpURL)"
+        } else {
+            message.summaryText = "Hangout invite: \(activity.name)"
+        }
 
         var components = URLComponents()
         components.queryItems = [
-            URLQueryItem(name: "activity", value: activity.name),
-            URLQueryItem(name: "date", value: "\(date.timeIntervalSince1970)"),
-            URLQueryItem(name: "icon", value: activity.icon),
-            URLQueryItem(name: "note", value: note),
-            URLQueryItem(name: "status", value: InviteStatus.pending.rawValue),
+            URLQueryItem(name: "activity",     value: activity.name),
+            URLQueryItem(name: "date",         value: "\(date.timeIntervalSince1970)"),
+            URLQueryItem(name: "endTime",      value: "\(endTime.timeIntervalSince1970)"),
+            URLQueryItem(name: "icon",         value: activity.icon),
+            URLQueryItem(name: "note",         value: note),
+            URLQueryItem(name: "status",       value: InviteStatus.pending.rawValue),
+            URLQueryItem(name: "invitationID", value: invitationID),
         ]
         message.url = components.url
         message.layout = layout
-        message.summaryText = "Hangout invite: \(activity.name)"
 
         conversation.insert(message) { [weak self] error in
             if error == nil {
@@ -147,8 +262,8 @@ class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func respondToInvite(
-        activityName: String, icon: String, date: Date,
-        note: String, status: InviteStatus,
+        activityName: String, icon: String, date: Date, endDate: Date,
+        note: String, invitationID: String, status: InviteStatus,
         session: MSSession?, conversation: MSConversation
     ) {
         let message = MSMessage(session: session ?? MSSession())
@@ -167,19 +282,29 @@ class MessagesViewController: MSMessagesAppViewController {
 
         var components = URLComponents()
         components.queryItems = [
-            URLQueryItem(name: "activity", value: activityName),
-            URLQueryItem(name: "date", value: "\(date.timeIntervalSince1970)"),
-            URLQueryItem(name: "icon", value: icon),
-            URLQueryItem(name: "note", value: note),
-            URLQueryItem(name: "status", value: status.rawValue),
+            URLQueryItem(name: "activity",     value: activityName),
+            URLQueryItem(name: "date",         value: "\(date.timeIntervalSince1970)"),
+            URLQueryItem(name: "endTime",      value: "\(endDate.timeIntervalSince1970)"),
+            URLQueryItem(name: "icon",         value: icon),
+            URLQueryItem(name: "note",         value: note),
+            URLQueryItem(name: "status",       value: status.rawValue),
+            URLQueryItem(name: "invitationID", value: invitationID),
         ]
         message.url = components.url
         message.layout = layout
 
-        conversation.insert(message) { [weak self] error in
+        // Use send() so the response goes out immediately without requiring a second tap.
+        conversation.send(message) { [weak self] error in
             if error == nil {
                 self?.requestPresentationStyle(.compact)
             }
+        }
+
+        // When the receiver accepts, update Supabase so the sender's polling detects it,
+        // then open Eta to create a confirmed ScheduledHangout on the receiver's device.
+        if status == .accepted {
+            Task { await ExtSupabase.updateStatus(id: invitationID, to: "confirmed") }
+            openEtaApp(activity: activityName, startDate: date, endDate: endDate, invitationID: invitationID)
         }
     }
 
@@ -538,6 +663,8 @@ private struct EnvelopeDetailView: View {
     let note: String
     let status: InviteStatus
     let accentColor: Color
+    let isSender: Bool
+    let onAddToEta: (() -> Void)?
     let onRespond: (InviteStatus) -> Void
 
     @State private var flapOpened = false
@@ -602,8 +729,28 @@ private struct EnvelopeDetailView: View {
             }
 
             if status != .pending {
-                StatusBanner(status: status)
-                    .padding(.bottom, 20)
+                VStack(spacing: 12) {
+                    StatusBanner(status: status)
+                    if status == .accepted, let onAddToEta {
+                        Button(action: onAddToEta) {
+                            Label("Add to Eta", systemImage: "calendar.badge.plus")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .foregroundStyle(.white)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .fill(LinearGradient(
+                                            colors: [accentColor, accentColor.opacity(0.75)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing
+                                        ))
+                                )
+                        }
+                        .buttonStyle(ScaleButtonStyle())
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.bottom, 20)
             }
         }
         .background(Color(.systemGroupedBackground))

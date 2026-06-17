@@ -13,8 +13,11 @@ final class ScheduledHangout {
     var id: UUID
     var invitationID: String?
     var contact: TrackedContact?
+    /// Display fallback when `contact` is nil — e.g. when accepted via iMessage or web RSVP
+    /// and the sender isn't in the receiver's TrackedContacts.
+    var contactName: String?
     var activity: String       // Activity.rawValue — stored as String; use resolvedActivity to get the enum
-    
+
     var startDate: Date
     var endDate: Date
 
@@ -30,6 +33,26 @@ final class ScheduledHangout {
     ) {
         self.id = id
         self.contact = contact
+        self.contactName = nil
+        self.activity = activity
+        self.startDate = selectedTime.start
+        self.endDate = selectedTime.end
+        self.scheduledAt = scheduledAt
+        self.inviteeResponse = .pending
+    }
+
+    /// Creates a confirmed hangout from an iMessage or web RSVP where the sender
+    /// may not be a TrackedContact on this device.
+    init(
+        id: UUID = UUID(),
+        contactName: String?,
+        activity: String,
+        selectedTime: DateInterval,
+        scheduledAt: Date = .now
+    ) {
+        self.id = id
+        self.contact = nil
+        self.contactName = contactName
         self.activity = activity
         self.startDate = selectedTime.start
         self.endDate = selectedTime.end
